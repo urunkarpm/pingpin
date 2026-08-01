@@ -1,16 +1,19 @@
 # PingPin
 
-PingPin is an automated, privacy-focused office attendance tracking application designed with a unique E-Ink display aesthetic and haptic feedback.
+PingPin is an automated, privacy-focused office attendance tracking application designed with a sleek liquid glass aesthetic, E-Ink paper style elements, and tactile haptic feedback.
 
-## Features
+## Key Features
 
 - **Automatic Wi-Fi Attendance Detection**: Automatically records attendance when connected to your configured office Wi-Fi network.
-- **E-Ink Display Aesthetic**: Custom paper newsprint visual style (`#F7F4EB`) with sharp high-contrast borders for an authentic e-ink display experience.
-- **Light & Dark E-Ink Themes**: Includes both Light Warm Paper mode and Dark Charcoal E-Ink mode with high-contrast accessibility.
-- **Calendar Attendance View**: Visual monthly calendar displaying marked attendance days with distinct green circular highlights.
-- **Monthly Insights & Quick Month Navigation**: High-level attendance analytics with instant month-stepping controls (`<` and `>`) and a 12-month selection grid modal.
-- **PDF Report Generation**: Export monthly attendance summaries, attendance rates, and recorded dates directly to PDF.
-- **Wi-Fi History Dropdown**: Select office Wi-Fi networks from a aggregated list of saved phone connections, local databases, and live active networks.
-- **Tactile Haptic Navigation**: Haptic feedback on tab interactions across the bottom navigation bar.
-- **Customizable Working Days**: Support for standard and custom workweek schedules.
-- **Local Data Privacy**: All attendance data and Wi-Fi configurations remain stored locally on your device.
+- **BLE Office Presence & Laptop Occupancy Detection**: Non-intrusively scans Bluetooth Low Energy (BLE) signals to detect nearby active office laptops (macOS & Windows) without installing agent software.
+- **Liquid Glass Navigation Bar**: Modern, floating bottom navigation design with smooth translucent glassmorphism effects and tactile haptic feedback.
+- **E-Ink & Dark Themes**: High-contrast paper newsprint visual styling (`#F7F4EB`) and dark charcoal mode for maximum legibility.
+- **Full Month Calendar View**: High-contrast attendance calendar with quick month-stepping controls (`<` and `>`) and interactive 12-month picker modal.
+- **Saved Wi-Fi Networks History**: Dropdown selector populated with historical saved networks, active Wi-Fi connections, and local database entries.
+- **PDF Attendance Reports**: Export monthly attendance summaries, statistics, and log history to PDF documents.
+- **Local Data Privacy**: All attendance records, BLE scan metrics, and Wi-Fi configurations remain completely on-device.
+
+## Automated Builds & Releases
+
+PingPin includes CI/CD automation via GitHub Actions:
+- **iOS / IPA Build Workflow**: Automatically builds and packages the iOS `.ipa` payload on push to `main`/`master` or via manual workflow dispatch (`build_ios.yml`).
