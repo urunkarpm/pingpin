@@ -17,12 +17,18 @@ class MainShell extends ConsumerStatefulWidget {
 class _MainShellState extends ConsumerState<MainShell> {
   int _currentIndex = 0;
 
-  // Keep tab screens alive with IndexedStack so they don't rebuild on switch.
+  // Keep tab screens alive with IndexedStack
   final List<Widget> _screens = const [
     HomeScreen(),
     InsightsScreen(),
     SettingsScreen(),
   ];
+
+  void _onTabSelected(int index) {
+    if (index != _currentIndex) {
+      setState(() => _currentIndex = index);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,11 +41,7 @@ class _MainShellState extends ConsumerState<MainShell> {
       ),
       bottomNavigationBar: LiquidGlassNavBar(
         currentIndex: _currentIndex,
-        onTap: (index) {
-          if (index != _currentIndex) {
-            setState(() => _currentIndex = index);
-          }
-        },
+        onTap: _onTabSelected,
       ),
     );
   }

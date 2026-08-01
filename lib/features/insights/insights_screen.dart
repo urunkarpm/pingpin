@@ -5,8 +5,6 @@ import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 import '../../data/repositories/repositories.dart';
 import '../../data/database/app_database.dart';
-import '../../core/constants/app_constants.dart';
-import '../../providers/providers.dart';
 import '../../core/utils/date_utils.dart';
 import '../../services/pdf_export_service.dart';
 
@@ -237,15 +235,18 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
   Widget build(BuildContext context) {
     final isCurrentMonth = _selectedMonth.year == DateTime.now().year &&
         _selectedMonth.month == DateTime.now().month;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Monthly Insights'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.picture_as_pdf),
+            icon: const Icon(Icons.picture_as_pdf_outlined),
+            tooltip: 'Export PDF',
             onPressed: _isLoading ? null : _exportPdf,
           ),
+          const SizedBox(width: 8),
         ],
       ),
       body: _isLoading
@@ -254,12 +255,19 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
               children: [
                 // Enhanced Month Selector Header
                 Container(
-                  margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surface,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Theme.of(context).dividerColor, width: 1.5),
+                    color: colorScheme.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.03),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -271,21 +279,23 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
                       ),
                       InkWell(
                         onTap: _selectMonth,
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(12),
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           child: Row(
                             children: [
-                              const Icon(Icons.calendar_month_outlined, size: 20),
+                              Icon(Icons.calendar_month_rounded, size: 18, color: colorScheme.primary),
                               const SizedBox(width: 8),
                               Text(
                                 DateFormat('MMMM yyyy').format(_selectedMonth),
                                 style: const TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.2,
                                 ),
                               ),
-                              const Icon(Icons.arrow_drop_down),
+                              const SizedBox(width: 4),
+                              Icon(Icons.keyboard_arrow_down_rounded, size: 20, color: colorScheme.onSurfaceVariant),
                             ],
                           ),
                         ),
@@ -301,65 +311,200 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
                 
                 Expanded(
                   child: ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
                     children: [
-                      _buildMetricCard(
-                        'Attendance %',
-                        '${_attendancePercentage.toStringAsFixed(1)}%',
-                        Icons.pie_chart,
-                        AppColors.green,
+                      // Metric Cards Grid / Rows
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildMetricCard(
+                              'Attendance Rate',
+                              '${_attendancePercentage.toStringAsFixed(1)}%',
+                              Icons.pie_chart_outline_rounded,
+                              subtitle: 'Monthly Target',
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildMetricCard(
+                              'Total Days',
+                              '$_totalOfficeDays',
+                              Icons.business_center_outlined,
+                              subtitle: 'Days Logged',
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 16),
-                      _buildMetricCard(
-                        'Total Office Days',
-                        '$_totalOfficeDays',
-                        Icons.business,
-                        AppColors.black,
-                      ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
                       Row(
                         children: [
                           Expanded(
                             child: _buildMetricCard(
                               'Current Streak',
                               '$_currentStreak days',
-                              Icons.local_fire_department,
-                              Colors.orange,
+                              Icons.local_fire_department_outlined,
                             ),
                           ),
-                          const SizedBox(width: 16),
+                          const SizedBox(width: 12),
                           Expanded(
                             child: _buildMetricCard(
                               'Best Streak',
                               '$_bestStreak days',
-                              Icons.emoji_events,
-                              Colors.amber,
+                              Icons.emoji_events_outlined,
                             ),
                           ),
                         ],
                       ),
                       
-                      // Present/Late dates summary
-                      if (_records.isNotEmpty) ...[
-                        const SizedBox(height: 24),
-                        const Text(
-                          'Attendance Details',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 8),
-                        ..._records.map((record) => ListTile(
-                          leading: Icon(
-                            record.status == AttendanceStatus.present
-                                ? Icons.check_circle
-                                : Icons.warning,
-                            color: record.status == AttendanceStatus.present
-                                ? AppColors.green
-                                : Colors.orange,
+                      const SizedBox(height: 28),
+                      
+                      // Present/Late dates summary section
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Attendance History',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                              color: colorScheme.onSurface,
+                              letterSpacing: -0.2,
+                            ),
                           ),
-                          title: Text(_formatDate(record.dateYyyyMmDd)),
-                          subtitle: Text(record.status.name.toUpperCase()),
-                        )),
-                      ],
+                          if (_records.isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                '${_records.length} Entries',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      
+                      if (_records.isEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: colorScheme.surface,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
+                          ),
+                          child: Column(
+                            children: [
+                              Icon(Icons.event_note_outlined, size: 44, color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
+                              const SizedBox(height: 12),
+                              Text(
+                                'No attendance records found for this month',
+                                style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 14),
+                              ),
+                            ],
+                          ),
+                        )
+                      else
+                        Container(
+                          decoration: BoxDecoration(
+                            color: colorScheme.surface,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.4)),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.02),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: ListView.separated(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: _records.length,
+                            separatorBuilder: (context, index) => Divider(
+                              height: 1,
+                              indent: 56,
+                              endIndent: 16,
+                              color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+                            ),
+                            itemBuilder: (context, index) {
+                              final record = _records[index];
+                              final isPresent = record.status == AttendanceStatus.present;
+
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Icon(
+                                        isPresent ? Icons.check_circle_outline_rounded : Icons.access_time_rounded,
+                                        size: 18,
+                                        color: colorScheme.onSurface,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            _formatDate(record.dateYyyyMmDd),
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 14.5,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            'Marked at: ${DateFormat.jm().format(record.markedAt)}',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: colorScheme.onSurfaceVariant,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(
+                                          color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+                                          width: 1,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        record.status.name.toUpperCase(),
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                          color: colorScheme.onSurface,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -368,45 +513,64 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
     );
   }
   
-  Widget _buildMetricCard(String label, String value, IconData icon, Color color) {
-    final onSurface = Theme.of(context).colorScheme.onSurface;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: onSurface.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: onSurface.withValues(alpha: 0.3), width: 1.5),
+  Widget _buildMetricCard(String label, String value, IconData icon, {String? subtitle}) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.4)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, size: 20, color: colorScheme.onSurface),
               ),
-              child: Icon(icon, size: 28, color: onSurface),
+              if (subtitle != null)
+                Text(
+                  subtitle,
+                  style: TextStyle(fontSize: 11, color: colorScheme.onSurfaceVariant.withValues(alpha: 0.8)),
+                ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: colorScheme.onSurface,
+              letterSpacing: -0.5,
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: TextStyle(fontSize: 13, color: onSurface.withValues(alpha: 0.7)),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    value,
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: onSurface,
-                    ),
-                  ),
-                ],
-              ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w500,
+              color: colorScheme.onSurfaceVariant,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -414,9 +578,10 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
   String _formatDate(String dateStr) {
     try {
       final date = DateTime.parse(dateStr);
-      return DateFormat('EEEE, MMM d, yyyy').format(date);
+      return DateFormat('EEE, MMM d, yyyy').format(date);
     } catch (e) {
       return dateStr;
     }
   }
 }
+

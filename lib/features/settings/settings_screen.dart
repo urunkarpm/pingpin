@@ -225,40 +225,54 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   
   @override
   Widget build(BuildContext context) {
-    final notificationSettings = ref.watch(notificationSettingsProvider);
+    final colorScheme = Theme.of(context).colorScheme;
     
     return Scaffold(
       appBar: AppBar(
         title: const Text('Settings'),
+        centerTitle: false,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
               physics: const BouncingScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-
               children: [
                 // Profile Section
-                _buildSectionHeader('Profile'),
-                Card(
+                _buildSectionHeader('PROFILE'),
+                _buildCardGroup(
                   child: Form(
                     key: _formKey,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        children: [
-                          TextFormField(
-                            controller: _fullNameController,
-                            decoration: const InputDecoration(labelText: 'Full Name *'),
-                            validator: (v) => v?.trim().isEmpty ?? true ? 'Required' : null,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        TextFormField(
+                          controller: _fullNameController,
+                          decoration: InputDecoration(
+                            labelText: 'Full Name',
+                            prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: colorScheme.outlineVariant),
+                            ),
                           ),
-                          const SizedBox(height: 16),
-                          ElevatedButton(
+                          validator: (v) => v?.trim().isEmpty ?? true ? 'Required' : null,
+                        ),
+                        const SizedBox(height: 16),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: FilledButton.icon(
                             onPressed: _saveProfile,
-                            child: const Text('Save Profile'),
+                            icon: const Icon(Icons.check_rounded, size: 18),
+                            label: const Text('Save Profile'),
+                            style: FilledButton.styleFrom(
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -266,143 +280,196 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 const SizedBox(height: 24),
                 
                 // Office Config Section
-                _buildSectionHeader('Office Configuration'),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        FutureBuilder<List<String>>(
-                          future: WifiService().getKnownSSIDs(db: ref.read(databaseProvider)),
-                          builder: (context, snapshot) {
-                            final knownList = snapshot.data ?? [];
-                            final currentText = _ssidController.text.trim();
-                            
-                            // Combine options
-                            final options = <String>{
-                              if (currentText.isNotEmpty) currentText,
-                              ...knownList,
-                            }.toList();
+                _buildSectionHeader('OFFICE CONFIGURATION'),
+                _buildCardGroup(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      FutureBuilder<List<String>>(
+                        future: WifiService().getKnownSSIDs(db: ref.read(databaseProvider)),
+                        builder: (context, snapshot) {
+                          final knownList = snapshot.data ?? [];
+                          final currentText = _ssidController.text.trim();
+                          
+                          final options = <String>{
+                            if (currentText.isNotEmpty) currentText,
+                            ...knownList,
+                          }.toList();
 
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (options.isNotEmpty) ...[
-                                  const Text(
-                                    'Select Connected Wi-Fi Network',
-                                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  DropdownButtonFormField<String>(
-                                    value: options.contains(currentText) ? currentText : (options.firstOrNull),
-                                    decoration: const InputDecoration(
-                                      prefixIcon: Icon(Icons.wifi),
-                                      labelText: 'Saved Wi-Fi Networks',
-                                    ),
-                                    items: options.map((ssid) => DropdownMenuItem(
-                                      value: ssid,
-                                      child: Text(ssid),
-                                    )).toList(),
-                                    onChanged: (val) {
-                                      if (val != null) {
-                                        setState(() {
-                                          _ssidController.text = val;
-                                        });
-                                      }
-                                    },
-                                  ),
-                                  const SizedBox(height: 12),
-                                ],
-                                TextFormField(
-                                  controller: _ssidController,
-                                  decoration: const InputDecoration(
-                                    labelText: 'WiFi SSID *',
-                                    prefixIcon: Icon(Icons.edit),
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (options.isNotEmpty) ...[
+                                Text(
+                                  'Saved Wi-Fi Networks',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: colorScheme.onSurfaceVariant,
                                   ),
                                 ),
+                                const SizedBox(height: 8),
+                                DropdownButtonFormField<String>(
+                                  value: options.contains(currentText) ? currentText : options.firstOrNull,
+                                  decoration: InputDecoration(
+                                    prefixIcon: Icon(Icons.wifi_rounded, color: colorScheme.primary, size: 20),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(color: colorScheme.outlineVariant),
+                                    ),
+                                  ),
+                                  items: options.map((ssid) => DropdownMenuItem(
+                                    value: ssid,
+                                    child: Text(ssid, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                                  )).toList(),
+                                  onChanged: (val) {
+                                    if (val != null) {
+                                      setState(() {
+                                        _ssidController.text = val;
+                                      });
+                                    }
+                                  },
+                                ),
+                                const SizedBox(height: 16),
                               ],
-                            );
-                          },
+                              TextFormField(
+                                controller: _ssidController,
+                                decoration: InputDecoration(
+                                  labelText: 'Office Wi-Fi SSID',
+                                  prefixIcon: const Icon(Icons.edit_outlined, size: 20),
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide(color: colorScheme.outlineVariant),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+
+                      const SizedBox(height: 20),
+                      Text(
+                        'Working Days',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: colorScheme.onSurfaceVariant,
                         ),
-
-
-
-                        const SizedBox(height: 16),
-                        const Text('Working Days:'),
-
-                        Wrap(
-                          spacing: 8,
-                          children: [
-                            _buildDayChip('Mon', WorkingDays.monday),
-                            _buildDayChip('Tue', WorkingDays.tuesday),
-                            _buildDayChip('Wed', WorkingDays.wednesday),
-                            _buildDayChip('Thu', WorkingDays.thursday),
-                            _buildDayChip('Fri', WorkingDays.friday),
-                            _buildDayChip('Sat', WorkingDays.saturday),
-                            _buildDayChip('Sun', WorkingDays.sunday),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 8,
+                        children: [
+                          _buildDayChip('Mon', WorkingDays.monday),
+                          _buildDayChip('Tue', WorkingDays.tuesday),
+                          _buildDayChip('Wed', WorkingDays.wednesday),
+                          _buildDayChip('Thu', WorkingDays.thursday),
+                          _buildDayChip('Fri', WorkingDays.friday),
+                          _buildDayChip('Sat', WorkingDays.saturday),
+                          _buildDayChip('Sun', WorkingDays.sunday),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: FilledButton.icon(
                           onPressed: _saveOfficeConfig,
-                          child: const Text('Save Office Config'),
+                          icon: const Icon(Icons.save_outlined, size: 18),
+                          label: const Text('Save Office Config'),
+                          style: FilledButton.styleFrom(
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
                 
-
+                const SizedBox(height: 24),
 
                 // Appearance Section
-                _buildSectionHeader('Appearance'),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Theme Mode',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                _buildSectionHeader('APPEARANCE'),
+                _buildCardGroup(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.palette_outlined, color: colorScheme.onSurfaceVariant, size: 20),
+                          const SizedBox(width: 12),
+                          const Text(
+                            'Theme Mode',
+                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                          ),
+                        ],
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                        DropdownButton<ThemeMode>(
-                          value: ref.watch(themeModeProvider),
-                          underline: const SizedBox(),
-                          items: const [
-                            DropdownMenuItem(
-                              value: ThemeMode.system,
-                              child: Text('System Default'),
-                            ),
-                            DropdownMenuItem(
-                              value: ThemeMode.light,
-                              child: Text('Light Mode'),
-                            ),
-                            DropdownMenuItem(
-                              value: ThemeMode.dark,
-                              child: Text('Dark Mode'),
-                            ),
-                          ],
-                          onChanged: (mode) {
-                            if (mode != null) {
-                              ref.read(themeModeProvider.notifier).setThemeMode(mode);
-                            }
-                          },
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<ThemeMode>(
+                            value: ref.watch(themeModeProvider),
+                            style: TextStyle(fontSize: 14, color: colorScheme.onSurface, fontWeight: FontWeight.w500),
+                            items: const [
+                              DropdownMenuItem(
+                                value: ThemeMode.system,
+                                child: Text('System Default'),
+                              ),
+                              DropdownMenuItem(
+                                value: ThemeMode.light,
+                                child: Text('Light Mode'),
+                              ),
+                              DropdownMenuItem(
+                                value: ThemeMode.dark,
+                                child: Text('Dark Mode'),
+                              ),
+                            ],
+                            onChanged: (mode) {
+                              if (mode != null) {
+                                ref.read(themeModeProvider.notifier).setThemeMode(mode);
+                              }
+                            },
+                          ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 16),
+
+                const SizedBox(height: 24),
 
                 // Background Run & Battery Optimization
-                _buildSectionHeader('Background Run & Battery'),
-                Card(
+                _buildSectionHeader('BACKGROUND & PERMISSIONS'),
+                _buildCardGroup(
+                  padding: EdgeInsets.zero,
                   child: ListTile(
-                    leading: const Icon(Icons.battery_saver, color: AppColors.accent),
-                    title: const Text('Ignore Battery Optimizations'),
-                    subtitle: const Text('Allow PingPin to detect Wi-Fi automatically in background'),
-                    trailing: const Icon(Icons.chevron_right),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.accent.withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.battery_saver_rounded, color: AppColors.accent, size: 20),
+                    ),
+                    title: const Text(
+                      'Ignore Battery Optimizations',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: Text(
+                      'Allows background Wi-Fi detection without system kill',
+                      style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
+                    ),
+                    trailing: const Icon(Icons.chevron_right_rounded),
                     onTap: () async {
                       final isGranted = await BackgroundService.requestBatteryOptimizationExemption();
                       if (!isGranted) {
@@ -420,25 +487,34 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         );
                       }
                     },
-
                   ),
                 ),
                 
                 const SizedBox(height: 24),
                 
                 // Data Management
-
-                _buildSectionHeader('Data'),
-                Card(
-                  child: Column(
-                    children: [
-                      ListTile(
-                        leading: const Icon(Icons.delete_forever, color: Colors.red),
-                        title: const Text('Reset All Data'),
-                        subtitle: const Text('Clear all attendance records and settings'),
-                        onTap: _resetData,
+                _buildSectionHeader('DATA MANAGEMENT'),
+                _buildCardGroup(
+                  padding: EdgeInsets.zero,
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
                       ),
-                    ],
+                      child: const Icon(Icons.delete_forever_rounded, color: Colors.red, size: 20),
+                    ),
+                    title: const Text(
+                      'Reset All Data',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.red),
+                    ),
+                    subtitle: Text(
+                      'Permanently delete attendance history and configs',
+                      style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
+                    ),
+                    onTap: _resetData,
                   ),
                 ),
               ],
@@ -447,27 +523,62 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
   
   Widget _buildSectionHeader(String title) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Center(
-        child: Text(
-          title,
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      padding: const EdgeInsets.only(left: 4, bottom: 8),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 11.5,
+          fontWeight: FontWeight.w700,
+          color: colorScheme.onSurfaceVariant,
+          letterSpacing: 1.1,
         ),
       ),
     );
   }
 
-  
+  Widget _buildCardGroup({required Widget child, EdgeInsetsGeometry padding = const EdgeInsets.all(16)}) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.4)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+
   Widget _buildDayChip(String label, int bit) {
-    final isSelected = _workingDaysMask & bit;
+    final isSelected = (_workingDaysMask & bit) != 0;
+    final colorScheme = Theme.of(context).colorScheme;
+
     return FilterChip(
       label: Text(label),
-      selected: isSelected != 0,
+      labelStyle: TextStyle(
+        fontSize: 12.5,
+        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+        color: isSelected ? colorScheme.primary : colorScheme.onSurfaceVariant,
+      ),
+      selected: isSelected,
       onSelected: (_) => _toggleWorkingDay(bit),
-      selectedColor: AppColors.green.withOpacity(0.3),
-      checkmarkColor: AppColors.green,
+      backgroundColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+      selectedColor: colorScheme.primary.withValues(alpha: 0.15),
+      checkmarkColor: colorScheme.primary,
+      side: BorderSide(
+        color: isSelected ? colorScheme.primary.withValues(alpha: 0.4) : colorScheme.outlineVariant.withValues(alpha: 0.4),
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
     );
   }
   
@@ -499,3 +610,4 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 }
+

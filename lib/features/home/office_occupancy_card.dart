@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/ble_laptop_provider.dart';
-import '../../services/ble_laptop_scanner_service.dart';
 
 class OfficeOccupancyCard extends ConsumerWidget {
   const OfficeOccupancyCard({super.key});
@@ -58,13 +57,6 @@ class OfficeOccupancyCard extends ConsumerWidget {
                             color: onSurface,
                           ),
                         ),
-                        Text(
-                          'BLE Laptop Detection (No-Install)',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: onSurface.withValues(alpha: 0.6),
-                          ),
-                        ),
                       ],
                     ),
                   ],
@@ -116,21 +108,18 @@ class OfficeOccupancyCard extends ConsumerWidget {
                     label: 'People in Office',
                     count: '${state.result!.totalCount}',
                     icon: Icons.people_alt_rounded,
-                    color: Colors.blue,
                   ),
                   _buildCountBadge(
                     context,
                     label: 'Windows Laptops',
                     count: '${state.result!.windowsCount}',
                     icon: Icons.desktop_windows_rounded,
-                    color: Colors.teal,
                   ),
                   _buildCountBadge(
                     context,
                     label: 'MacBooks',
                     count: '${state.result!.macCount}',
                     icon: Icons.laptop_mac_rounded,
-                    color: Colors.purple,
                   ),
                 ],
               ),
@@ -161,12 +150,11 @@ class OfficeOccupancyCard extends ConsumerWidget {
     required String label,
     required String count,
     required IconData icon,
-    required Color color,
   }) {
     final onSurface = Theme.of(context).colorScheme.onSurface;
     return Column(
       children: [
-        Icon(icon, color: color, size: 24),
+        Icon(icon, color: onSurface.withValues(alpha: 0.85), size: 24),
         const SizedBox(height: 4),
         Text(
           count,

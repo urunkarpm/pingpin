@@ -84,6 +84,9 @@ class WifiService {
     return currentSSID.toLowerCase() == targetSSID.toLowerCase();
   }
 
+  /// Stream of Wi-Fi connection events
+  Stream<List<ConnectivityResult>> get onConnectivityChanged => Connectivity().onConnectivityChanged;
+
   /// Checks if device is connected to any WiFi network
   Future<bool> isWiFiConnected() async {
     final connectivityResult = await Connectivity().checkConnectivity();

@@ -26,21 +26,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   
   // Profile fields
   final _fullNameController = TextEditingController();
-  final _designationController = TextEditingController();
-  final _employeeIdController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _phoneController = TextEditingController();
   String? _photoPath;
   
   // Office config fields
   final _ssidController = TextEditingController();
-  double _radiusMeters = 100;
-  TimeOfDay _lateCutoffTime = TimeOfDay(hour: 10, minute: 30);
+  final TimeOfDay _lateCutoffTime = const TimeOfDay(hour: 10, minute: 30);
   int _workingDaysMask = WorkingDays.defaultWeekdays;
-  
-  // Location
-  double? _latitude;
-  double? _longitude;
   
   final _locationService = LocationService();
   final _wifiService = WifiService();
@@ -49,10 +40,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   @override
   void dispose() {
     _fullNameController.dispose();
-    _designationController.dispose();
-    _employeeIdController.dispose();
-    _emailController.dispose();
-    _phoneController.dispose();
     _ssidController.dispose();
     super.dispose();
   }
@@ -67,23 +54,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     // Request photos permission
     await Permission.photos.request();
     await Permission.camera.request();
-  }
-  
-  Future<void> _captureCurrentLocation() async {
-    final location = await _locationService.getCurrentLocation();
-    if (location != null) {
-      setState(() {
-        _latitude = location.latitude;
-        _longitude = location.longitude;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Location captured successfully')),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to get location. Please enable GPS.')),
-      );
-    }
   }
   
   Future<void> _pickPhoto(ImageSource source) async {
@@ -146,10 +116,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       // Save profile
       await profileRepo.saveProfile(
         fullName: fullName,
-        designation: _designationController.text.trim(),
-        employeeId: _employeeIdController.text.trim().isEmpty ? null : _employeeIdController.text.trim(),
-        email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
-        phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
+        designation: '',
+        employeeId: null,
+        email: null,
+        phone: null,
         photoPath: _photoPath,
       );
       
@@ -351,41 +321,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             ),
             validator: (v) => v?.trim().isEmpty ?? true ? 'Required' : null,
           ),
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: _designationController,
-            decoration: const InputDecoration(
-              labelText: 'Designation *',
-              prefixIcon: Icon(Icons.work),
-            ),
-            validator: (v) => v?.trim().isEmpty ?? true ? 'Required' : null,
-          ),
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: _employeeIdController,
-            decoration: const InputDecoration(
-              labelText: 'Employee ID (Optional)',
-              prefixIcon: Icon(Icons.credit_card),
-            ),
-          ),
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: _emailController,
-            decoration: const InputDecoration(
-              labelText: 'Email (Optional)',
-              prefixIcon: Icon(Icons.email),
-            ),
-            keyboardType: TextInputType.emailAddress,
-          ),
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: _phoneController,
-            decoration: const InputDecoration(
-              labelText: 'Phone (Optional)',
-              prefixIcon: Icon(Icons.phone),
-            ),
-            keyboardType: TextInputType.phone,
-          ),
         ],
       ),
     );
@@ -508,13 +443,26 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   Widget _buildDayChip(String label, int bit) {
-    final isSelected = _workingDaysMask & bit;
+    final isSelected = (_workingDaysMask & bit) != 0;
+    final colorScheme = Theme.of(context).colorScheme;
+
     return FilterChip(
       label: Text(label),
-      selected: isSelected != 0,
+      labelStyle: TextStyle(
+        fontSize: 12.5,
+        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+        color: isSelected ? colorScheme.primary : colorScheme.onSurfaceVariant,
+      ),
+      selected: isSelected,
       onSelected: (_) => _toggleWorkingDay(bit),
-      selectedColor: AppColors.green.withOpacity(0.3),
-      checkmarkColor: AppColors.green,
+      backgroundColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+      selectedColor: colorScheme.primary.withValues(alpha: 0.15),
+      checkmarkColor: colorScheme.primary,
+      side: BorderSide(
+        color: isSelected ? colorScheme.primary.withValues(alpha: 0.4) : colorScheme.outlineVariant.withValues(alpha: 0.4),
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
     );
   }
 }
