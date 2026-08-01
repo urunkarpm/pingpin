@@ -43,9 +43,20 @@ jobs:
       - name: Build Unsigned iOS IPA
         run: flutter build ipa --no-codesign
 
+      - name: Create payload zip if ipa is missing
+        run: |
+          mkdir -p build/ios/ipa
+          if [ -d "build/ios/archive/Runner.xcarchive" ]; then
+            cd build/ios/archive
+            zip -r ../ipa/Runner.ipa Runner.xcarchive
+            cd ../../..
+          fi
+
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ios-ipa-build
-          path: build/ios/ipa/*.ipa
+          path: |
+            build/ios/ipa/*.ipa
+            build/ios/archive/*.xcarchive
           if-no-files-found: warn
