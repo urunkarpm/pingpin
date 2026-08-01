@@ -29,7 +29,6 @@ class OfficeConfigs extends Table {
   RealColumn get latitude => real()();
   RealColumn get longitude => real()();
   IntColumn get radiusMeters => integer().withDefault(const Constant(100))();
-  TextColumn get workStartTime => text().withDefault(const Constant('09:30'))();
   TextColumn get lateCutoffTime => text().withDefault(const Constant('10:30'))();
   IntColumn get workingDaysMask => integer().withDefault(const Constant(31))(); // Mon-Fri default
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();

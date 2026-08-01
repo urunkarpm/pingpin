@@ -35,7 +35,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   // Office config fields
   final _ssidController = TextEditingController();
   double _radiusMeters = 100;
-  TimeOfDay _workStartTime = TimeOfDay(hour: 9, minute: 30);
   TimeOfDay _lateCutoffTime = TimeOfDay(hour: 10, minute: 30);
   int _workingDaysMask = WorkingDays.defaultWeekdays;
   
@@ -160,7 +159,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         latitude: 0.0,
         longitude: 0.0,
         radiusMeters: 100,
-        workStartTime: '${_workStartTime.hour.toString().padLeft(2, '0')}:${_workStartTime.minute.toString().padLeft(2, '0')}',
         lateCutoffTime: '${_lateCutoffTime.hour.toString().padLeft(2, '0')}:${_lateCutoffTime.minute.toString().padLeft(2, '0')}',
         workingDaysMask: _workingDaysMask,
       );
@@ -489,12 +487,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
-        ListTile(
-          title: const Text('Work Start Time'),
-          subtitle: Text(_workStartTime.format(context)),
-          trailing: const Icon(Icons.access_time),
-          onTap: () => _selectTime(_workStartTime, (t) => setState(() => _workStartTime = t)),
-        ),
+
         const SizedBox(height: 16),
         const Text('Working Days:', style: TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),

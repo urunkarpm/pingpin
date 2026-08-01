@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'core/router/router.dart';
 import 'core/theme/app_theme.dart';
 import 'providers/providers.dart';
@@ -7,6 +8,7 @@ import 'services/background_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting();
 
   // Initialize background Workmanager service
   await BackgroundService.initializeBackgroundService();

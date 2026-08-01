@@ -185,7 +185,6 @@ void main() {
         latitude: 0.0,
         longitude: 0.0,
         radiusMeters: 100,
-        workStartTime: '09:30',
         lateCutoffTime: '10:30',
         workingDaysMask: customWorkingDaysMask,
         createdAt: DateTime.now(),

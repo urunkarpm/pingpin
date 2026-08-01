@@ -43,7 +43,6 @@ class OfficeConfigRepository {
     required double latitude,
     required double longitude,
     required int radiusMeters,
-    required String workStartTime,
     required String lateCutoffTime,
     required int workingDaysMask,
   }) async {
@@ -53,7 +52,6 @@ class OfficeConfigRepository {
       latitude: Value(latitude),
       longitude: Value(longitude),
       radiusMeters: Value(radiusMeters),
-      workStartTime: Value(workStartTime),
       lateCutoffTime: Value(lateCutoffTime),
       workingDaysMask: Value(workingDaysMask),
       updatedAt: Value(DateTime.now()),
@@ -124,7 +122,7 @@ class UserProfileRepository {
   Future<int> saveProfile({
     int? id,
     required String fullName,
-    required String designation,
+    String designation = '',
     String? photoPath,
     String? employeeId,
     String? email,

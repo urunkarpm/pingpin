@@ -1,11 +1,7 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../constants/app_constants.dart';
-
-/// A split floating navigation bar supporting both E-Ink Light & Dark modes seamlessly.
+/// A single floating navigation bar supporting both E-Ink Light & Dark modes seamlessly.
 class LiquidGlassNavBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
@@ -16,7 +12,7 @@ class LiquidGlassNavBar extends StatelessWidget {
     required this.onTap,
   });
 
-  static const _primaryItems = [
+  static const _navItems = [
     _NavItem(
       icon: Icons.calendar_month_outlined,
       activeIcon: Icons.calendar_month_rounded,
@@ -27,67 +23,54 @@ class LiquidGlassNavBar extends StatelessWidget {
       activeIcon: Icons.insights_rounded,
       label: 'Insights',
     ),
+    _NavItem(
+      icon: Icons.settings_outlined,
+      activeIcon: Icons.settings_rounded,
+      label: 'Settings',
+    ),
   ];
 
   @override
   Widget build(BuildContext context) {
-    final primaryIndex = currentIndex.clamp(0, _primaryItems.length - 1);
-    final isSettingsSelected = currentIndex == 2;
+    final validIndex = currentIndex.clamp(0, _navItems.length - 1);
 
     return SafeArea(
       top: false,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-        child: Row(
-          children: [
-            Expanded(
-              child: _GlassCapsule(
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    LayoutBuilder(
-                      builder: (context, constraints) => AnimatedPositioned(
-                        duration: const Duration(milliseconds: 220),
-                        curve: Curves.fastOutSlowIn,
-                        left: primaryIndex *
-                            constraints.maxWidth /
-                            _primaryItems.length,
-                        top: 0,
-                        bottom: 0,
-                        width: constraints.maxWidth / _primaryItems.length,
-                        child: const _SelectionPuck(),
-                      ),
-                    ),
-                    Row(
-                      children: List.generate(_primaryItems.length, (index) {
-                        final item = _primaryItems[index];
-                        final selected =
-                            !isSettingsSelected && index == primaryIndex;
-                        return Expanded(
-                          child: _PillTab(
-                            item: item,
-                            selected: selected,
-                            onTap: () {
-                              HapticFeedback.selectionClick();
-                              onTap(index);
-                            },
-                          ),
-                        );
-                      }),
-                    ),
-                  ],
+        child: _GlassCapsule(
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              LayoutBuilder(
+                builder: (context, constraints) => AnimatedPositioned(
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.fastOutSlowIn,
+                  left: validIndex * constraints.maxWidth / _navItems.length,
+                  top: 0,
+                  bottom: 0,
+                  width: constraints.maxWidth / _navItems.length,
+                  child: const _SelectionPuck(),
                 ),
               ),
-            ),
-            const SizedBox(width: 12),
-            _GlassCircleTab(
-              selected: isSettingsSelected,
-              onTap: () {
-                HapticFeedback.selectionClick();
-                onTap(2);
-              },
-            ),
-          ],
+              Row(
+                children: List.generate(_navItems.length, (index) {
+                  final item = _navItems[index];
+                  final selected = index == validIndex;
+                  return Expanded(
+                    child: _PillTab(
+                      item: item,
+                      selected: selected,
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        onTap(index);
+                      },
+                    ),
+                  );
+                }),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -102,17 +85,24 @@ class _GlassCapsule extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    const radius = BorderRadius.all(Radius.circular(30));
+    const radius = BorderRadius.all(Radius.circular(32));
 
-    final bgColor = isDark ? const Color(0xFF1E1E1E) : const Color(0xFFEFECE2);
-    final borderColor = isDark ? const Color(0xFFEFECE2) : const Color(0xFF222222);
+    final bgColor = isDark ? const Color(0xFF1A1A1A) : const Color(0xFFEFECE2);
+    final borderColor = isDark ? const Color(0xFF2E2E2E) : const Color(0xFF222222);
 
     return Container(
-      height: 62,
+      height: 64,
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: radius,
         border: Border.all(color: borderColor, width: 2.0),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(isDark ? 80 : 30),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: ClipRRect(
         borderRadius: radius,
@@ -132,12 +122,19 @@ class _SelectionPuck extends StatelessWidget {
     final puckBorder = isDark ? const Color(0xFF121212) : const Color(0xFFF7F4EB);
 
     return Padding(
-      padding: const EdgeInsets.all(5),
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 5),
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: puckBg,
-          borderRadius: BorderRadius.circular(25),
+          borderRadius: BorderRadius.circular(26),
           border: Border.all(color: puckBorder, width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(isDark ? 25 : 40),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
       ),
     );
@@ -172,76 +169,31 @@ class _PillTab extends StatelessWidget {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
-        child: AnimatedScale(
-          scale: selected ? 1.02 : 0.94,
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOutCubic,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(selected ? item.activeIcon : item.icon,
-                  size: 23, color: color),
-              const SizedBox(height: 2),
-              AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 180),
-                style: TextStyle(
-                  color: color,
-                  fontSize: 11,
-                  fontWeight: selected ? FontWeight.bold : FontWeight.w600,
-                  letterSpacing: selected ? 0.2 : 0,
-                ),
-                child: Text(item.label),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AnimatedScale(
+              scale: selected ? 1.08 : 0.95,
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+              child: Icon(
+                selected ? item.activeIcon : item.icon,
+                size: 22,
+                color: color,
               ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _GlassCircleTab extends StatelessWidget {
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _GlassCircleTab({required this.selected, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    final circleBg = selected
-        ? (isDark ? const Color(0xFFF7F4EB) : const Color(0xFF121212))
-        : (isDark ? const Color(0xFF1E1E1E) : const Color(0xFFEFECE2));
-
-    final iconColor = selected
-        ? (isDark ? const Color(0xFF121212) : const Color(0xFFF7F4EB))
-        : (isDark ? const Color(0xFFA0A0A0) : const Color(0xFF555555));
-
-    final borderColor = isDark ? const Color(0xFFEFECE2) : const Color(0xFF222222);
-
-    return Semantics(
-      button: true,
-      selected: selected,
-      label: 'Settings',
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOutCubic,
-          width: 62,
-          height: 62,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: circleBg,
-            border: Border.all(color: borderColor, width: 2.0),
-          ),
-          child: Icon(
-            selected ? Icons.settings_rounded : Icons.settings_outlined,
-            color: iconColor,
-            size: 25,
-          ),
+            ),
+            const SizedBox(height: 3),
+            AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 200),
+              style: TextStyle(
+                color: color,
+                fontSize: 11,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                letterSpacing: selected ? 0.3 : 0.1,
+              ),
+              child: Text(item.label),
+            ),
+          ],
         ),
       ),
     );

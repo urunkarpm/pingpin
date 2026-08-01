@@ -6,6 +6,9 @@ import '../../data/database/app_database.dart';
 import '../../core/constants/app_constants.dart';
 import '../../providers/providers.dart';
 
+import 'package:intl/intl.dart';
+import 'office_occupancy_card.dart';
+
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -16,7 +19,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   late DateTime _focusedDay;
   DateTime? _selectedDay;
-  CalendarFormat _calendarFormat = CalendarFormat.month;
 
   Map<String, AttendanceStatus> _attendanceMap = {};
   OfficeConfig? _officeConfig;
@@ -83,11 +85,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final totalPresent = _attendanceMap.values
-        .where((v) => v == AttendanceStatus.present)
-        .length;
-    final totalLate =
-        _attendanceMap.values.where((v) => v == AttendanceStatus.late).length;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final onSurface = Theme.of(context).colorScheme.onSurface;
 
     return Scaffold(
       appBar: AppBar(
@@ -101,21 +100,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+          : Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Status card
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                     decoration: BoxDecoration(
                       color: Theme.of(context).colorScheme.surface,
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
-                        width: 2,
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.15),
+                        width: 1.5,
                       ),
                     ),
                     child: Column(
@@ -123,75 +122,52 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         Text(
                           'Today\'s Status',
                           style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                            fontSize: 14,
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                            fontSize: 12,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 6),
                         _buildTodayStatus(),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 4),
                         Text(
                           _officeConfig != null
                               ? 'Office Wi-Fi: ${_officeConfig!.ssid}'
                               : 'Configuring Office Wi-Fi...',
                           style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
-                            fontSize: 13,
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                            fontSize: 12,
                           ),
                         ),
                       ],
                     ),
                   ),
 
-                  const SizedBox(height: 20),
-
-                  // Summary stats row
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildStatChip(
-                          icon: Icons.check_circle_rounded,
-                          color: AppColors.accent,
-                          label: 'Attendance Marked',
-                          value: '$totalPresent',
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildStatChip(
-                          icon: Icons.calendar_today_rounded,
-                          color: AppColors.blue,
-                          label: 'Total Days',
-                          value: '${totalPresent + totalLate}',
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  const Text(
-                    'Attendance Calendar',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
                   const SizedBox(height: 12),
 
                   // Calendar Card
                   Card(
+                    elevation: 0,
+                    color: Theme.of(context).colorScheme.surface,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      side: BorderSide(
+                        color: onSurface.withValues(alpha: isDark ? 0.15 : 0.08),
+                      ),
+                    ),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                       child: TableCalendar<AttendanceRecord>(
                         firstDay: DateTime.utc(2020, 1, 1),
                         lastDay: DateTime.utc(2030, 12, 31),
                         focusedDay: _focusedDay,
+                        startingDayOfWeek: StartingDayOfWeek.sunday,
                         selectedDayPredicate: (day) =>
                             isSameDay(_selectedDay, day),
-                        calendarFormat: _calendarFormat,
+                        calendarFormat: CalendarFormat.month,
+                        availableCalendarFormats: const {
+                          CalendarFormat.month: 'Month',
+                        },
                         eventLoader: _getAttendanceForDay,
                         onDaySelected: (selectedDay, focusedDay) {
                           setState(() {
@@ -199,152 +175,167 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             _focusedDay = focusedDay;
                           });
                         },
-                        onFormatChanged: (format) {
-                          setState(() => _calendarFormat = format);
-                        },
                         onPageChanged: (focusedDay) {
-                          _focusedDay = focusedDay;
+                          setState(() {
+                            _focusedDay = focusedDay;
+                          });
                         },
                         calendarBuilders: CalendarBuilders(
-                          defaultBuilder: (context, day, focusedDay) {
-                            final dateStr =
-                                '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
-                            if (_attendanceMap.containsKey(dateStr)) {
-                              final isSelected = isSameDay(_selectedDay, day);
-                              final isToday = isSameDay(DateTime.now(), day);
-                              return Container(
-                                margin: const EdgeInsets.all(4.0),
-                                alignment: Alignment.center,
-                                decoration: BoxDecoration(
-                                  color: AppColors.green,
-                                  shape: BoxShape.circle,
-                                  border: isSelected
-                                      ? Border.all(color: AppColors.blue, width: 2)
-                                      : null,
-                                ),
+                          headerTitleBuilder: (context, day) {
+                            final monthText = DateFormat.MMMM().format(day);
+                            return Center(
+                              child: AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 350),
+                                switchInCurve: Curves.easeOutCubic,
+                                switchOutCurve: Curves.easeInCubic,
+                                transitionBuilder: (Widget child, Animation<double> animation) {
+                                  final isIncoming = child.key == ValueKey(day.month);
+                                  final double beginOffset = isIncoming ? 0.35 : -0.35;
+                                  final offsetAnimation = Tween<Offset>(
+                                    begin: Offset(beginOffset, 0.0),
+                                    end: Offset.zero,
+                                  ).animate(animation);
+
+                                  return FadeTransition(
+                                    opacity: animation,
+                                    child: SlideTransition(
+                                      position: offsetAnimation,
+                                      child: child,
+                                    ),
+                                  );
+                                },
                                 child: Text(
-                                  '${day.day}',
+                                  monthText,
+                                  key: ValueKey(day.month),
                                   style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: (isToday || isSelected)
-                                        ? FontWeight.bold
-                                        : FontWeight.normal,
-                                  ),
-                                ),
-                              );
-                            }
-                            return null;
-                          },
-                          todayBuilder: (context, day, focusedDay) {
-                            final dateStr =
-                                '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
-                            if (_attendanceMap.containsKey(dateStr)) {
-                              final isSelected = isSameDay(_selectedDay, day);
-                              return Container(
-                                margin: const EdgeInsets.all(4.0),
-                                alignment: Alignment.center,
-                                decoration: BoxDecoration(
-                                  color: AppColors.green,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                      color: isSelected ? AppColors.blue : AppColors.primary,
-                                      width: 2),
-                                ),
-                                child: Text(
-                                  '${day.day}',
-                                  style: const TextStyle(
-                                    color: Colors.white,
+                                    fontSize: 22,
                                     fontWeight: FontWeight.bold,
+                                    color: onSurface,
                                   ),
+                                ),
+                              ),
+                            );
+                          },
+                          markerBuilder: (context, day, events) {
+                            if (events.isNotEmpty) {
+                              return Positioned(
+                                bottom: 4,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: events.map((record) {
+                                    final dotColor = record.status == AttendanceStatus.present
+                                        ? (isDark ? const Color(0xFF60A5FA) : const Color(0xFF3B82F6))
+                                        : (isDark ? const Color(0xFFFBBF24) : const Color(0xFFF59E0B));
+                                    return Container(
+                                      margin: const EdgeInsets.symmetric(horizontal: 1.5),
+                                      width: 5,
+                                      height: 5,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: dotColor,
+                                      ),
+                                    );
+                                  }).toList(),
                                 ),
                               );
                             }
                             return null;
                           },
-                          selectedBuilder: (context, day, focusedDay) {
-                            final dateStr =
-                                '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
-                            if (_attendanceMap.containsKey(dateStr)) {
-                              return Container(
-                                margin: const EdgeInsets.all(4.0),
-                                alignment: Alignment.center,
-                                decoration: BoxDecoration(
-                                  color: AppColors.green,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: AppColors.blue, width: 2.5),
-                                ),
-                                child: Text(
-                                  '${day.day}',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              );
-                            }
-                            return null;
-                          },
+                        ),
+                        daysOfWeekStyle: DaysOfWeekStyle(
+                          weekdayStyle: TextStyle(
+                            color: onSurface.withValues(alpha: isDark ? 0.5 : 0.55),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          weekendStyle: TextStyle(
+                            color: onSurface.withValues(alpha: isDark ? 0.5 : 0.55),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          dowTextFormatter: (date, locale) =>
+                              DateFormat.E(locale).format(date)[0],
                         ),
                         calendarStyle: CalendarStyle(
-                          todayDecoration: const BoxDecoration(
-                            color: AppColors.primary,
+                          outsideDaysVisible: true,
+                          defaultTextStyle: TextStyle(
+                            color: onSurface,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          weekendTextStyle: TextStyle(
+                            color: onSurface,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          outsideTextStyle: TextStyle(
+                            color: onSurface.withValues(alpha: isDark ? 0.25 : 0.35),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w400,
+                          ),
+                          todayTextStyle: TextStyle(
+                            color: isSameDay(_selectedDay, DateTime.now())
+                                ? (isDark ? const Color(0xFF0F172A) : Colors.white)
+                                : onSurface,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          todayDecoration: BoxDecoration(
+                            color: isSameDay(_selectedDay, DateTime.now())
+                                ? (isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B))
+                                : Colors.transparent,
+                            shape: BoxShape.circle,
+                            border: isSameDay(_selectedDay, DateTime.now())
+                                ? null
+                                : Border.all(
+                                    color: onSurface.withValues(alpha: isDark ? 0.4 : 0.3),
+                                    width: 1.5,
+                                  ),
+                          ),
+                          selectedTextStyle: TextStyle(
+                            color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          selectedDecoration: BoxDecoration(
+                            color: isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B),
                             shape: BoxShape.circle,
                           ),
-                          todayTextStyle: const TextStyle(
-                              color: AppColors.white,
-                              fontWeight: FontWeight.bold),
-                          selectedDecoration: const BoxDecoration(
-                            color: AppColors.blue,
-                            shape: BoxShape.circle,
-                          ),
-                          markerDecoration: const BoxDecoration(
-                            color: AppColors.accent,
-                            shape: BoxShape.circle,
-                          ),
-                          weekendTextStyle:
-                              const TextStyle(color: AppColors.textSecondary),
                         ),
-                        headerStyle: const HeaderStyle(
-                          formatButtonVisible: true,
+                        headerStyle: HeaderStyle(
+                          formatButtonVisible: false,
                           titleCentered: true,
+                          leftChevronIcon: Icon(
+                            Icons.chevron_left,
+                            color: onSurface.withValues(alpha: 0.8),
+                            size: 22,
+                          ),
+                          rightChevronIcon: Icon(
+                            Icons.chevron_right,
+                            color: onSurface.withValues(alpha: 0.8),
+                            size: 22,
+                          ),
+                          leftChevronPadding: const EdgeInsets.all(4),
+                          rightChevronPadding: const EdgeInsets.all(4),
+                          leftChevronMargin: EdgeInsets.zero,
+                          rightChevronMargin: EdgeInsets.zero,
                           titleTextStyle: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold),
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: onSurface,
+                          ),
                         ),
                       ),
                     ),
                   ),
+
+                  const SizedBox(height: 12),
+
+                  // Office Occupancy Card
+                  const OfficeOccupancyCard(),
                 ],
               ),
             ),
-    );
-  }
-
-  Widget _buildStatChip({
-    required IconData icon,
-    required Color color,
-    required String label,
-    required String value,
-  }) {
-    final onSurface = Theme.of(context).colorScheme.onSurface;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          children: [
-            Icon(icon, color: onSurface, size: 24),
-            const SizedBox(height: 6),
-            Text(
-              value,
-              style: TextStyle(
-                  fontSize: 20, fontWeight: FontWeight.bold, color: onSurface),
-            ),
-            Text(
-              label,
-              style: TextStyle(fontSize: 12, color: onSurface.withValues(alpha: 0.7)),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -359,13 +350,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       return Column(
         children: [
           Icon(Icons.pending_actions_rounded,
-              size: 44, color: onSurface.withValues(alpha: 0.5)),
-          const SizedBox(height: 6),
+              size: 28, color: onSurface.withValues(alpha: 0.5)),
+          const SizedBox(height: 4),
           Text(
             'Pending Check-in',
             style: TextStyle(
               color: onSurface,
-              fontSize: 16,
+              fontSize: 14,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -380,15 +371,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       children: [
         Icon(
           Icons.check_circle_rounded,
-          size: 48,
+          size: 32,
           color: color,
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 4),
         Text(
           label,
           style: TextStyle(
             color: color,
-            fontSize: 20,
+            fontSize: 15,
             fontWeight: FontWeight.bold,
           ),
         ),

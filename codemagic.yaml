@@ -1,0 +1,24 @@
+# Codemagic configuration for Flutter iOS IPA Build
+
+workflows:
+  ios-release-workflow:
+    name: iOS IPA Release Build
+    max_build_duration: 60
+    instance_type: mac_mini_m1
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Get Flutter dependencies
+        script: |
+          flutter pub get
+      - name: Run code generation (Drift DB)
+        script: |
+          dart run build_runner build --delete-conflicting-outputs
+      - name: Build iOS IPA
+        script: |
+          flutter build ipa --no-codesign
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - build/ios/archive/Runner.xcarchive

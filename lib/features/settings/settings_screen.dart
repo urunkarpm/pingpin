@@ -34,7 +34,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   // Office config
   late TextEditingController _ssidController;
   double _radiusMeters = 100;
-  TimeOfDay _workStartTime = TimeOfDay(hour: 9, minute: 30);
   TimeOfDay _lateCutoffTime = TimeOfDay(hour: 10, minute: 30);
   int _workingDaysMask = WorkingDays.defaultWeekdays;
   double? _latitude;
@@ -76,7 +75,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (config != null) {
       _ssidController = TextEditingController(text: config.ssid);
       _radiusMeters = config.radiusMeters.toDouble();
-      _workStartTime = parseTimeString(config.workStartTime);
       _lateCutoffTime = parseTimeString(config.lateCutoffTime);
       _workingDaysMask = config.workingDaysMask;
       _latitude = config.latitude;
@@ -104,11 +102,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     try {
       await profileRepo.saveProfile(
         fullName: _fullNameController.text.trim(),
-        designation: _designationController.text.trim(),
-        employeeId: _employeeIdController.text.trim().isEmpty ? null : _employeeIdController.text.trim(),
-        email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
-        phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
-        photoPath: _photoPath,
       );
       
       if (mounted) {
@@ -142,7 +135,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         latitude: _latitude ?? 0,
         longitude: _longitude ?? 0,
         radiusMeters: _radiusMeters.toInt(),
-        workStartTime: '${_workStartTime.hour.toString().padLeft(2, '0')}:${_workStartTime.minute.toString().padLeft(2, '0')}',
         lateCutoffTime: '${_lateCutoffTime.hour.toString().padLeft(2, '0')}:${_lateCutoffTime.minute.toString().padLeft(2, '0')}',
         workingDaysMask: _workingDaysMask,
       );
@@ -255,47 +247,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       padding: const EdgeInsets.all(16),
                       child: Column(
                         children: [
-                          GestureDetector(
-                            onTap: () => _showPhotoSourceDialog(),
-                            child: CircleAvatar(
-                              radius: 50,
-                              backgroundColor: AppColors.lightGray,
-                              backgroundImage: _photoPath != null ? FileImage(File(_photoPath!)) : null,
-                              child: _photoPath == null ? const Icon(Icons.camera_alt, size: 40) : null,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          TextButton(
-                            onPressed: () => _showPhotoSourceDialog(),
-                            child: const Text('Change Photo'),
-                          ),
                           TextFormField(
                             controller: _fullNameController,
                             decoration: const InputDecoration(labelText: 'Full Name *'),
                             validator: (v) => v?.trim().isEmpty ?? true ? 'Required' : null,
-                          ),
-                          const SizedBox(height: 16),
-                          TextFormField(
-                            controller: _designationController,
-                            decoration: const InputDecoration(labelText: 'Designation *'),
-                            validator: (v) => v?.trim().isEmpty ?? true ? 'Required' : null,
-                          ),
-                          const SizedBox(height: 16),
-                          TextFormField(
-                            controller: _employeeIdController,
-                            decoration: const InputDecoration(labelText: 'Employee ID'),
-                          ),
-                          const SizedBox(height: 16),
-                          TextFormField(
-                            controller: _emailController,
-                            decoration: const InputDecoration(labelText: 'Email'),
-                            keyboardType: TextInputType.emailAddress,
-                          ),
-                          const SizedBox(height: 16),
-                          TextFormField(
-                            controller: _phoneController,
-                            decoration: const InputDecoration(labelText: 'Phone'),
-                            keyboardType: TextInputType.phone,
                           ),
                           const SizedBox(height: 16),
                           ElevatedButton(
@@ -369,12 +324,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             );
                           },
                         ),
-                        ListTile(
-                          title: const Text('Work Start Time'),
-                          subtitle: Text(_workStartTime.format(context)),
-                          trailing: const Icon(Icons.access_time),
-                          onTap: () => _selectTime(_workStartTime, (t) => setState(() => _workStartTime = t)),
-                        ),
+
 
 
                         const SizedBox(height: 16),

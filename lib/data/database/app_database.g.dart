@@ -46,14 +46,6 @@ class $OfficeConfigsTable extends OfficeConfigs
       type: DriftSqlType.int,
       requiredDuringInsert: false,
       defaultValue: const Constant(100));
-  static const VerificationMeta _workStartTimeMeta =
-      const VerificationMeta('workStartTime');
-  @override
-  late final GeneratedColumn<String> workStartTime = GeneratedColumn<String>(
-      'work_start_time', aliasedName, false,
-      type: DriftSqlType.string,
-      requiredDuringInsert: false,
-      defaultValue: const Constant('09:30'));
   static const VerificationMeta _lateCutoffTimeMeta =
       const VerificationMeta('lateCutoffTime');
   @override
@@ -93,7 +85,6 @@ class $OfficeConfigsTable extends OfficeConfigs
         latitude,
         longitude,
         radiusMeters,
-        workStartTime,
         lateCutoffTime,
         workingDaysMask,
         createdAt,
@@ -136,12 +127,6 @@ class $OfficeConfigsTable extends OfficeConfigs
           radiusMeters.isAcceptableOrUnknown(
               data['radius_meters']!, _radiusMetersMeta));
     }
-    if (data.containsKey('work_start_time')) {
-      context.handle(
-          _workStartTimeMeta,
-          workStartTime.isAcceptableOrUnknown(
-              data['work_start_time']!, _workStartTimeMeta));
-    }
     if (data.containsKey('late_cutoff_time')) {
       context.handle(
           _lateCutoffTimeMeta,
@@ -181,8 +166,6 @@ class $OfficeConfigsTable extends OfficeConfigs
           .read(DriftSqlType.double, data['${effectivePrefix}longitude'])!,
       radiusMeters: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}radius_meters'])!,
-      workStartTime: attachedDatabase.typeMapping.read(
-          DriftSqlType.string, data['${effectivePrefix}work_start_time'])!,
       lateCutoffTime: attachedDatabase.typeMapping.read(
           DriftSqlType.string, data['${effectivePrefix}late_cutoff_time'])!,
       workingDaysMask: attachedDatabase.typeMapping
@@ -206,7 +189,6 @@ class OfficeConfig extends DataClass implements Insertable<OfficeConfig> {
   final double latitude;
   final double longitude;
   final int radiusMeters;
-  final String workStartTime;
   final String lateCutoffTime;
   final int workingDaysMask;
   final DateTime createdAt;
@@ -217,7 +199,6 @@ class OfficeConfig extends DataClass implements Insertable<OfficeConfig> {
       required this.latitude,
       required this.longitude,
       required this.radiusMeters,
-      required this.workStartTime,
       required this.lateCutoffTime,
       required this.workingDaysMask,
       required this.createdAt,
@@ -230,7 +211,6 @@ class OfficeConfig extends DataClass implements Insertable<OfficeConfig> {
     map['latitude'] = Variable<double>(latitude);
     map['longitude'] = Variable<double>(longitude);
     map['radius_meters'] = Variable<int>(radiusMeters);
-    map['work_start_time'] = Variable<String>(workStartTime);
     map['late_cutoff_time'] = Variable<String>(lateCutoffTime);
     map['working_days_mask'] = Variable<int>(workingDaysMask);
     map['created_at'] = Variable<DateTime>(createdAt);
@@ -245,7 +225,6 @@ class OfficeConfig extends DataClass implements Insertable<OfficeConfig> {
       latitude: Value(latitude),
       longitude: Value(longitude),
       radiusMeters: Value(radiusMeters),
-      workStartTime: Value(workStartTime),
       lateCutoffTime: Value(lateCutoffTime),
       workingDaysMask: Value(workingDaysMask),
       createdAt: Value(createdAt),
@@ -262,7 +241,6 @@ class OfficeConfig extends DataClass implements Insertable<OfficeConfig> {
       latitude: serializer.fromJson<double>(json['latitude']),
       longitude: serializer.fromJson<double>(json['longitude']),
       radiusMeters: serializer.fromJson<int>(json['radiusMeters']),
-      workStartTime: serializer.fromJson<String>(json['workStartTime']),
       lateCutoffTime: serializer.fromJson<String>(json['lateCutoffTime']),
       workingDaysMask: serializer.fromJson<int>(json['workingDaysMask']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
@@ -278,7 +256,6 @@ class OfficeConfig extends DataClass implements Insertable<OfficeConfig> {
       'latitude': serializer.toJson<double>(latitude),
       'longitude': serializer.toJson<double>(longitude),
       'radiusMeters': serializer.toJson<int>(radiusMeters),
-      'workStartTime': serializer.toJson<String>(workStartTime),
       'lateCutoffTime': serializer.toJson<String>(lateCutoffTime),
       'workingDaysMask': serializer.toJson<int>(workingDaysMask),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -292,7 +269,6 @@ class OfficeConfig extends DataClass implements Insertable<OfficeConfig> {
           double? latitude,
           double? longitude,
           int? radiusMeters,
-          String? workStartTime,
           String? lateCutoffTime,
           int? workingDaysMask,
           DateTime? createdAt,
@@ -303,7 +279,6 @@ class OfficeConfig extends DataClass implements Insertable<OfficeConfig> {
         latitude: latitude ?? this.latitude,
         longitude: longitude ?? this.longitude,
         radiusMeters: radiusMeters ?? this.radiusMeters,
-        workStartTime: workStartTime ?? this.workStartTime,
         lateCutoffTime: lateCutoffTime ?? this.lateCutoffTime,
         workingDaysMask: workingDaysMask ?? this.workingDaysMask,
         createdAt: createdAt ?? this.createdAt,
@@ -318,9 +293,6 @@ class OfficeConfig extends DataClass implements Insertable<OfficeConfig> {
       radiusMeters: data.radiusMeters.present
           ? data.radiusMeters.value
           : this.radiusMeters,
-      workStartTime: data.workStartTime.present
-          ? data.workStartTime.value
-          : this.workStartTime,
       lateCutoffTime: data.lateCutoffTime.present
           ? data.lateCutoffTime.value
           : this.lateCutoffTime,
@@ -340,7 +312,6 @@ class OfficeConfig extends DataClass implements Insertable<OfficeConfig> {
           ..write('latitude: $latitude, ')
           ..write('longitude: $longitude, ')
           ..write('radiusMeters: $radiusMeters, ')
-          ..write('workStartTime: $workStartTime, ')
           ..write('lateCutoffTime: $lateCutoffTime, ')
           ..write('workingDaysMask: $workingDaysMask, ')
           ..write('createdAt: $createdAt, ')
@@ -351,7 +322,7 @@ class OfficeConfig extends DataClass implements Insertable<OfficeConfig> {
 
   @override
   int get hashCode => Object.hash(id, ssid, latitude, longitude, radiusMeters,
-      workStartTime, lateCutoffTime, workingDaysMask, createdAt, updatedAt);
+      lateCutoffTime, workingDaysMask, createdAt, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -361,7 +332,6 @@ class OfficeConfig extends DataClass implements Insertable<OfficeConfig> {
           other.latitude == this.latitude &&
           other.longitude == this.longitude &&
           other.radiusMeters == this.radiusMeters &&
-          other.workStartTime == this.workStartTime &&
           other.lateCutoffTime == this.lateCutoffTime &&
           other.workingDaysMask == this.workingDaysMask &&
           other.createdAt == this.createdAt &&
@@ -374,7 +344,6 @@ class OfficeConfigsCompanion extends UpdateCompanion<OfficeConfig> {
   final Value<double> latitude;
   final Value<double> longitude;
   final Value<int> radiusMeters;
-  final Value<String> workStartTime;
   final Value<String> lateCutoffTime;
   final Value<int> workingDaysMask;
   final Value<DateTime> createdAt;
@@ -385,7 +354,6 @@ class OfficeConfigsCompanion extends UpdateCompanion<OfficeConfig> {
     this.latitude = const Value.absent(),
     this.longitude = const Value.absent(),
     this.radiusMeters = const Value.absent(),
-    this.workStartTime = const Value.absent(),
     this.lateCutoffTime = const Value.absent(),
     this.workingDaysMask = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -397,7 +365,6 @@ class OfficeConfigsCompanion extends UpdateCompanion<OfficeConfig> {
     required double latitude,
     required double longitude,
     this.radiusMeters = const Value.absent(),
-    this.workStartTime = const Value.absent(),
     this.lateCutoffTime = const Value.absent(),
     this.workingDaysMask = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -411,7 +378,6 @@ class OfficeConfigsCompanion extends UpdateCompanion<OfficeConfig> {
     Expression<double>? latitude,
     Expression<double>? longitude,
     Expression<int>? radiusMeters,
-    Expression<String>? workStartTime,
     Expression<String>? lateCutoffTime,
     Expression<int>? workingDaysMask,
     Expression<DateTime>? createdAt,
@@ -423,7 +389,6 @@ class OfficeConfigsCompanion extends UpdateCompanion<OfficeConfig> {
       if (latitude != null) 'latitude': latitude,
       if (longitude != null) 'longitude': longitude,
       if (radiusMeters != null) 'radius_meters': radiusMeters,
-      if (workStartTime != null) 'work_start_time': workStartTime,
       if (lateCutoffTime != null) 'late_cutoff_time': lateCutoffTime,
       if (workingDaysMask != null) 'working_days_mask': workingDaysMask,
       if (createdAt != null) 'created_at': createdAt,
@@ -437,7 +402,6 @@ class OfficeConfigsCompanion extends UpdateCompanion<OfficeConfig> {
       Value<double>? latitude,
       Value<double>? longitude,
       Value<int>? radiusMeters,
-      Value<String>? workStartTime,
       Value<String>? lateCutoffTime,
       Value<int>? workingDaysMask,
       Value<DateTime>? createdAt,
@@ -448,7 +412,6 @@ class OfficeConfigsCompanion extends UpdateCompanion<OfficeConfig> {
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       radiusMeters: radiusMeters ?? this.radiusMeters,
-      workStartTime: workStartTime ?? this.workStartTime,
       lateCutoffTime: lateCutoffTime ?? this.lateCutoffTime,
       workingDaysMask: workingDaysMask ?? this.workingDaysMask,
       createdAt: createdAt ?? this.createdAt,
@@ -474,9 +437,6 @@ class OfficeConfigsCompanion extends UpdateCompanion<OfficeConfig> {
     if (radiusMeters.present) {
       map['radius_meters'] = Variable<int>(radiusMeters.value);
     }
-    if (workStartTime.present) {
-      map['work_start_time'] = Variable<String>(workStartTime.value);
-    }
     if (lateCutoffTime.present) {
       map['late_cutoff_time'] = Variable<String>(lateCutoffTime.value);
     }
@@ -500,7 +460,6 @@ class OfficeConfigsCompanion extends UpdateCompanion<OfficeConfig> {
           ..write('latitude: $latitude, ')
           ..write('longitude: $longitude, ')
           ..write('radiusMeters: $radiusMeters, ')
-          ..write('workStartTime: $workStartTime, ')
           ..write('lateCutoffTime: $lateCutoffTime, ')
           ..write('workingDaysMask: $workingDaysMask, ')
           ..write('createdAt: $createdAt, ')
@@ -1585,7 +1544,6 @@ typedef $$OfficeConfigsTableCreateCompanionBuilder = OfficeConfigsCompanion
   required double latitude,
   required double longitude,
   Value<int> radiusMeters,
-  Value<String> workStartTime,
   Value<String> lateCutoffTime,
   Value<int> workingDaysMask,
   Value<DateTime> createdAt,
@@ -1598,7 +1556,6 @@ typedef $$OfficeConfigsTableUpdateCompanionBuilder = OfficeConfigsCompanion
   Value<double> latitude,
   Value<double> longitude,
   Value<int> radiusMeters,
-  Value<String> workStartTime,
   Value<String> lateCutoffTime,
   Value<int> workingDaysMask,
   Value<DateTime> createdAt,
@@ -1628,9 +1585,6 @@ class $$OfficeConfigsTableFilterComposer
 
   ColumnFilters<int> get radiusMeters => $composableBuilder(
       column: $table.radiusMeters, builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<String> get workStartTime => $composableBuilder(
-      column: $table.workStartTime, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get lateCutoffTime => $composableBuilder(
       column: $table.lateCutoffTime,
@@ -1672,10 +1626,6 @@ class $$OfficeConfigsTableOrderingComposer
       column: $table.radiusMeters,
       builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<String> get workStartTime => $composableBuilder(
-      column: $table.workStartTime,
-      builder: (column) => ColumnOrderings(column));
-
   ColumnOrderings<String> get lateCutoffTime => $composableBuilder(
       column: $table.lateCutoffTime,
       builder: (column) => ColumnOrderings(column));
@@ -1714,9 +1664,6 @@ class $$OfficeConfigsTableAnnotationComposer
 
   GeneratedColumn<int> get radiusMeters => $composableBuilder(
       column: $table.radiusMeters, builder: (column) => column);
-
-  GeneratedColumn<String> get workStartTime => $composableBuilder(
-      column: $table.workStartTime, builder: (column) => column);
 
   GeneratedColumn<String> get lateCutoffTime => $composableBuilder(
       column: $table.lateCutoffTime, builder: (column) => column);
@@ -1762,7 +1709,6 @@ class $$OfficeConfigsTableTableManager extends RootTableManager<
             Value<double> latitude = const Value.absent(),
             Value<double> longitude = const Value.absent(),
             Value<int> radiusMeters = const Value.absent(),
-            Value<String> workStartTime = const Value.absent(),
             Value<String> lateCutoffTime = const Value.absent(),
             Value<int> workingDaysMask = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
@@ -1774,7 +1720,6 @@ class $$OfficeConfigsTableTableManager extends RootTableManager<
             latitude: latitude,
             longitude: longitude,
             radiusMeters: radiusMeters,
-            workStartTime: workStartTime,
             lateCutoffTime: lateCutoffTime,
             workingDaysMask: workingDaysMask,
             createdAt: createdAt,
@@ -1786,7 +1731,6 @@ class $$OfficeConfigsTableTableManager extends RootTableManager<
             required double latitude,
             required double longitude,
             Value<int> radiusMeters = const Value.absent(),
-            Value<String> workStartTime = const Value.absent(),
             Value<String> lateCutoffTime = const Value.absent(),
             Value<int> workingDaysMask = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
@@ -1798,7 +1742,6 @@ class $$OfficeConfigsTableTableManager extends RootTableManager<
             latitude: latitude,
             longitude: longitude,
             radiusMeters: radiusMeters,
-            workStartTime: workStartTime,
             lateCutoffTime: lateCutoffTime,
             workingDaysMask: workingDaysMask,
             createdAt: createdAt,
