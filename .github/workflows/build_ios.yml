@@ -25,6 +25,15 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Precache iOS artifacts
+        run: flutter precache --ios
+
+      - name: Check iOS platform files
+        run: |
+          pwd
+          ls -la
+          ls -la ios
+
       - name: Install Dependencies
         run: flutter pub get
 
