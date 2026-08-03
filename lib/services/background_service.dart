@@ -72,6 +72,13 @@ class BackgroundService {
 
 
   /// Prompts Android to request battery optimization exemption for uninterrupted background execution.
+  /// Checks whether battery optimization exemption is currently granted.
+  static Future<bool> isBatteryOptimizationExempted() async {
+    final status = await Permission.ignoreBatteryOptimizations.status;
+    return status.isGranted;
+  }
+
+  /// Prompts Android to request battery optimization exemption for uninterrupted background execution.
   /// Automatically opens System Settings if user interaction is required.
   static Future<bool> requestBatteryOptimizationExemption() async {
     final status = await Permission.ignoreBatteryOptimizations.status;

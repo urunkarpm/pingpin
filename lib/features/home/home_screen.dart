@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../../data/repositories/repositories.dart';
 import '../../data/database/app_database.dart';
-import '../../core/constants/app_constants.dart';
 import '../../providers/providers.dart';
 
 import '../../services/attendance_service.dart';
@@ -44,7 +43,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   void _setupWifiListener() {
-    final wifiService = ref.read(attendanceServiceProvider);
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen((results) {
       if (results.contains(ConnectivityResult.wifi)) {
         _checkWifiAttendance();
@@ -84,36 +82,44 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Future<void> _loadData() async {
-    setState(() => _isLoading = true);
-
     final officeConfigRepo = ref.read(officeConfigRepositoryProvider);
     final attendanceRepo = ref.read(attendanceRepositoryProvider);
 
     _officeConfig = await officeConfigRepo.getConfig();
-
     final now = DateTime.now();
+    final records = await attendanceRepo.getForMonth(now.year, now.month);
 
+    if (mounted) {
+      setState(() {
+        _attendanceMap = {
+          for (var record in records) record.dateYyyyMmDd: record.status,
+        };
+        _isLoading = false;
+      });
+    }
+
+    // Perform Wi-Fi attendance check in background without delaying UI render
     if (_officeConfig != null) {
       final attendanceService = ref.read(attendanceServiceProvider);
       final notificationManager = ref.read(smartNotificationManagerProvider);
 
-      await attendanceService.checkAndMarkAttendance(
+      final result = await attendanceService.checkAndMarkAttendance(
         officeConfig: _officeConfig!,
         attendanceRepo: attendanceRepo,
         onAttendanceMarked: () async {
           await notificationManager.showSuccessNotification();
         },
       );
+
+      if (result == AttendanceCheckResult.success && mounted) {
+        final updatedRecords = await attendanceRepo.getForMonth(now.year, now.month);
+        setState(() {
+          _attendanceMap = {
+            for (var record in updatedRecords) record.dateYyyyMmDd: record.status,
+          };
+        });
+      }
     }
-
-    final records = await attendanceRepo.getForMonth(now.year, now.month);
-
-    setState(() {
-      _attendanceMap = {
-        for (var record in records) record.dateYyyyMmDd: record.status,
-      };
-      _isLoading = false;
-    });
   }
 
   List<AttendanceRecord> _getAttendanceForDay(DateTime day) {

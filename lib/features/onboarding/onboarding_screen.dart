@@ -4,13 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:go_router/go_router.dart';
-import 'package:geolocator/geolocator.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/repositories/repositories.dart';
 import '../../data/database/app_database.dart';
 import '../../core/constants/app_constants.dart';
-import '../../services/location_service.dart';
 import '../../services/wifi_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../../services/notification_service.dart';
+import '../../services/background_service.dart';
 import '../../providers/providers.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
@@ -28,32 +29,89 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _fullNameController = TextEditingController();
   String? _photoPath;
   
-  // Office config fields
+  // Office config & Alarms fields
   final _ssidController = TextEditingController();
-  final TimeOfDay _lateCutoffTime = const TimeOfDay(hour: 10, minute: 30);
+  final _portalUrlController = TextEditingController();
+  TimeOfDay _checkInTime = const TimeOfDay(hour: 9, minute: 30);
+  TimeOfDay _checkOutTime = const TimeOfDay(hour: 17, minute: 30);
   int _workingDaysMask = WorkingDays.defaultWeekdays;
   
-  final _locationService = LocationService();
+  bool _notificationGranted = false;
+  bool _locationGranted = false;
+  bool _batteryOptExempted = false;
+  bool _isCustomSsid = false;
+  
   final _wifiService = WifiService();
   final _imagePicker = ImagePicker();
   
   @override
+  void initState() {
+    super.initState();
+    _checkPermissions();
+    _refreshWifi();
+  }
+
+  Future<void> _checkPermissions() async {
+    final notifStatus = await Permission.notification.status;
+    final locStatus = await Permission.locationWhenInUse.status;
+    final batteryExempt = await BackgroundService.isBatteryOptimizationExempted();
+    if (mounted) {
+      setState(() {
+        _notificationGranted = notifStatus.isGranted;
+        _locationGranted = locStatus.isGranted;
+        _batteryOptExempted = batteryExempt;
+      });
+    }
+  }
+
+  Future<void> _requestBatteryOptimizationPermission() async {
+    final isGranted = await BackgroundService.requestBatteryOptimizationExemption();
+    if (mounted) {
+      setState(() {
+        _batteryOptExempted = isGranted;
+      });
+    }
+  }
+
+  Future<void> _requestLocationPermission() async {
+    final status = await Permission.locationWhenInUse.request();
+    if (mounted) {
+      setState(() {
+        _locationGranted = status.isGranted;
+      });
+    }
+    await _refreshWifi();
+  }
+
+  Future<void> _refreshWifi() async {
+    final locStatus = await Permission.locationWhenInUse.status;
+    if (!locStatus.isGranted) {
+      await Permission.locationWhenInUse.request();
+    }
+    final ssid = await _wifiService.getWifiSSID();
+    if (ssid != null && ssid.isNotEmpty && mounted) {
+      setState(() {
+        _ssidController.text = ssid;
+        _isCustomSsid = false;
+      });
+    } else if (mounted) {
+      setState(() {});
+    }
+  }
+
+  @override
   void dispose() {
     _fullNameController.dispose();
     _ssidController.dispose();
+    _portalUrlController.dispose();
     super.dispose();
   }
-  
-  Future<void> _requestPermissions() async {
-    // Request location permission
-    await Geolocator.requestPermission();
-    
-    // Request notification permission (Android 13+)
-    await Permission.notification.request();
-    
-    // Request photos permission
-    await Permission.photos.request();
-    await Permission.camera.request();
+
+  Future<void> _requestNotificationPermission() async {
+    final status = await Permission.notification.request();
+    setState(() {
+      _notificationGranted = status.isGranted;
+    });
   }
   
   Future<void> _pickPhoto(ImageSource source) async {
@@ -65,7 +123,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         });
       }
     } catch (e) {
-      print('Error picking photo: $e');
+      debugPrint('Error picking photo: $e');
     }
   }
   
@@ -78,7 +136,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       }
     });
   }
-
   
   Future<void> _selectTime(TimeOfDay initialTime, Function(TimeOfDay) onSelected) async {
     final picked = await showTimePicker(
@@ -109,6 +166,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       return;
     }
     
+    final portalUrl = _portalUrlController.text.trim();
+    final checkInStr = '${_checkInTime.hour.toString().padLeft(2, '0')}:${_checkInTime.minute.toString().padLeft(2, '0')}';
+    final checkOutStr = '${_checkOutTime.hour.toString().padLeft(2, '0')}:${_checkOutTime.minute.toString().padLeft(2, '0')}';
+
     try {
       final profileRepo = ref.read(userProfileRepositoryProvider);
       final officeConfigRepo = ref.read(officeConfigRepositoryProvider);
@@ -123,16 +184,25 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         photoPath: _photoPath,
       );
       
-      // Save office config
+      // Save office config & alarms
       await officeConfigRepo.saveConfig(
         ssid: ssid,
         latitude: 0.0,
         longitude: 0.0,
         radiusMeters: 100,
-        lateCutoffTime: '${_lateCutoffTime.hour.toString().padLeft(2, '0')}:${_lateCutoffTime.minute.toString().padLeft(2, '0')}',
+        lateCutoffTime: checkInStr,
+        checkInTime: checkInStr,
+        checkOutTime: checkOutStr,
+        portalUrl: portalUrl,
         workingDaysMask: _workingDaysMask,
       );
       
+      // Save portal URL and schedule check-in and check-out alarms
+      final notifService = NotificationService();
+      await notifService.initialize(portalUrl: portalUrl);
+      await notifService.scheduleCheckInAlarm(checkInTimeStr: checkInStr, portalUrl: portalUrl);
+      await notifService.scheduleCheckOutAlarm(checkOutTimeStr: checkOutStr, portalUrl: portalUrl);
+
       // Mark onboarding as complete persistently
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(AppKeys.onboardingComplete, true);
@@ -144,53 +214,145 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       }
 
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error saving configuration: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error saving configuration: $e')),
+        );
+      }
     }
   }
   
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final themeMode = ref.watch(themeModeProvider);
+    final isDark = themeMode == ThemeMode.dark ||
+        (themeMode == ThemeMode.system &&
+            MediaQuery.of(context).platformBrightness == Brightness.dark);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Setup PingPin'),
+        title: Text(
+          'SETUP PINGPIN',
+          style: GoogleFonts.googleSans(
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.2,
+            fontSize: 18,
+          ),
+        ),
         automaticallyImplyLeading: false,
-      ),
-      body: Column(
-        children: [
-          // Progress indicator
-          LinearProgressIndicator(value: (_currentStep + 1) / 3),
-          
-          Expanded(
-            child: _buildStep(),
-          ),
-          
-          // Navigation buttons
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                if (_currentStep > 0)
-                  ElevatedButton(
-                    onPressed: () => setState(() => _currentStep--),
-                    child: const Text('Back'),
-                  )
-                else
-                  const SizedBox.shrink(),
-                ElevatedButton(
-                  onPressed: _currentStep == 2 ? _saveConfiguration : () => setState(() => _currentStep++),
-                  child: Text(_currentStep == 2 ? 'Finish' : 'Next'),
-                ),
-              ],
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: Icon(
+              isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
             ),
+            tooltip: isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode',
+            onPressed: () {
+              ref.read(themeModeProvider.notifier).setThemeMode(
+                    isDark ? ThemeMode.light : ThemeMode.dark,
+                  );
+            },
           ),
+          const SizedBox(width: 8),
         ],
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // E-Ink Custom Segmented Progress Header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              child: Row(
+                children: [
+                  _buildStepSegment(0, '01 WELCOME'),
+                  const SizedBox(width: 8),
+                  _buildStepSegment(1, '02 PROFILE'),
+                  const SizedBox(width: 8),
+                  _buildStepSegment(2, '03 SETUP'),
+                ],
+              ),
+            ),
+            
+            Expanded(
+              child: _buildStep(),
+            ),
+            
+            // Navigation Bar
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(
+                    color: colorScheme.onSurface.withValues(alpha: 0.2),
+                    width: 1.5,
+                  ),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  if (_currentStep > 0)
+                    OutlinedButton.icon(
+                      onPressed: () => setState(() => _currentStep--),
+                      icon: const Icon(Icons.arrow_back, size: 18),
+                      label: const Text('BACK'),
+                    )
+                  else
+                    const SizedBox.shrink(),
+                  ElevatedButton.icon(
+                    onPressed: _currentStep == 2
+                        ? _saveConfiguration
+                        : () => setState(() => _currentStep++),
+                    label: Text(_currentStep == 2 ? 'FINISH' : 'NEXT'),
+                    icon: Icon(_currentStep == 2 ? Icons.check : Icons.arrow_forward, size: 18),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
   
+  Widget _buildStepSegment(int stepIndex, String title) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isActive = _currentStep == stepIndex;
+    final isDone = _currentStep > stepIndex;
+
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          color: isActive 
+              ? colorScheme.primary 
+              : (isDone 
+                  ? colorScheme.surfaceContainerHighest 
+                  : colorScheme.surface),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: colorScheme.onSurface,
+            width: 1.5,
+          ),
+        ),
+        child: Text(
+          title,
+          textAlign: TextAlign.center,
+          style: GoogleFonts.googleSans(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: isActive 
+                ? colorScheme.onPrimary 
+                : colorScheme.onSurface,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildStep() {
     switch (_currentStep) {
       case 0:
@@ -205,83 +367,267 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
   
   Widget _buildPermissionsStep() {
+    final colorScheme = Theme.of(context).colorScheme;
+    final themeMode = ref.watch(themeModeProvider);
+    final isDark = themeMode == ThemeMode.dark ||
+        (themeMode == ThemeMode.system &&
+            MediaQuery.of(context).platformBrightness == Brightness.dark);
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Center(
-            child: Image.asset(
-              'logo.png',
-              height: 90,
-              errorBuilder: (context, error, stackTrace) => const Icon(Icons.pin_drop, size: 70),
+          // Top right theme mode toggle chip
+          Align(
+            alignment: Alignment.centerRight,
+            child: InkWell(
+              onTap: () {
+                ref.read(themeModeProvider.notifier).setThemeMode(
+                      isDark ? ThemeMode.light : ThemeMode.dark,
+                    );
+              },
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: colorScheme.outlineVariant),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                      size: 16,
+                      color: colorScheme.primary,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      isDark ? 'Light Mode' : 'Dark Mode',
+                      style: GoogleFonts.googleSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: colorScheme.onSurface,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
-          const SizedBox(height: 16),
-          const Center(
-            child: Text(
-              'Welcome to PingPin',
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: colorScheme.onSurface, width: 2),
+            ),
+            child: Icon(Icons.pin_drop, size: 48, color: colorScheme.onSurface),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'Welcome to PingPin',
+            style: GoogleFonts.googleSans(
+              fontSize: 26,
+              fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: 16),
-
-          const Text(
-            'This app automatically marks attendance whenever you connect to your office Wi-Fi network.',
-            style: TextStyle(fontSize: 16),
+          const SizedBox(height: 8),
+          Text(
+            'Automatic office attendance tracking & portal check-in alarms.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.googleSans(
+              fontSize: 14,
+              color: colorScheme.onSurface.withValues(alpha: 0.7),
+            ),
           ),
           const SizedBox(height: 32),
-          const Text(
-            'Required Permissions:',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 16),
-          _buildPermissionItem(
-            Icons.wifi,
-            'WiFi',
-            'To detect connection to office network',
-          ),
-          _buildPermissionItem(
-            Icons.notifications,
-            'Notifications',
-            'For automatic attendance confirmations',
-          ),
-          _buildPermissionItem(
-            Icons.camera_alt,
-            'Camera/Photos',
-            'Optional: For profile picture',
-          ),
-          const SizedBox(height: 24),
-          Center(
-            child: ElevatedButton.icon(
-              onPressed: () async {
-                await _requestPermissions();
-                setState(() => _currentStep++);
-              },
-              icon: const Icon(Icons.check),
-              label: const Text('Grant Permissions & Continue'),
+
+          // E-Ink Notification Permission Card
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.notifications_active, size: 28, color: colorScheme.primary),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Notification Permission',
+                          style: GoogleFonts.googleSans(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _notificationGranted 
+                              ? colorScheme.primary.withValues(alpha: 0.15) 
+                              : colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: colorScheme.onSurface, width: 1),
+                        ),
+                        child: Text(
+                          _notificationGranted ? 'GRANTED' : 'REQUIRED',
+                          style: GoogleFonts.googleSans(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Used for silent Wi-Fi check-in alerts and interactive Check-In / Check-Out alarm reminders.',
+                    style: GoogleFonts.googleSans(
+                      fontSize: 13,
+                      color: colorScheme.onSurface.withValues(alpha: 0.8),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _requestNotificationPermission,
+                      icon: Icon(_notificationGranted ? Icons.check_circle : Icons.shield, size: 18),
+                      label: Text(_notificationGranted ? 'PERMISSION GRANTED' : 'GRANT NOTIFICATION ACCESS'),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  
-  Widget _buildPermissionItem(IconData icon, String title, String description) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          Icon(icon, size: 32),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                Text(description, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-              ],
+          // E-Ink Location & Wi-Fi Permission Card
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.wifi_find_rounded, size: 28, color: colorScheme.primary),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Location & Wi-Fi Access',
+                          style: GoogleFonts.googleSans(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _locationGranted
+                              ? colorScheme.primary.withValues(alpha: 0.15)
+                              : colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: colorScheme.onSurface, width: 1),
+                        ),
+                        child: Text(
+                          _locationGranted ? 'GRANTED' : 'REQUIRED',
+                          style: GoogleFonts.googleSans(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Required by Android OS to automatically detect your connected Office Wi-Fi network name (SSID).',
+                    style: GoogleFonts.googleSans(
+                      fontSize: 13,
+                      color: colorScheme.onSurface.withValues(alpha: 0.8),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _requestLocationPermission,
+                      icon: Icon(_locationGranted ? Icons.check_circle : Icons.location_on_outlined, size: 18),
+                      label: Text(_locationGranted ? 'LOCATION ACCESS GRANTED' : 'GRANT LOCATION ACCESS'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // E-Ink Battery Optimization Card
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.battery_saver_rounded, size: 28, color: colorScheme.primary),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Battery Optimization Exemption',
+                          style: GoogleFonts.googleSans(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _batteryOptExempted
+                              ? colorScheme.primary.withValues(alpha: 0.15)
+                              : colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: colorScheme.onSurface, width: 1),
+                        ),
+                        child: Text(
+                          _batteryOptExempted ? 'EXEMPTED' : 'RECOMMENDED',
+                          style: GoogleFonts.googleSans(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Prevents Android OS from stopping background office Wi-Fi attendance checks when your device is idle.',
+                    style: GoogleFonts.googleSans(
+                      fontSize: 13,
+                      color: colorScheme.onSurface.withValues(alpha: 0.8),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _requestBatteryOptimizationPermission,
+                      icon: Icon(_batteryOptExempted ? Icons.check_circle : Icons.battery_charging_full_rounded, size: 18),
+                      label: Text(_batteryOptExempted ? 'BATTERY OPTIMIZATION EXEMPTED' : 'ALLOW UNRESTRICTED BATTERY'),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -290,24 +636,45 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
   
   Widget _buildProfileStep() {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Form(
       key: _formKey,
       child: ListView(
         padding: const EdgeInsets.all(24),
         children: [
-          const Text(
+          Text(
             'Your Profile',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            style: GoogleFonts.googleSans(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+            ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 8),
+          Text(
+            'Set up your name and optional profile picture.',
+            style: GoogleFonts.googleSans(
+              fontSize: 13,
+              color: colorScheme.onSurface.withValues(alpha: 0.7),
+            ),
+          ),
+          const SizedBox(height: 28),
           Center(
             child: GestureDetector(
               onTap: _showPhotoSourceDialog,
-              child: CircleAvatar(
-                radius: 50,
-                backgroundImage: _photoPath != null ? FileImage(File(_photoPath!)) : null,
+              child: Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: colorScheme.surface,
+                  border: Border.all(color: colorScheme.onSurface, width: 2),
+                  image: _photoPath != null 
+                      ? DecorationImage(image: FileImage(File(_photoPath!)), fit: BoxFit.cover) 
+                      : null,
+                ),
                 child: _photoPath == null
-                    ? const Icon(Icons.add_a_photo, size: 40)
+                    ? Icon(Icons.add_a_photo, size: 36, color: colorScheme.onSurface)
                     : null,
               ),
             ),
@@ -355,79 +722,222 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   Widget _buildOfficeWifiStep() {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return ListView(
       padding: const EdgeInsets.all(24),
       children: [
-        const Text(
-          'Office WiFi & Schedule',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        Text(
+          'Office, Alarms & Portal',
+          style: GoogleFonts.googleSans(
+            fontSize: 22,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Configure your office network, daily alarm times, and portal link.',
+          style: GoogleFonts.googleSans(
+            fontSize: 13,
+            color: colorScheme.onSurface.withValues(alpha: 0.7),
+          ),
         ),
         const SizedBox(height: 16),
-        const Text(
-          'Enter the name (SSID) of your office WiFi network. Attendance will be automatically recorded whenever connected.',
-        ),
-        const SizedBox(height: 24),
+
+        if (!_locationGranted) ...[
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: colorScheme.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: colorScheme.primary.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.location_on_outlined, color: colorScheme.primary, size: 22),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Location permission is required to auto-detect Wi-Fi name.',
+                    style: GoogleFonts.googleSans(fontSize: 12, fontWeight: FontWeight.w500),
+                  ),
+                ),
+                TextButton(
+                  onPressed: _requestLocationPermission,
+                  child: const Text('ALLOW'),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+
+        // Office Wi-Fi Network Dropdown
         FutureBuilder<List<String>>(
           future: _wifiService.getKnownSSIDs(),
           builder: (context, snapshot) {
             final knownList = snapshot.data ?? [];
-            if (knownList.isNotEmpty) {
-              final currentSelected = _ssidController.text.trim();
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Select Office Wi-Fi Network',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    value: knownList.contains(currentSelected)
-                        ? currentSelected
-                        : knownList.first,
-                    decoration: const InputDecoration(
-                      prefixIcon: Icon(Icons.wifi),
-                      labelText: 'Connected Wi-Fi History',
-                    ),
-                    items: knownList.map((ssid) => DropdownMenuItem(
-                      value: ssid,
-                      child: Text(ssid),
-                    )).toList(),
-                    onChanged: (val) {
-                      if (val != null) {
-                        setState(() {
-                          _ssidController.text = val;
-                        });
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                ],
-              );
+            final currentText = _ssidController.text.trim();
+
+            final options = <String>{
+              if (currentText.isNotEmpty && !_isCustomSsid) currentText,
+              ...knownList,
+              '+ Enter Custom Wi-Fi SSID',
+            }.toList();
+
+            // Set default SSID if empty and knownList available
+            if (_ssidController.text.isEmpty && knownList.isNotEmpty && !_isCustomSsid) {
+              _ssidController.text = knownList.first;
             }
-            return const SizedBox.shrink();
+
+            final selectedValue = _isCustomSsid
+                ? '+ Enter Custom Wi-Fi SSID'
+                : (options.contains(_ssidController.text.trim())
+                    ? _ssidController.text.trim()
+                    : options.first);
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Office Wi-Fi Network *',
+                      style: GoogleFonts.googleSans(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: _refreshWifi,
+                      icon: const Icon(Icons.refresh, size: 16),
+                      label: const Text('Refresh Wi-Fi', style: TextStyle(fontSize: 12)),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  initialValue: options.contains(selectedValue) ? selectedValue : options.first,
+                  decoration: const InputDecoration(
+                    prefixIcon: Icon(Icons.wifi),
+                    labelText: 'Select Office Wi-Fi Network',
+                  ),
+                  items: options
+                      .map((ssid) => DropdownMenuItem(
+                            value: ssid,
+                            child: Text(
+                              ssid,
+                              style: TextStyle(
+                                fontWeight: ssid == selectedValue
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                              ),
+                            ),
+                          ))
+                      .toList(),
+                  onChanged: (val) {
+                    if (val == null) return;
+                    if (val == '+ Enter Custom Wi-Fi SSID') {
+                      setState(() {
+                        _isCustomSsid = true;
+                        _ssidController.clear();
+                      });
+                    } else {
+                      setState(() {
+                        _isCustomSsid = false;
+                        _ssidController.text = val;
+                      });
+                    }
+                  },
+                ),
+                if (_isCustomSsid) ...[
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _ssidController,
+                    autofocus: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Custom Wi-Fi Network Name (SSID) *',
+                      prefixIcon: Icon(Icons.edit_outlined),
+                      hintText: 'e.g., Office_WiFi_5G',
+                    ),
+                  ),
+                ],
+              ],
+            );
           },
         ),
+        const SizedBox(height: 20),
+
+        // Portal URL
         TextFormField(
-          controller: _ssidController,
+          controller: _portalUrlController,
           decoration: const InputDecoration(
-            labelText: 'Office WiFi SSID *',
-            prefixIcon: Icon(Icons.edit),
-            hintText: 'e.g., Office_WiFi',
+            labelText: 'Company Portal URL',
+            prefixIcon: Icon(Icons.language),
+            hintText: 'e.g., https://portal.office.com',
           ),
         ),
-        const SizedBox(height: 32),
-        const Text(
-          'Work Schedule',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        const SizedBox(height: 24),
+
+        // Check-in and Check-out Times
+        Text(
+          'Alarm Times',
+          style: GoogleFonts.googleSans(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => _selectTime(_checkInTime, (t) => setState(() => _checkInTime = t)),
+                icon: const Icon(Icons.login, size: 18),
+                label: Text('Check-in: ${_checkInTime.format(context)}'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => _selectTime(_checkOutTime, (t) => setState(() => _checkOutTime = t)),
+                icon: const Icon(Icons.logout, size: 18),
+                label: Text('Check-out: ${_checkOutTime.format(context)}'),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () async {
+              final portalUrl = _portalUrlController.text.trim();
+              await NotificationService().testCheckInAlarmNow(portalUrl: portalUrl);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('⏰ Test alarm scheduled! It will ring in 5 seconds.')),
+                );
+              }
+            },
+            icon: const Icon(Icons.alarm_on, size: 18),
+            label: const Text('TEST ALARM (RINGS IN 5 SEC)'),
+          ),
+        ),
+        const SizedBox(height: 24),
 
-        const SizedBox(height: 16),
-        const Text('Working Days:', style: TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
+        // Working Days Chips
+        Text(
+          'Working Days:',
+          style: GoogleFonts.googleSans(fontSize: 14, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 10),
         Wrap(
           spacing: 8,
+          runSpacing: 8,
           children: [
             _buildDayChip('Mon', WorkingDays.monday),
             _buildDayChip('Tue', WorkingDays.tuesday),
@@ -466,4 +976,3 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     );
   }
 }
-

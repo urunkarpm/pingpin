@@ -1,5 +1,6 @@
 import 'package:network_info_plus/network_info_plus.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../data/database/app_database.dart';
 
@@ -8,29 +9,22 @@ class WifiService {
   static const String _wifiHistoryKey = 'known_wifi_ssids';
   final NetworkInfo _networkInfo = NetworkInfo();
 
-  /// Gets the current WiFi SSID (returns null if not connected to WiFi)
+  /// Gets the current WiFi SSID (returns null if not connected to WiFi or permission missing)
   Future<String?> getWifiSSID() async {
     try {
-      // First check connectivity type
-      final connectivityResult = await Connectivity().checkConnectivity();
-      
-      // Check if connected to WiFi
-      if (!connectivityResult.contains(ConnectivityResult.wifi)) {
-        return null;
-      }
-      
-      // Get WiFi name (SSID)
+      // Directly fetch WiFi name from NetworkInfo
       final wifiName = await _networkInfo.getWifiName();
-      
-      // Remove quotes if present (Android sometimes adds them)
+
       if (wifiName != null) {
         final cleanSsid = wifiName.replaceAll('"', '').trim();
-        if (cleanSsid.isNotEmpty && cleanSsid != '<unknown ssid>') {
+        if (cleanSsid.isNotEmpty &&
+            cleanSsid.toLowerCase() != '<unknown ssid>' &&
+            cleanSsid != '0x') {
           await addKnownSSID(cleanSsid);
           return cleanSsid;
         }
       }
-      
+
       return null;
     } catch (e) {
       print('Error getting WiFi SSID: $e');
@@ -51,28 +45,32 @@ class WifiService {
 
   /// Retrieves all Wi-Fi SSIDs recorded across Office Configs, SharedPreferences, and current connection
   Future<List<String>> getKnownSSIDs({AppDatabase? db}) async {
-    final result = <String>{};
+    final resultList = <String>[];
 
-    // 1. Fetch from SharedPreferences history
-    final prefs = await SharedPreferences.getInstance();
-    final prefsList = prefs.getStringList(_wifiHistoryKey) ?? [];
-    result.addAll(prefsList);
+    // 1. Fetch current live connection first
+    final current = await getWifiSSID();
+    if (current != null && current.isNotEmpty) {
+      resultList.add(current);
+    }
 
     // 2. Fetch from stored Office Config in DB
     if (db != null) {
       final config = await db.getOfficeConfig();
-      if (config != null && config.ssid.isNotEmpty) {
-        result.add(config.ssid);
+      if (config != null && config.ssid.isNotEmpty && !resultList.contains(config.ssid)) {
+        resultList.add(config.ssid);
       }
     }
 
-    // 3. Fetch current live connection
-    final current = await getWifiSSID();
-    if (current != null && current.isNotEmpty) {
-      result.add(current);
+    // 3. Fetch from SharedPreferences history
+    final prefs = await SharedPreferences.getInstance();
+    final prefsList = prefs.getStringList(_wifiHistoryKey) ?? [];
+    for (final item in prefsList) {
+      if (item.isNotEmpty && !resultList.contains(item)) {
+        resultList.add(item);
+      }
     }
 
-    return result.toList();
+    return resultList;
   }
 
   /// Checks if connected to a specific SSID

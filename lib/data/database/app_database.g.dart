@@ -54,6 +54,30 @@ class $OfficeConfigsTable extends OfficeConfigs
       type: DriftSqlType.string,
       requiredDuringInsert: false,
       defaultValue: const Constant('10:30'));
+  static const VerificationMeta _checkInTimeMeta =
+      const VerificationMeta('checkInTime');
+  @override
+  late final GeneratedColumn<String> checkInTime = GeneratedColumn<String>(
+      'check_in_time', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('09:30'));
+  static const VerificationMeta _checkOutTimeMeta =
+      const VerificationMeta('checkOutTime');
+  @override
+  late final GeneratedColumn<String> checkOutTime = GeneratedColumn<String>(
+      'check_out_time', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('17:30'));
+  static const VerificationMeta _portalUrlMeta =
+      const VerificationMeta('portalUrl');
+  @override
+  late final GeneratedColumn<String> portalUrl = GeneratedColumn<String>(
+      'portal_url', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
   static const VerificationMeta _workingDaysMaskMeta =
       const VerificationMeta('workingDaysMask');
   @override
@@ -86,6 +110,9 @@ class $OfficeConfigsTable extends OfficeConfigs
         longitude,
         radiusMeters,
         lateCutoffTime,
+        checkInTime,
+        checkOutTime,
+        portalUrl,
         workingDaysMask,
         createdAt,
         updatedAt
@@ -133,6 +160,22 @@ class $OfficeConfigsTable extends OfficeConfigs
           lateCutoffTime.isAcceptableOrUnknown(
               data['late_cutoff_time']!, _lateCutoffTimeMeta));
     }
+    if (data.containsKey('check_in_time')) {
+      context.handle(
+          _checkInTimeMeta,
+          checkInTime.isAcceptableOrUnknown(
+              data['check_in_time']!, _checkInTimeMeta));
+    }
+    if (data.containsKey('check_out_time')) {
+      context.handle(
+          _checkOutTimeMeta,
+          checkOutTime.isAcceptableOrUnknown(
+              data['check_out_time']!, _checkOutTimeMeta));
+    }
+    if (data.containsKey('portal_url')) {
+      context.handle(_portalUrlMeta,
+          portalUrl.isAcceptableOrUnknown(data['portal_url']!, _portalUrlMeta));
+    }
     if (data.containsKey('working_days_mask')) {
       context.handle(
           _workingDaysMaskMeta,
@@ -168,6 +211,12 @@ class $OfficeConfigsTable extends OfficeConfigs
           .read(DriftSqlType.int, data['${effectivePrefix}radius_meters'])!,
       lateCutoffTime: attachedDatabase.typeMapping.read(
           DriftSqlType.string, data['${effectivePrefix}late_cutoff_time'])!,
+      checkInTime: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}check_in_time'])!,
+      checkOutTime: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}check_out_time'])!,
+      portalUrl: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}portal_url'])!,
       workingDaysMask: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}working_days_mask'])!,
       createdAt: attachedDatabase.typeMapping
@@ -190,6 +239,9 @@ class OfficeConfig extends DataClass implements Insertable<OfficeConfig> {
   final double longitude;
   final int radiusMeters;
   final String lateCutoffTime;
+  final String checkInTime;
+  final String checkOutTime;
+  final String portalUrl;
   final int workingDaysMask;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -200,6 +252,9 @@ class OfficeConfig extends DataClass implements Insertable<OfficeConfig> {
       required this.longitude,
       required this.radiusMeters,
       required this.lateCutoffTime,
+      required this.checkInTime,
+      required this.checkOutTime,
+      required this.portalUrl,
       required this.workingDaysMask,
       required this.createdAt,
       required this.updatedAt});
@@ -212,6 +267,9 @@ class OfficeConfig extends DataClass implements Insertable<OfficeConfig> {
     map['longitude'] = Variable<double>(longitude);
     map['radius_meters'] = Variable<int>(radiusMeters);
     map['late_cutoff_time'] = Variable<String>(lateCutoffTime);
+    map['check_in_time'] = Variable<String>(checkInTime);
+    map['check_out_time'] = Variable<String>(checkOutTime);
+    map['portal_url'] = Variable<String>(portalUrl);
     map['working_days_mask'] = Variable<int>(workingDaysMask);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
@@ -226,6 +284,9 @@ class OfficeConfig extends DataClass implements Insertable<OfficeConfig> {
       longitude: Value(longitude),
       radiusMeters: Value(radiusMeters),
       lateCutoffTime: Value(lateCutoffTime),
+      checkInTime: Value(checkInTime),
+      checkOutTime: Value(checkOutTime),
+      portalUrl: Value(portalUrl),
       workingDaysMask: Value(workingDaysMask),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
@@ -242,6 +303,9 @@ class OfficeConfig extends DataClass implements Insertable<OfficeConfig> {
       longitude: serializer.fromJson<double>(json['longitude']),
       radiusMeters: serializer.fromJson<int>(json['radiusMeters']),
       lateCutoffTime: serializer.fromJson<String>(json['lateCutoffTime']),
+      checkInTime: serializer.fromJson<String>(json['checkInTime']),
+      checkOutTime: serializer.fromJson<String>(json['checkOutTime']),
+      portalUrl: serializer.fromJson<String>(json['portalUrl']),
       workingDaysMask: serializer.fromJson<int>(json['workingDaysMask']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -257,6 +321,9 @@ class OfficeConfig extends DataClass implements Insertable<OfficeConfig> {
       'longitude': serializer.toJson<double>(longitude),
       'radiusMeters': serializer.toJson<int>(radiusMeters),
       'lateCutoffTime': serializer.toJson<String>(lateCutoffTime),
+      'checkInTime': serializer.toJson<String>(checkInTime),
+      'checkOutTime': serializer.toJson<String>(checkOutTime),
+      'portalUrl': serializer.toJson<String>(portalUrl),
       'workingDaysMask': serializer.toJson<int>(workingDaysMask),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -270,6 +337,9 @@ class OfficeConfig extends DataClass implements Insertable<OfficeConfig> {
           double? longitude,
           int? radiusMeters,
           String? lateCutoffTime,
+          String? checkInTime,
+          String? checkOutTime,
+          String? portalUrl,
           int? workingDaysMask,
           DateTime? createdAt,
           DateTime? updatedAt}) =>
@@ -280,6 +350,9 @@ class OfficeConfig extends DataClass implements Insertable<OfficeConfig> {
         longitude: longitude ?? this.longitude,
         radiusMeters: radiusMeters ?? this.radiusMeters,
         lateCutoffTime: lateCutoffTime ?? this.lateCutoffTime,
+        checkInTime: checkInTime ?? this.checkInTime,
+        checkOutTime: checkOutTime ?? this.checkOutTime,
+        portalUrl: portalUrl ?? this.portalUrl,
         workingDaysMask: workingDaysMask ?? this.workingDaysMask,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
@@ -296,6 +369,12 @@ class OfficeConfig extends DataClass implements Insertable<OfficeConfig> {
       lateCutoffTime: data.lateCutoffTime.present
           ? data.lateCutoffTime.value
           : this.lateCutoffTime,
+      checkInTime:
+          data.checkInTime.present ? data.checkInTime.value : this.checkInTime,
+      checkOutTime: data.checkOutTime.present
+          ? data.checkOutTime.value
+          : this.checkOutTime,
+      portalUrl: data.portalUrl.present ? data.portalUrl.value : this.portalUrl,
       workingDaysMask: data.workingDaysMask.present
           ? data.workingDaysMask.value
           : this.workingDaysMask,
@@ -313,6 +392,9 @@ class OfficeConfig extends DataClass implements Insertable<OfficeConfig> {
           ..write('longitude: $longitude, ')
           ..write('radiusMeters: $radiusMeters, ')
           ..write('lateCutoffTime: $lateCutoffTime, ')
+          ..write('checkInTime: $checkInTime, ')
+          ..write('checkOutTime: $checkOutTime, ')
+          ..write('portalUrl: $portalUrl, ')
           ..write('workingDaysMask: $workingDaysMask, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -321,8 +403,19 @@ class OfficeConfig extends DataClass implements Insertable<OfficeConfig> {
   }
 
   @override
-  int get hashCode => Object.hash(id, ssid, latitude, longitude, radiusMeters,
-      lateCutoffTime, workingDaysMask, createdAt, updatedAt);
+  int get hashCode => Object.hash(
+      id,
+      ssid,
+      latitude,
+      longitude,
+      radiusMeters,
+      lateCutoffTime,
+      checkInTime,
+      checkOutTime,
+      portalUrl,
+      workingDaysMask,
+      createdAt,
+      updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -333,6 +426,9 @@ class OfficeConfig extends DataClass implements Insertable<OfficeConfig> {
           other.longitude == this.longitude &&
           other.radiusMeters == this.radiusMeters &&
           other.lateCutoffTime == this.lateCutoffTime &&
+          other.checkInTime == this.checkInTime &&
+          other.checkOutTime == this.checkOutTime &&
+          other.portalUrl == this.portalUrl &&
           other.workingDaysMask == this.workingDaysMask &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -345,6 +441,9 @@ class OfficeConfigsCompanion extends UpdateCompanion<OfficeConfig> {
   final Value<double> longitude;
   final Value<int> radiusMeters;
   final Value<String> lateCutoffTime;
+  final Value<String> checkInTime;
+  final Value<String> checkOutTime;
+  final Value<String> portalUrl;
   final Value<int> workingDaysMask;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -355,6 +454,9 @@ class OfficeConfigsCompanion extends UpdateCompanion<OfficeConfig> {
     this.longitude = const Value.absent(),
     this.radiusMeters = const Value.absent(),
     this.lateCutoffTime = const Value.absent(),
+    this.checkInTime = const Value.absent(),
+    this.checkOutTime = const Value.absent(),
+    this.portalUrl = const Value.absent(),
     this.workingDaysMask = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -366,6 +468,9 @@ class OfficeConfigsCompanion extends UpdateCompanion<OfficeConfig> {
     required double longitude,
     this.radiusMeters = const Value.absent(),
     this.lateCutoffTime = const Value.absent(),
+    this.checkInTime = const Value.absent(),
+    this.checkOutTime = const Value.absent(),
+    this.portalUrl = const Value.absent(),
     this.workingDaysMask = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -379,6 +484,9 @@ class OfficeConfigsCompanion extends UpdateCompanion<OfficeConfig> {
     Expression<double>? longitude,
     Expression<int>? radiusMeters,
     Expression<String>? lateCutoffTime,
+    Expression<String>? checkInTime,
+    Expression<String>? checkOutTime,
+    Expression<String>? portalUrl,
     Expression<int>? workingDaysMask,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -390,6 +498,9 @@ class OfficeConfigsCompanion extends UpdateCompanion<OfficeConfig> {
       if (longitude != null) 'longitude': longitude,
       if (radiusMeters != null) 'radius_meters': radiusMeters,
       if (lateCutoffTime != null) 'late_cutoff_time': lateCutoffTime,
+      if (checkInTime != null) 'check_in_time': checkInTime,
+      if (checkOutTime != null) 'check_out_time': checkOutTime,
+      if (portalUrl != null) 'portal_url': portalUrl,
       if (workingDaysMask != null) 'working_days_mask': workingDaysMask,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -403,6 +514,9 @@ class OfficeConfigsCompanion extends UpdateCompanion<OfficeConfig> {
       Value<double>? longitude,
       Value<int>? radiusMeters,
       Value<String>? lateCutoffTime,
+      Value<String>? checkInTime,
+      Value<String>? checkOutTime,
+      Value<String>? portalUrl,
       Value<int>? workingDaysMask,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt}) {
@@ -413,6 +527,9 @@ class OfficeConfigsCompanion extends UpdateCompanion<OfficeConfig> {
       longitude: longitude ?? this.longitude,
       radiusMeters: radiusMeters ?? this.radiusMeters,
       lateCutoffTime: lateCutoffTime ?? this.lateCutoffTime,
+      checkInTime: checkInTime ?? this.checkInTime,
+      checkOutTime: checkOutTime ?? this.checkOutTime,
+      portalUrl: portalUrl ?? this.portalUrl,
       workingDaysMask: workingDaysMask ?? this.workingDaysMask,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -440,6 +557,15 @@ class OfficeConfigsCompanion extends UpdateCompanion<OfficeConfig> {
     if (lateCutoffTime.present) {
       map['late_cutoff_time'] = Variable<String>(lateCutoffTime.value);
     }
+    if (checkInTime.present) {
+      map['check_in_time'] = Variable<String>(checkInTime.value);
+    }
+    if (checkOutTime.present) {
+      map['check_out_time'] = Variable<String>(checkOutTime.value);
+    }
+    if (portalUrl.present) {
+      map['portal_url'] = Variable<String>(portalUrl.value);
+    }
     if (workingDaysMask.present) {
       map['working_days_mask'] = Variable<int>(workingDaysMask.value);
     }
@@ -461,6 +587,9 @@ class OfficeConfigsCompanion extends UpdateCompanion<OfficeConfig> {
           ..write('longitude: $longitude, ')
           ..write('radiusMeters: $radiusMeters, ')
           ..write('lateCutoffTime: $lateCutoffTime, ')
+          ..write('checkInTime: $checkInTime, ')
+          ..write('checkOutTime: $checkOutTime, ')
+          ..write('portalUrl: $portalUrl, ')
           ..write('workingDaysMask: $workingDaysMask, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -1545,6 +1674,9 @@ typedef $$OfficeConfigsTableCreateCompanionBuilder = OfficeConfigsCompanion
   required double longitude,
   Value<int> radiusMeters,
   Value<String> lateCutoffTime,
+  Value<String> checkInTime,
+  Value<String> checkOutTime,
+  Value<String> portalUrl,
   Value<int> workingDaysMask,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
@@ -1557,6 +1689,9 @@ typedef $$OfficeConfigsTableUpdateCompanionBuilder = OfficeConfigsCompanion
   Value<double> longitude,
   Value<int> radiusMeters,
   Value<String> lateCutoffTime,
+  Value<String> checkInTime,
+  Value<String> checkOutTime,
+  Value<String> portalUrl,
   Value<int> workingDaysMask,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
@@ -1589,6 +1724,15 @@ class $$OfficeConfigsTableFilterComposer
   ColumnFilters<String> get lateCutoffTime => $composableBuilder(
       column: $table.lateCutoffTime,
       builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get checkInTime => $composableBuilder(
+      column: $table.checkInTime, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get checkOutTime => $composableBuilder(
+      column: $table.checkOutTime, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get portalUrl => $composableBuilder(
+      column: $table.portalUrl, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get workingDaysMask => $composableBuilder(
       column: $table.workingDaysMask,
@@ -1630,6 +1774,16 @@ class $$OfficeConfigsTableOrderingComposer
       column: $table.lateCutoffTime,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get checkInTime => $composableBuilder(
+      column: $table.checkInTime, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get checkOutTime => $composableBuilder(
+      column: $table.checkOutTime,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get portalUrl => $composableBuilder(
+      column: $table.portalUrl, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get workingDaysMask => $composableBuilder(
       column: $table.workingDaysMask,
       builder: (column) => ColumnOrderings(column));
@@ -1667,6 +1821,15 @@ class $$OfficeConfigsTableAnnotationComposer
 
   GeneratedColumn<String> get lateCutoffTime => $composableBuilder(
       column: $table.lateCutoffTime, builder: (column) => column);
+
+  GeneratedColumn<String> get checkInTime => $composableBuilder(
+      column: $table.checkInTime, builder: (column) => column);
+
+  GeneratedColumn<String> get checkOutTime => $composableBuilder(
+      column: $table.checkOutTime, builder: (column) => column);
+
+  GeneratedColumn<String> get portalUrl =>
+      $composableBuilder(column: $table.portalUrl, builder: (column) => column);
 
   GeneratedColumn<int> get workingDaysMask => $composableBuilder(
       column: $table.workingDaysMask, builder: (column) => column);
@@ -1710,6 +1873,9 @@ class $$OfficeConfigsTableTableManager extends RootTableManager<
             Value<double> longitude = const Value.absent(),
             Value<int> radiusMeters = const Value.absent(),
             Value<String> lateCutoffTime = const Value.absent(),
+            Value<String> checkInTime = const Value.absent(),
+            Value<String> checkOutTime = const Value.absent(),
+            Value<String> portalUrl = const Value.absent(),
             Value<int> workingDaysMask = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
@@ -1721,6 +1887,9 @@ class $$OfficeConfigsTableTableManager extends RootTableManager<
             longitude: longitude,
             radiusMeters: radiusMeters,
             lateCutoffTime: lateCutoffTime,
+            checkInTime: checkInTime,
+            checkOutTime: checkOutTime,
+            portalUrl: portalUrl,
             workingDaysMask: workingDaysMask,
             createdAt: createdAt,
             updatedAt: updatedAt,
@@ -1732,6 +1901,9 @@ class $$OfficeConfigsTableTableManager extends RootTableManager<
             required double longitude,
             Value<int> radiusMeters = const Value.absent(),
             Value<String> lateCutoffTime = const Value.absent(),
+            Value<String> checkInTime = const Value.absent(),
+            Value<String> checkOutTime = const Value.absent(),
+            Value<String> portalUrl = const Value.absent(),
             Value<int> workingDaysMask = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
@@ -1743,6 +1915,9 @@ class $$OfficeConfigsTableTableManager extends RootTableManager<
             longitude: longitude,
             radiusMeters: radiusMeters,
             lateCutoffTime: lateCutoffTime,
+            checkInTime: checkInTime,
+            checkOutTime: checkOutTime,
+            portalUrl: portalUrl,
             workingDaysMask: workingDaysMask,
             createdAt: createdAt,
             updatedAt: updatedAt,

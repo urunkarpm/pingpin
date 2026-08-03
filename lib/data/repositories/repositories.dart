@@ -44,6 +44,9 @@ class OfficeConfigRepository {
     required double longitude,
     required int radiusMeters,
     required String lateCutoffTime,
+    String checkInTime = '09:30',
+    String checkOutTime = '17:30',
+    String portalUrl = '',
     required int workingDaysMask,
   }) async {
     final companion = OfficeConfigsCompanion(
@@ -53,6 +56,9 @@ class OfficeConfigRepository {
       longitude: Value(longitude),
       radiusMeters: Value(radiusMeters),
       lateCutoffTime: Value(lateCutoffTime),
+      checkInTime: Value(checkInTime),
+      checkOutTime: Value(checkOutTime),
+      portalUrl: Value(portalUrl),
       workingDaysMask: Value(workingDaysMask),
       updatedAt: Value(DateTime.now()),
     );

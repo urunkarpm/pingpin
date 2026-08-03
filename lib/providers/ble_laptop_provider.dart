@@ -40,10 +40,19 @@ class BleLaptopNotifier extends StateNotifier<BleLaptopScanState> {
       final bluetoothConnectStatus = await Permission.bluetoothConnect.request();
       final locationStatus = await Permission.locationWhenInUse.request();
 
+      if (bluetoothScanStatus.isPermanentlyDenied || bluetoothConnectStatus.isPermanentlyDenied) {
+        await openAppSettings();
+        state = state.copyWith(
+          isScanning: false,
+          errorMessage: 'Bluetooth permissions are permanently denied. Please enable them in system settings.',
+        );
+        return;
+      }
+
       if (bluetoothScanStatus.isDenied || bluetoothConnectStatus.isDenied || locationStatus.isDenied) {
         state = state.copyWith(
           isScanning: false,
-          errorMessage: 'Bluetooth & Location permissions are required to scan for laptops.',
+          errorMessage: 'Bluetooth & Location permissions are required to scan for nearby office laptops.',
         );
         return;
       }

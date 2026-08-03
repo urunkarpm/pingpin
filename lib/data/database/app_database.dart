@@ -30,6 +30,9 @@ class OfficeConfigs extends Table {
   RealColumn get longitude => real()();
   IntColumn get radiusMeters => integer().withDefault(const Constant(100))();
   TextColumn get lateCutoffTime => text().withDefault(const Constant('10:30'))();
+  TextColumn get checkInTime => text().withDefault(const Constant('09:30'))();
+  TextColumn get checkOutTime => text().withDefault(const Constant('17:30'))();
+  TextColumn get portalUrl => text().withDefault(const Constant(''))();
   IntColumn get workingDaysMask => integer().withDefault(const Constant(31))(); // Mon-Fri default
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
