@@ -15,8 +15,3 @@ PingPin is an automated, privacy-focused office attendance tracking application 
 - **Saved Wi-Fi Networks History**: Dropdown selector populated with historical saved networks, active Wi-Fi connections, and local database entries.
 - **PDF Attendance Reports**: Export monthly attendance summaries, statistics, and log history to PDF documents.
 - **Local Data Privacy**: All attendance records, BLE scan metrics, and Wi-Fi configurations remain completely on-device.
-
-## Automated Builds & Releases
-
-PingPin includes CI/CD automation via GitHub Actions:
-- **iOS / IPA Build Workflow**: Automatically builds and packages the iOS `.ipa` payload on push to `main`/`master` or via manual workflow dispatch (`build_ios.yml`).
