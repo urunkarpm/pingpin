@@ -1,6 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:network_info_plus/network_info_plus.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../data/database/app_database.dart';
 
@@ -27,7 +27,7 @@ class WifiService {
 
       return null;
     } catch (e) {
-      print('Error getting WiFi SSID: $e');
+      debugPrint('Error getting WiFi SSID: $e');
       return null;
     }
   }
@@ -43,14 +43,16 @@ class WifiService {
     }
   }
 
-  /// Retrieves all Wi-Fi SSIDs recorded across Office Configs, SharedPreferences, and current connection
-  Future<List<String>> getKnownSSIDs({AppDatabase? db}) async {
+  /// Retrieves recorded Wi-Fi SSIDs from Office Configs, SharedPreferences, and optionally current live connection
+  Future<List<String>> getKnownSSIDs({AppDatabase? db, bool includeCurrentLive = false}) async {
     final resultList = <String>[];
 
-    // 1. Fetch current live connection first
-    final current = await getWifiSSID();
-    if (current != null && current.isNotEmpty) {
-      resultList.add(current);
+    // 1. Fetch current live connection if explicitly requested
+    if (includeCurrentLive) {
+      final current = await getWifiSSID();
+      if (current != null && current.isNotEmpty) {
+        resultList.add(current);
+      }
     }
 
     // 2. Fetch from stored Office Config in DB

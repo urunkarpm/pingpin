@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../data/database/app_database.dart';
 import '../data/repositories/repositories.dart';
 import 'wifi_service.dart';
@@ -66,7 +66,7 @@ class AttendanceService {
       
       return AttendanceCheckResult.success;
     } catch (e) {
-      print('Error checking automated attendance: $e');
+      debugPrint('Error checking automated attendance: $e');
       return AttendanceCheckResult.error;
     }
   }
@@ -82,7 +82,7 @@ class AttendanceService {
         'ssid': ssid,
       };
     } catch (e) {
-      print('Error getting WiFi status: $e');
+      debugPrint('Error getting WiFi status: $e');
       return {'isConnected': false, 'ssid': null};
     }
   }

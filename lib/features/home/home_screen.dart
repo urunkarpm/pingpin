@@ -24,6 +24,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Map<String, AttendanceStatus> _attendanceMap = {};
   OfficeConfig? _officeConfig;
+  List<WfoScheduleHistoryEntry> _wfoHistory = [];
   bool _isLoading = true;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
 
@@ -86,6 +87,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final attendanceRepo = ref.read(attendanceRepositoryProvider);
 
     _officeConfig = await officeConfigRepo.getConfig();
+    _wfoHistory = await officeConfigRepo.getWfoScheduleHistory();
+
+    if (_wfoHistory.isEmpty && _officeConfig != null) {
+      await officeConfigRepo.addWfoScheduleHistory(
+        wfoDaysMask: _officeConfig!.wfoDaysMask,
+        effectiveFrom: DateTime(2020, 1, 1),
+      );
+      _wfoHistory = await officeConfigRepo.getWfoScheduleHistory();
+    }
     final now = DateTime.now();
     final records = await attendanceRepo.getForMonth(now.year, now.month);
 
@@ -120,6 +130,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         });
       }
     }
+  }
+
+  int _getWfoMaskForDate(DateTime date) {
+    if (_wfoHistory.isEmpty) {
+      return _officeConfig?.wfoDaysMask ?? 31;
+    }
+
+    final dateOnly = DateTime(date.year, date.month, date.day);
+    int mask = _wfoHistory.first.wfoDaysMask;
+
+    for (final entry in _wfoHistory) {
+      final effectiveDate = DateTime(
+        entry.effectiveFrom.year,
+        entry.effectiveFrom.month,
+        entry.effectiveFrom.day,
+      );
+
+      if (dateOnly.isBefore(effectiveDate)) {
+        break;
+      }
+      mask = entry.wfoDaysMask;
+    }
+
+    return mask;
   }
 
   List<AttendanceRecord> _getAttendanceForDay(DateTime day) {
@@ -215,7 +249,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                       child: TableCalendar<AttendanceRecord>(
-                        firstDay: DateTime.utc(2020, 1, 1),
+                        firstDay: _officeConfig != null
+                            ? DateTime.utc(_officeConfig!.createdAt.year, _officeConfig!.createdAt.month, 1)
+                            : DateTime.utc(2020, 1, 1),
                         lastDay: DateTime.utc(2030, 12, 31),
                         focusedDay: _focusedDay,
                         startingDayOfWeek: StartingDayOfWeek.sunday,
@@ -269,6 +305,48 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     fontWeight: FontWeight.bold,
                                     color: onSurface,
                                   ),
+                                ),
+                              ),
+                            );
+                          },
+                          prioritizedBuilder: (context, day, focusedDay) {
+                            final wfoMask = _getWfoMaskForDate(day);
+                            final bitPosition = day.weekday - 1;
+                            final isWfoDay = (wfoMask & (1 << bitPosition)) != 0;
+
+                            if (!isWfoDay) return null;
+
+                            final isSelected = isSameDay(_selectedDay, day);
+                            final isToday = isSameDay(day, DateTime.now());
+                            final isOutside = day.month != focusedDay.month;
+
+                            const blueColor = Color(0xFF3B82F6);
+
+                            return Container(
+                              margin: const EdgeInsets.all(4.0),
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: isSelected
+                                    ? blueColor
+                                    : (isOutside ? blueColor.withValues(alpha: 0.08) : blueColor.withValues(alpha: 0.18)),
+                                border: Border.all(
+                                  color: isToday
+                                      ? (isSelected ? Colors.white : blueColor)
+                                      : blueColor.withValues(alpha: isOutside ? 0.3 : 0.7),
+                                  width: isToday ? 2.0 : 1.2,
+                                ),
+                              ),
+                              child: Text(
+                                '${day.day}',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: isToday || isSelected ? FontWeight.bold : FontWeight.w600,
+                                  color: isSelected
+                                      ? Colors.white
+                                      : (isOutside
+                                          ? onSurface.withValues(alpha: 0.4)
+                                          : (isDark ? const Color(0xFF93C5FD) : const Color(0xFF1D4ED8))),
                                 ),
                               ),
                             );

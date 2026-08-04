@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -18,6 +19,7 @@ class InsightsScreen extends ConsumerStatefulWidget {
 class _InsightsScreenState extends ConsumerState<InsightsScreen> {
   late DateTime _selectedMonth;
   bool _isLoading = true;
+  StreamSubscription<List<AttendanceRecord>>? _recordsSubscription;
   
   int _totalOfficeDays = 0;
   double _attendancePercentage = 0;
@@ -33,21 +35,40 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
     _selectedMonth = DateTime.now();
     _loadData();
   }
+
+  @override
+  void dispose() {
+    _recordsSubscription?.cancel();
+    super.dispose();
+  }
   
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     
-    final attendanceRepo = ref.read(attendanceRepositoryProvider);
     final profileRepo = ref.read(userProfileRepositoryProvider);
     final officeConfigRepo = ref.read(officeConfigRepositoryProvider);
     
-    _records = await attendanceRepo.getForMonth(_selectedMonth.year, _selectedMonth.month);
     _profile = await profileRepo.getProfile();
     _config = await officeConfigRepo.getConfig();
-    
-    _calculateMetrics();
-    
-    setState(() => _isLoading = false);
+
+    _subscribeToRecords();
+  }
+
+  void _subscribeToRecords() {
+    _recordsSubscription?.cancel();
+    final attendanceRepo = ref.read(attendanceRepositoryProvider);
+
+    _recordsSubscription = attendanceRepo
+        .watchForMonth(_selectedMonth.year, _selectedMonth.month)
+        .listen((records) {
+      if (mounted) {
+        setState(() {
+          _records = records;
+          _calculateMetrics();
+          _isLoading = false;
+        });
+      }
+    });
   }
   
   void _calculateMetrics() {
@@ -91,6 +112,11 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
   }
   
   void _previousMonth() {
+    if (_config != null) {
+      final configMonth = DateTime(_config!.createdAt.year, _config!.createdAt.month, 1);
+      final prev = DateTime(_selectedMonth.year, _selectedMonth.month - 1, 1);
+      if (prev.isBefore(configMonth)) return;
+    }
     setState(() {
       _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month - 1, 1);
     });
@@ -109,6 +135,10 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
 
   Future<void> _selectMonth() async {
     final now = DateTime.now();
+    final minDate = _config != null 
+        ? DateTime(_config!.createdAt.year, _config!.createdAt.month, 1) 
+        : DateTime(2020, 1, 1);
+        
     final selected = await showModalBottomSheet<DateTime>(
       context: context,
       isScrollControlled: true,
@@ -129,7 +159,7 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
                     children: [
                       IconButton(
                         icon: const Icon(Icons.chevron_left),
-                        onPressed: tempYear > 2020
+                        onPressed: tempYear > minDate.year
                             ? () => setModalState(() => tempYear--)
                             : null,
                       ),
@@ -159,10 +189,12 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
                         final monthNum = index + 1;
                         final monthDate = DateTime(tempYear, monthNum, 1);
                         final isFuture = monthDate.isAfter(DateTime(now.year, now.month, 1));
+                        final isBeforeConfig = monthDate.isBefore(minDate);
+                        final isDisabled = isFuture || isBeforeConfig;
                         final isSelected = _selectedMonth.year == tempYear && _selectedMonth.month == monthNum;
 
                         return InkWell(
-                          onTap: isFuture
+                          onTap: isDisabled
                               ? null
                               : () => Navigator.pop(context, monthDate),
                           borderRadius: BorderRadius.circular(10),
@@ -171,7 +203,7 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
                             decoration: BoxDecoration(
                               color: isSelected
                                   ? Theme.of(context).primaryColor
-                                  : isFuture
+                                  : isDisabled
                                       ? Colors.transparent
                                       : Theme.of(context).colorScheme.surface,
                               borderRadius: BorderRadius.circular(10),
@@ -187,8 +219,8 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
                                 fontWeight: FontWeight.bold,
                                 color: isSelected
                                     ? Theme.of(context).colorScheme.onPrimary
-                                    : isFuture
-                                        ? Colors.grey
+                                    : isDisabled
+                                        ? Colors.grey.withValues(alpha: 0.5)
                                         : null,
                               ),
                             ),
@@ -214,6 +246,13 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
   }
 
   Future<void> _exportPdf() async {
+    final profileRepo = ref.read(userProfileRepositoryProvider);
+    final officeConfigRepo = ref.read(officeConfigRepositoryProvider);
+
+    _profile = await profileRepo.getProfile();
+    _config = await officeConfigRepo.getConfig();
+    final wfoHistory = await officeConfigRepo.getWfoScheduleHistory();
+
     if (_profile == null || _config == null) return;
     
     final pdfService = PdfExportService();
@@ -223,6 +262,8 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
       profile: _profile!,
       records: _records,
       workingDaysMask: _config!.workingDaysMask,
+      wfoDaysMask: _config!.wfoDaysMask,
+      wfoHistory: wfoHistory,
     );
     
     await Printing.layoutPdf(
@@ -236,6 +277,11 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
     final isCurrentMonth = _selectedMonth.year == DateTime.now().year &&
         _selectedMonth.month == DateTime.now().month;
     final colorScheme = Theme.of(context).colorScheme;
+
+    final isConfigMonth = _config != null &&
+        (_selectedMonth.year < _config!.createdAt.year ||
+            (_selectedMonth.year == _config!.createdAt.year &&
+                _selectedMonth.month <= _config!.createdAt.month));
 
     return Scaffold(
       appBar: AppBar(
@@ -274,7 +320,7 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
                     children: [
                       IconButton(
                         icon: const Icon(Icons.chevron_left_rounded),
-                        onPressed: _previousMonth,
+                        onPressed: isConfigMonth ? null : _previousMonth,
                         tooltip: 'Previous Month',
                       ),
                       InkWell(

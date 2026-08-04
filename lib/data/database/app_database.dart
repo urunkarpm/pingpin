@@ -34,6 +34,7 @@ class OfficeConfigs extends Table {
   TextColumn get checkOutTime => text().withDefault(const Constant('17:30'))();
   TextColumn get portalUrl => text().withDefault(const Constant(''))();
   IntColumn get workingDaysMask => integer().withDefault(const Constant(31))(); // Mon-Fri default
+  IntColumn get wfoDaysMask => integer().withDefault(const Constant(31))(); // Mon-Fri default WFO
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 }
@@ -84,6 +85,13 @@ class UserProfiles extends Table {
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 }
 
+@DataClassName('WfoScheduleHistoryEntry')
+class WfoScheduleHistory extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get wfoDaysMask => integer()();
+  DateTimeColumn get effectiveFrom => dateTime()(); // Start date (e.g. Monday of effective week)
+}
+
 @DataClassName('NotificationLog')
 class NotificationLogs extends Table {
   IntColumn get id => integer().autoIncrement()();
@@ -97,12 +105,25 @@ class NotificationLogs extends Table {
   AttendanceRecords,
   UserProfiles,
   NotificationLogs,
+  WfoScheduleHistory,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 3;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            await m.addColumn(officeConfigs, officeConfigs.wfoDaysMask);
+          }
+          if (from < 3) {
+            await m.createTable(wfoScheduleHistory);
+          }
+        },
+      );
 
   // Office Config queries
   Future<OfficeConfig?> getOfficeConfig() async {
@@ -134,6 +155,14 @@ class AppDatabase extends _$AppDatabase {
     return (select(attendanceRecords)
           ..where((t) => t.dateYyyyMmDd.like('$startDate%')))
         .get();
+  }
+
+  Stream<List<AttendanceRecord>> watchAttendanceForMonth(int year, int month) {
+    final startDate = '$year-${month.toString().padLeft(2, '0')}';
+    
+    return (select(attendanceRecords)
+          ..where((t) => t.dateYyyyMmDd.like('$startDate%')))
+        .watch();
   }
 
   Future<void> insertAttendanceRecord(AttendanceRecordsCompanion record) async {
@@ -183,6 +212,23 @@ class AppDatabase extends _$AppDatabase {
     ));
   }
 
+  // WFO Schedule History queries
+  Future<List<WfoScheduleHistoryEntry>> getWfoScheduleHistory() async {
+    return (select(wfoScheduleHistory)
+          ..orderBy([(t) => OrderingTerm.asc(t.effectiveFrom)]))
+        .get();
+  }
+
+  Future<void> addWfoScheduleHistory({
+    required int wfoDaysMask,
+    required DateTime effectiveFrom,
+  }) async {
+    await into(wfoScheduleHistory).insert(WfoScheduleHistoryCompanion(
+      wfoDaysMask: Value(wfoDaysMask),
+      effectiveFrom: Value(effectiveFrom),
+    ));
+  }
+
   // Clear all data (for reset)
   Future<void> clearAllData() async {
     await delete(attendanceRecords).go();
@@ -195,6 +241,7 @@ class AppDatabase extends _$AppDatabase {
     await delete(notificationLogs).go();
     await delete(userProfiles).go();
     await delete(officeConfigs).go();
+    await delete(wfoScheduleHistory).go();
   }
 }
 

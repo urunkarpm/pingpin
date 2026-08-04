@@ -1,9 +1,7 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:drift/drift.dart';
 import 'package:pingpin/data/database/app_database.dart';
-import 'package:pingpin/services/attendance_service.dart';
 import 'package:pingpin/services/wifi_service.dart';
 import 'package:pingpin/services/location_service.dart';
 import 'package:pingpin/core/utils/date_utils.dart';
@@ -15,14 +13,10 @@ class MockLocationService extends Mock implements LocationService {}
 void main() {
 
   group('Attendance Logic Tests', () {
-    late AttendanceService attendanceService;
     late MockWifiService mockWifiService;
     
     setUp(() {
       mockWifiService = MockWifiService();
-      attendanceService = AttendanceService(
-        wifiService: mockWifiService,
-      );
     });
     
     test('Detects office Wi-Fi connection', () async {
@@ -97,9 +91,9 @@ void main() {
   
   group('Insights Calculation Tests', () {
     test('Attendance percentage calculation', () {
-      final totalOfficeDays = 15;
-      final eligibleWorkingDays = 20;
-      final percentage = (totalOfficeDays / eligibleWorkingDays * 100);
+      const totalOfficeDays = 15;
+      const eligibleWorkingDays = 20;
+      const percentage = (totalOfficeDays / eligibleWorkingDays * 100);
       
       expect(percentage, equals(75.0));
     });
@@ -162,12 +156,11 @@ void main() {
   });
 
   group('7-Day Weekly Schedule Verification (Monday & Tuesday OFF, Wednesday-Sunday WORK)', () {
-    late AttendanceService attendanceService;
     late MockWifiService mockWifiService;
 
     // Schedule bitmask: Wed (4) + Thu (8) + Fri (16) + Sat (32) + Sun (64) = 124
     // Excludes Monday (1) and Tuesday (2)
-    final customWorkingDaysMask = WorkingDays.wednesday |
+    const customWorkingDaysMask = WorkingDays.wednesday |
         WorkingDays.thursday |
         WorkingDays.friday |
         WorkingDays.saturday |
@@ -177,7 +170,6 @@ void main() {
 
     setUp(() {
       mockWifiService = MockWifiService();
-      attendanceService = AttendanceService(wifiService: mockWifiService);
 
       weeklyOfficeConfig = OfficeConfig(
         id: 1,
@@ -190,6 +182,7 @@ void main() {
         checkOutTime: '17:30',
         portalUrl: 'https://example.com',
         workingDaysMask: customWorkingDaysMask,
+        wfoDaysMask: 31,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );

@@ -20,6 +20,15 @@ TimeOfDay parseTimeString(String timeStr) {
   );
 }
 
+/// Adds hours and minutes to a TimeOfDay and returns the resulting TimeOfDay
+TimeOfDay addHoursAndMinutes(TimeOfDay time, int hours, int minutes) {
+  final totalMinutes = time.hour * 60 + time.minute + hours * 60 + minutes;
+  final newHour = (totalMinutes ~/ 60) % 24;
+  final newMinute = totalMinutes % 60;
+  return TimeOfDay(hour: newHour, minute: newMinute);
+}
+
+
 /// Gets current date in YYYY-MM-DD format
 String getCurrentDateYyyyMmDd() {
   final now = DateTime.now();

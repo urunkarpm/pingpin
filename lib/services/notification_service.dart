@@ -145,12 +145,14 @@ class NotificationService {
     }
 
     final uri = Uri.tryParse(rawUrl);
-    if (uri != null) {
+    if (uri != null && (uri.isScheme('HTTP') || uri.isScheme('HTTPS'))) {
       try {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
       } catch (e) {
         debugPrint('Error launching portal URL ($rawUrl): $e');
       }
+    } else {
+      debugPrint('Blocked launch of non-HTTP/HTTPS portal URL: $rawUrl');
     }
   }
 
@@ -220,28 +222,7 @@ class NotificationService {
 
   // ─── Alarm scheduling helpers ─────────────────────────────────────────────
 
-  AndroidNotificationDetails _alarmNotificationDetails({
-    required String channelDescription,
-    required List<AndroidNotificationAction> actions,
-  }) {
-    return AndroidNotificationDetails(
-      'alarm_channel_v3',
-      'Check-In & Check-Out Clock Alarms',
-      channelDescription: channelDescription,
-      importance: Importance.max,
-      priority: Priority.max,
-      fullScreenIntent: true,
-      category: AndroidNotificationCategory.alarm,
-      visibility: NotificationVisibility.public,
-      ongoing: true,
-      autoCancel: false,
-      playSound: true,
-      enableVibration: true,
-      audioAttributesUsage: AudioAttributesUsage.alarm,
-      icon: '@mipmap/ic_launcher',
-      actions: actions,
-    );
-  }
+
 
   /// Schedule Check-In Daily Clock Alarm
   Future<void> scheduleCheckInAlarm(
@@ -255,48 +236,28 @@ class NotificationService {
     final minute = int.parse(parts[1]);
     final scheduledDate = _nextInstanceOfTime(hour, minute);
 
-    // 1. Alarm package — handles audio + vibration + wakes CPU
+    // 1. Alarm package — handles full screen launch + default system alarm sound + vibration
     await Alarm.set(
       alarmSettings: AlarmSettings(
         id: 101,
         dateTime: scheduledDate,
-        assetAudioPath: 'assets/audio/alarm.mp3',
+        assetAudioPath: 'assets/audio/beep.mp3',
         loopAudio: true,
         vibrate: true,
         volume: 1.0,
-        fadeDuration: 2.0,
+        fadeDuration: 0.0,
         notificationSettings: const NotificationSettings(
-          title: '⏰ CHECK-IN ALARM',
+          title: 'CHECK-IN ALARM',
           body: 'Tap Check-in to open portal or Leave to apply for leave.',
+          stopButton: 'Dismiss',
         ),
         warningNotificationOnKill: true,
+        androidFullScreenIntent: true,
       ),
     );
 
-    // 2. flutter_local_notifications — fullScreenIntent wakes the screen.
-    //    Vibration/sound are OFF here (alarm package owns those).
-    final androidDetails = _alarmNotificationDetails(
-      channelDescription: 'Check-In Alarm',
-      actions: const [
-        AndroidNotificationAction('check_in', 'Check-in',
-            showsUserInterface: true, cancelNotification: true),
-        AndroidNotificationAction('leave', 'Leave',
-            showsUserInterface: true, cancelNotification: true),
-      ],
-    );
-
-    await _notifications.zonedSchedule(
-      101,
-      '⏰ CHECK-IN ALARM',
-      'It is time to check in! Open portal or apply for leave.',
-      tz.TZDateTime.from(scheduledDate, tz.local),
-      NotificationDetails(android: androidDetails),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: DateTimeComponents.time,
-      payload: portalUrl ?? _storedPortalUrl,
-    );
+    // Cancel any standalone local notification with ID 101 to avoid notification center popups
+    await _notifications.cancel(101);
   }
 
   /// Schedule Check-Out Daily Clock Alarm
@@ -311,45 +272,28 @@ class NotificationService {
     final minute = int.parse(parts[1]);
     final scheduledDate = _nextInstanceOfTime(hour, minute);
 
-    // 1. Alarm package — audio + vibration
+    // 1. Alarm package
     await Alarm.set(
       alarmSettings: AlarmSettings(
         id: 102,
         dateTime: scheduledDate,
-        assetAudioPath: 'assets/audio/alarm.mp3',
+        assetAudioPath: 'assets/audio/beep.mp3',
         loopAudio: true,
         vibrate: true,
         volume: 1.0,
-        fadeDuration: 2.0,
+        fadeDuration: 0.0,
         notificationSettings: const NotificationSettings(
-          title: '🔔 CHECK-OUT ALARM',
+          title: 'CHECK-OUT ALARM',
           body: 'Tap Check-out to open portal.',
+          stopButton: 'Dismiss',
         ),
         warningNotificationOnKill: true,
+        androidFullScreenIntent: true,
       ),
     );
 
-    // 2. flutter_local_notifications — fullScreenIntent only
-    final androidDetails = _alarmNotificationDetails(
-      channelDescription: 'Check-Out Alarm',
-      actions: const [
-        AndroidNotificationAction('check_out', 'Check-out',
-            showsUserInterface: true, cancelNotification: true),
-      ],
-    );
-
-    await _notifications.zonedSchedule(
-      102,
-      '🔔 CHECK-OUT ALARM',
-      'It is time to check out! Open portal.',
-      tz.TZDateTime.from(scheduledDate, tz.local),
-      NotificationDetails(android: androidDetails),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: DateTimeComponents.time,
-      payload: portalUrl ?? _storedPortalUrl,
-    );
+    // Cancel any standalone local notification with ID 102 to avoid notification center popups
+    await _notifications.cancel(102);
   }
 
   /// Schedule both alarms from OfficeConfig
@@ -374,45 +318,22 @@ class NotificationService {
       alarmSettings: AlarmSettings(
         id: 101,
         dateTime: scheduledDate,
-        assetAudioPath: 'assets/audio/alarm.mp3',
+        assetAudioPath: 'assets/audio/beep.mp3',
         loopAudio: true,
         vibrate: true,
         volume: 1.0,
-        fadeDuration: 2.0,
+        fadeDuration: 0.0,
         notificationSettings: const NotificationSettings(
-          title: '⏰ TEST CHECK-IN ALARM',
+          title: 'TEST CHECK-IN ALARM',
           body: 'Tap Check-in to open portal or Leave to apply for leave.',
+          stopButton: 'Dismiss',
         ),
         warningNotificationOnKill: true,
+        androidFullScreenIntent: true,
       ),
     );
 
-    // 2. flutter_local_notifications — fullScreenIntent only, no vibration
-    final androidDetails = _alarmNotificationDetails(
-      channelDescription: 'Test Check-In Alarm',
-      actions: const [
-        AndroidNotificationAction('check_in', 'Check-in',
-            showsUserInterface: true, cancelNotification: true),
-        AndroidNotificationAction('leave', 'Leave',
-            showsUserInterface: true, cancelNotification: true),
-      ],
-    );
-
-    final tzDate =
-        tz.TZDateTime.now(tz.local).add(const Duration(seconds: 5));
-
-    await _notifications.zonedSchedule(
-      101,
-      '⏰ TEST CHECK-IN ALARM',
-      'It is time to check in! Open portal or apply for leave.',
-      tzDate,
-      NotificationDetails(android: androidDetails),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-      payload: portalUrl ?? _storedPortalUrl,
-    );
-    // ⚠️ No Future.delayed push here — ringStream handles the screen.
+    await _notifications.cancel(101);
   }
 
   /// Shows attendance success notification

@@ -12,6 +12,7 @@ import '../../services/background_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/wifi_service.dart';
 import '../../providers/providers.dart';
+import '../../core/utils/date_utils.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -39,6 +40,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   TimeOfDay _checkInTime = const TimeOfDay(hour: 9, minute: 30);
   TimeOfDay _checkOutTime = const TimeOfDay(hour: 17, minute: 30);
   int _workingDaysMask = WorkingDays.defaultWeekdays;
+  int _wfoDaysMask = WorkingDays.defaultWeekdays;
   double? _latitude;
   double? _longitude;
 
@@ -51,6 +53,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   TimeOfDay _initialCheckInTime = const TimeOfDay(hour: 9, minute: 30);
   TimeOfDay _initialCheckOutTime = const TimeOfDay(hour: 17, minute: 30);
   int _initialWorkingDaysMask = WorkingDays.defaultWeekdays;
+  int _initialWfoDaysMask = WorkingDays.defaultWeekdays;
 
   bool _isLoading = true;
   bool _isSaving = false;
@@ -95,6 +98,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _checkInTime = parseTimeString(config.checkInTime);
       _checkOutTime = parseTimeString(config.checkOutTime);
       _workingDaysMask = config.workingDaysMask;
+      _wfoDaysMask = config.wfoDaysMask;
       _latitude = config.latitude;
       _longitude = config.longitude;
     }
@@ -115,6 +119,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _initialCheckInTime = _checkInTime;
     _initialCheckOutTime = _checkOutTime;
     _initialWorkingDaysMask = _workingDaysMask;
+    _initialWfoDaysMask = _wfoDaysMask;
   }
 
   bool get _hasChanges {
@@ -126,7 +131,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         _portalUrlController.text.trim() != _initialPortalUrl ||
         _checkInTime != _initialCheckInTime ||
         _checkOutTime != _initialCheckOutTime ||
-        _workingDaysMask != _initialWorkingDaysMask;
+        _workingDaysMask != _initialWorkingDaysMask ||
+        _wfoDaysMask != _initialWfoDaysMask;
   }
 
   TimeOfDay parseTimeString(String timeStr) {
@@ -180,6 +186,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       final lateCutoffStr =
           '${_lateCutoffTime.hour.toString().padLeft(2, '0')}:${_lateCutoffTime.minute.toString().padLeft(2, '0')}';
 
+      final isWfoChanged = _wfoDaysMask != _initialWfoDaysMask;
+
       await officeConfigRepo.saveConfig(
         id: existingConfig?.id,
         ssid: _ssidController.text.trim(),
@@ -191,6 +199,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         checkOutTime: checkOutStr,
         portalUrl: _portalUrlController.text.trim(),
         workingDaysMask: _workingDaysMask,
+        wfoDaysMask: _wfoDaysMask,
+        updateWfoEffectiveNextWeek: isWfoChanged,
       );
 
       // 3. Reschedule alarms
@@ -250,6 +260,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         _workingDaysMask &= ~dayBit;
       } else {
         _workingDaysMask |= dayBit;
+      }
+    });
+  }
+
+  void _toggleWfoDay(int dayBit) {
+    setState(() {
+      if ((_wfoDaysMask & dayBit) != 0) {
+        _wfoDaysMask &= ~dayBit;
+      } else {
+        _wfoDaysMask |= dayBit;
       }
     });
   }
@@ -610,7 +630,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         children: [
           // Wi-Fi Dropdown / Text input
           FutureBuilder<List<String>>(
-            future: WifiService().getKnownSSIDs(db: ref.read(databaseProvider)),
+            future: WifiService().getKnownSSIDs(db: ref.read(databaseProvider), includeCurrentLive: false),
             builder: (context, snapshot) {
               final knownList = snapshot.data ?? [];
               final currentText = _ssidController.text.trim();
@@ -623,52 +643,69 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (options.isNotEmpty) ...[
-                    DropdownButtonFormField<String>(
-                      initialValue: options.contains(currentText) ? currentText : options.firstOrNull,
-                      decoration: InputDecoration(
-                        labelText: 'Office Wi-Fi SSID',
-                        prefixIcon: Icon(Icons.wifi_rounded, color: colorScheme.primary, size: 20),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: colorScheme.outlineVariant),
-                        ),
-                      ),
-                      items: options
-                          .map((ssid) => DropdownMenuItem(
-                                value: ssid,
-                                child: Text(
-                                  ssid,
-                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: options.isNotEmpty
+                            ? DropdownButtonFormField<String>(
+                                initialValue: options.contains(currentText) ? currentText : options.firstOrNull,
+                                decoration: InputDecoration(
+                                  labelText: 'Office Wi-Fi SSID',
+                                  prefixIcon: Icon(Icons.wifi_rounded, color: colorScheme.primary, size: 20),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide(color: colorScheme.outlineVariant),
+                                  ),
                                 ),
-                              ))
-                          .toList(),
-                      onChanged: (val) {
-                        if (val != null) {
-                          setState(() {
-                            _ssidController.text = val;
-                          });
-                        }
-                      },
-                    ),
-                  ] else ...[
-                    TextFormField(
-                      controller: _ssidController,
-                      onChanged: (_) => setState(() {}),
-                      decoration: InputDecoration(
-                        labelText: 'Office Wi-Fi SSID',
-                        hintText: 'e.g. Office_5G_Guest',
-                        prefixIcon: const Icon(Icons.wifi_rounded, size: 20),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: colorScheme.outlineVariant),
-                        ),
+                                items: options
+                                    .map((ssid) => DropdownMenuItem(
+                                          value: ssid,
+                                          child: Text(
+                                            ssid,
+                                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                                          ),
+                                        ))
+                                    .toList(),
+                                onChanged: (val) {
+                                  if (val != null) {
+                                    setState(() {
+                                      _ssidController.text = val;
+                                    });
+                                  }
+                                },
+                              )
+                            : TextFormField(
+                                controller: _ssidController,
+                                onChanged: (_) => setState(() {}),
+                                decoration: InputDecoration(
+                                  labelText: 'Office Wi-Fi SSID',
+                                  hintText: 'e.g. Office_5G_Guest',
+                                  prefixIcon: const Icon(Icons.wifi_rounded, size: 20),
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide(color: colorScheme.outlineVariant),
+                                  ),
+                                ),
+                              ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 8),
+                      IconButton.filledTonal(
+                        tooltip: 'Fetch Current Connected Wi-Fi',
+                        icon: const Icon(Icons.refresh_rounded),
+                        onPressed: () async {
+                          final currentSsid = await WifiService().getWifiSSID();
+                          if (currentSsid != null && currentSsid.isNotEmpty) {
+                            setState(() {
+                              _ssidController.text = currentSsid;
+                            });
+                          }
+                        },
+                      ),
+                    ],
+                  ),
                 ],
               );
             },
@@ -679,6 +716,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             controller: _portalUrlController,
             onChanged: (_) => setState(() {}),
             keyboardType: TextInputType.url,
+            validator: (value) {
+              if (value != null && value.trim().isNotEmpty) {
+                final trimmed = value.trim();
+                final uri = Uri.tryParse(trimmed.startsWith('http') ? trimmed : 'https://$trimmed');
+                if (uri == null || (!uri.isScheme('HTTP') && !uri.isScheme('HTTPS')) || uri.host.isEmpty) {
+                  return 'Please enter a valid HTTP or HTTPS web URL';
+                }
+              }
+              return null;
+            },
             decoration: InputDecoration(
               labelText: 'Attendance Portal URL',
               hintText: 'https://portal.company.com/checkin',
@@ -713,7 +760,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   colorScheme: colorScheme,
                   onTap: () => _selectTime(
                     _checkInTime,
-                    (t) => setState(() => _checkInTime = t),
+                    (t) => setState(() {
+                      _checkInTime = t;
+                      _checkOutTime = addHoursAndMinutes(t, 8, 32);
+                    }),
                   ),
                 ),
               ),
@@ -740,7 +790,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Working Days',
+                'Working Schedule',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
@@ -761,13 +811,56 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             spacing: 6,
             runSpacing: 8,
             children: [
-              _buildMonochromeDayChip('Mon', WorkingDays.monday, colorScheme, isDark),
-              _buildMonochromeDayChip('Tue', WorkingDays.tuesday, colorScheme, isDark),
-              _buildMonochromeDayChip('Wed', WorkingDays.wednesday, colorScheme, isDark),
-              _buildMonochromeDayChip('Thu', WorkingDays.thursday, colorScheme, isDark),
-              _buildMonochromeDayChip('Fri', WorkingDays.friday, colorScheme, isDark),
-              _buildMonochromeDayChip('Sat', WorkingDays.saturday, colorScheme, isDark),
-              _buildMonochromeDayChip('Sun', WorkingDays.sunday, colorScheme, isDark),
+              _buildMonochromeDayChip('Mon', WorkingDays.monday, colorScheme, isDark, isWfo: false),
+              _buildMonochromeDayChip('Tue', WorkingDays.tuesday, colorScheme, isDark, isWfo: false),
+              _buildMonochromeDayChip('Wed', WorkingDays.wednesday, colorScheme, isDark, isWfo: false),
+              _buildMonochromeDayChip('Thu', WorkingDays.thursday, colorScheme, isDark, isWfo: false),
+              _buildMonochromeDayChip('Fri', WorkingDays.friday, colorScheme, isDark, isWfo: false),
+              _buildMonochromeDayChip('Sat', WorkingDays.saturday, colorScheme, isDark, isWfo: false),
+              _buildMonochromeDayChip('Sun', WorkingDays.sunday, colorScheme, isDark, isWfo: false),
+            ],
+          ),
+          const SizedBox(height: 18),
+          const Divider(height: 1),
+          const SizedBox(height: 14),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.corporate_fare_rounded, size: 16, color: Color(0xFF3B82F6)),
+                  const SizedBox(width: 6),
+                  Text(
+                    'WFO Schedule',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
+                ],
+              ),
+              Text(
+                'Marked on calendar',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 6,
+            runSpacing: 8,
+            children: [
+              _buildMonochromeDayChip('Mon', WorkingDays.monday, colorScheme, isDark, isWfo: true),
+              _buildMonochromeDayChip('Tue', WorkingDays.tuesday, colorScheme, isDark, isWfo: true),
+              _buildMonochromeDayChip('Wed', WorkingDays.wednesday, colorScheme, isDark, isWfo: true),
+              _buildMonochromeDayChip('Thu', WorkingDays.thursday, colorScheme, isDark, isWfo: true),
+              _buildMonochromeDayChip('Fri', WorkingDays.friday, colorScheme, isDark, isWfo: true),
+              _buildMonochromeDayChip('Sat', WorkingDays.saturday, colorScheme, isDark, isWfo: true),
+              _buildMonochromeDayChip('Sun', WorkingDays.sunday, colorScheme, isDark, isWfo: true),
             ],
           ),
         ],
@@ -836,17 +929,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Widget _buildMonochromeDayChip(String label, int bit, ColorScheme colorScheme, bool isDark) {
-    final isSelected = (_workingDaysMask & bit) != 0;
+  Widget _buildMonochromeDayChip(String label, int bit, ColorScheme colorScheme, bool isDark, {bool isWfo = false}) {
+    final mask = isWfo ? _wfoDaysMask : _workingDaysMask;
+    final isSelected = (mask & bit) != 0;
 
-    final selectedBg = isDark ? Colors.white : AppColors.primary;
-    final selectedText = isDark ? AppColors.primary : Colors.white;
+    final Color selectedBg;
+    final Color selectedText;
+
+    if (isWfo) {
+      selectedBg = const Color(0xFF3B82F6);
+      selectedText = Colors.white;
+    } else {
+      selectedBg = isDark ? Colors.white : AppColors.primary;
+      selectedText = isDark ? AppColors.primary : Colors.white;
+    }
 
     final unselectedBg = colorScheme.surfaceContainerHighest.withValues(alpha: 0.3);
     final unselectedText = colorScheme.onSurfaceVariant;
 
     return InkWell(
-      onTap: () => _toggleWorkingDay(bit),
+      onTap: () => isWfo ? _toggleWfoDay(bit) : _toggleWorkingDay(bit),
       borderRadius: BorderRadius.circular(10),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
@@ -1000,13 +1102,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   color: isExempted ? AppColors.accent : colorScheme.primary,
                 ),
                 onPressed: () async {
+                  final messenger = ScaffoldMessenger.of(context);
                   final isGranted = await BackgroundService.requestBatteryOptimizationExemption();
                   if (!isGranted) {
                     await openAppSettings();
                   }
                   if (mounted) {
                     setState(() {});
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    messenger.showSnackBar(
                       SnackBar(
                         content: Text(
                           isGranted

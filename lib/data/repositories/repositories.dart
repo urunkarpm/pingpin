@@ -36,7 +36,21 @@ class OfficeConfigRepository {
   Future<OfficeConfig?> getConfig() async {
     return await _db.getOfficeConfig();
   }
-  
+
+  Future<List<WfoScheduleHistoryEntry>> getWfoScheduleHistory() async {
+    return await _db.getWfoScheduleHistory();
+  }
+
+  Future<void> addWfoScheduleHistory({
+    required int wfoDaysMask,
+    required DateTime effectiveFrom,
+  }) async {
+    await _db.addWfoScheduleHistory(
+      wfoDaysMask: wfoDaysMask,
+      effectiveFrom: effectiveFrom,
+    );
+  }
+
   Future<int> saveConfig({
     int? id,
     required String ssid,
@@ -48,7 +62,10 @@ class OfficeConfigRepository {
     String checkOutTime = '17:30',
     String portalUrl = '',
     required int workingDaysMask,
+    int wfoDaysMask = 31,
+    bool updateWfoEffectiveNextWeek = false,
   }) async {
+    final existingConfig = await _db.getOfficeConfig();
     final companion = OfficeConfigsCompanion(
       id: id != null ? Value(id) : const Value.absent(),
       ssid: Value(ssid),
@@ -60,10 +77,44 @@ class OfficeConfigRepository {
       checkOutTime: Value(checkOutTime),
       portalUrl: Value(portalUrl),
       workingDaysMask: Value(workingDaysMask),
+      wfoDaysMask: Value(wfoDaysMask),
       updatedAt: Value(DateTime.now()),
     );
+
+    final savedId = await _db.saveOfficeConfig(companion);
+
+    final currentHistory = await _db.getWfoScheduleHistory();
+    final now = DateTime.now();
+    final todayDate = DateTime(now.year, now.month, now.day);
+
+    final daysUntilNextMonday = (DateTime.monday - todayDate.weekday + 7) % 7;
+    final nextMondayOffset = daysUntilNextMonday == 0 ? 7 : daysUntilNextMonday;
+    final nextMonday = todayDate.add(Duration(days: nextMondayOffset));
+
+    if (currentHistory.isEmpty) {
+      // 1. Initial history record for past dates (up to current week)
+      final initialMask = existingConfig != null ? existingConfig.wfoDaysMask : wfoDaysMask;
+      await _db.addWfoScheduleHistory(
+        wfoDaysMask: initialMask,
+        effectiveFrom: DateTime(2020, 1, 1),
+      );
+
+      // If user changed WFO in settings, add new schedule starting next Monday
+      if (updateWfoEffectiveNextWeek && initialMask != wfoDaysMask) {
+        await _db.addWfoScheduleHistory(
+          wfoDaysMask: wfoDaysMask,
+          effectiveFrom: nextMonday,
+        );
+      }
+    } else if (updateWfoEffectiveNextWeek) {
+      // 2. Add new schedule entry effective next Monday
+      await _db.addWfoScheduleHistory(
+        wfoDaysMask: wfoDaysMask,
+        effectiveFrom: nextMonday,
+      );
+    }
     
-    return await _db.saveOfficeConfig(companion);
+    return savedId;
   }
   
   Future<void> deleteConfig() async {
@@ -83,6 +134,10 @@ class AttendanceRepository {
   
   Future<List<AttendanceRecord>> getForMonth(int year, int month) async {
     return await _db.getAttendanceForMonth(year, month);
+  }
+
+  Stream<List<AttendanceRecord>> watchForMonth(int year, int month) {
+    return _db.watchAttendanceForMonth(year, month);
   }
   
   Future<void> insertRecord({

@@ -13,6 +13,7 @@ import '../../services/wifi_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/background_service.dart';
 import '../../providers/providers.dart';
+import '../../core/utils/date_utils.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -35,6 +36,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   TimeOfDay _checkInTime = const TimeOfDay(hour: 9, minute: 30);
   TimeOfDay _checkOutTime = const TimeOfDay(hour: 17, minute: 30);
   int _workingDaysMask = WorkingDays.defaultWeekdays;
+  int _wfoDaysMask = WorkingDays.defaultWeekdays;
   
   bool _notificationGranted = false;
   bool _locationGranted = false;
@@ -44,6 +46,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _wifiService = WifiService();
   final _imagePicker = ImagePicker();
   
+  int _subStep = 0; // 0: Wifi, 1: Portal, 2: Days, 3: WFO Days, 4: Alarms
+  bool _isMovingForward = true;
+
   @override
   void initState() {
     super.initState();
@@ -136,6 +141,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       }
     });
   }
+
+  void _toggleWfoDay(int dayBit) {
+    setState(() {
+      if ((_wfoDaysMask & dayBit) != 0) {
+        _wfoDaysMask &= ~dayBit;
+      } else {
+        _wfoDaysMask |= dayBit;
+      }
+    });
+  }
   
   Future<void> _selectTime(TimeOfDay initialTime, Function(TimeOfDay) onSelected) async {
     final picked = await showTimePicker(
@@ -162,7 +177,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter office WiFi SSID')),
       );
-      setState(() => _currentStep = 2);
+      setState(() {
+        _currentStep = 2;
+        _subStep = 0;
+      });
       return;
     }
     
@@ -195,6 +213,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         checkOutTime: checkOutStr,
         portalUrl: portalUrl,
         workingDaysMask: _workingDaysMask,
+        wfoDaysMask: _wfoDaysMask,
       );
       
       // Save portal URL and schedule check-in and check-out alarms
@@ -221,6 +240,44 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       }
     }
   }
+
+  void _handleBackNavigation() {
+    setState(() {
+      _isMovingForward = false;
+      if (_currentStep == 2 && _subStep > 0) {
+        _subStep--;
+      } else if (_currentStep > 0) {
+        _currentStep--;
+        if (_currentStep == 2) {
+          _subStep = 4;
+        }
+      }
+    });
+  }
+
+  void _handleNextNavigation() {
+    if (_currentStep == 2) {
+      if (_subStep == 0 && _ssidController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please select or enter office Wi-Fi network')),
+        );
+        return;
+      }
+      if (_subStep < 4) {
+        setState(() {
+          _isMovingForward = true;
+          _subStep++;
+        });
+      } else {
+        _saveConfiguration();
+      }
+    } else {
+      setState(() {
+        _isMovingForward = true;
+        _currentStep++;
+      });
+    }
+  }
   
   @override
   Widget build(BuildContext context) {
@@ -231,87 +288,97 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         (themeMode == ThemeMode.system &&
             MediaQuery.of(context).platformBrightness == Brightness.dark);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'SETUP PINGPIN',
-          style: GoogleFonts.googleSans(
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.2,
-            fontSize: 18,
-          ),
-        ),
-        automaticallyImplyLeading: false,
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: Icon(
-              isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+    final isLastSubStep = _currentStep == 2 && _subStep == 4;
+    final isFinalButton = _currentStep == 2 ? isLastSubStep : false;
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (_currentStep > 0 || (_currentStep == 2 && _subStep > 0)) {
+          _handleBackNavigation();
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(
+            'SETUP PINGPIN',
+            style: GoogleFonts.googleSans(
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.2,
+              fontSize: 18,
             ),
-            tooltip: isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode',
-            onPressed: () {
-              ref.read(themeModeProvider.notifier).setThemeMode(
-                    isDark ? ThemeMode.light : ThemeMode.dark,
-                  );
-            },
           ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // E-Ink Custom Segmented Progress Header
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              child: Row(
-                children: [
-                  _buildStepSegment(0, '01 WELCOME'),
-                  const SizedBox(width: 8),
-                  _buildStepSegment(1, '02 PROFILE'),
-                  const SizedBox(width: 8),
-                  _buildStepSegment(2, '03 SETUP'),
-                ],
+          automaticallyImplyLeading: false,
+          centerTitle: true,
+          actions: [
+            IconButton(
+              icon: Icon(
+                isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
               ),
+              tooltip: isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode',
+              onPressed: () {
+                ref.read(themeModeProvider.notifier).setThemeMode(
+                      isDark ? ThemeMode.light : ThemeMode.dark,
+                    );
+              },
             ),
-            
-            Expanded(
-              child: _buildStep(),
-            ),
-            
-            // Navigation Bar
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                border: Border(
-                  top: BorderSide(
-                    color: colorScheme.onSurface.withValues(alpha: 0.2),
-                    width: 1.5,
-                  ),
+            const SizedBox(width: 8),
+          ],
+        ),
+        body: SafeArea(
+          child: Column(
+            children: [
+              // E-Ink Custom Segmented Progress Header
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                child: Row(
+                  children: [
+                    _buildStepSegment(0, '01 WELCOME'),
+                    const SizedBox(width: 8),
+                    _buildStepSegment(1, '02 PROFILE'),
+                    const SizedBox(width: 8),
+                    _buildStepSegment(2, '03 SETUP'),
+                  ],
                 ),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  if (_currentStep > 0)
-                    OutlinedButton.icon(
-                      onPressed: () => setState(() => _currentStep--),
-                      icon: const Icon(Icons.arrow_back, size: 18),
-                      label: const Text('BACK'),
-                    )
-                  else
-                    const SizedBox.shrink(),
-                  ElevatedButton.icon(
-                    onPressed: _currentStep == 2
-                        ? _saveConfiguration
-                        : () => setState(() => _currentStep++),
-                    label: Text(_currentStep == 2 ? 'FINISH' : 'NEXT'),
-                    icon: Icon(_currentStep == 2 ? Icons.check : Icons.arrow_forward, size: 18),
-                  ),
-                ],
+              
+              Expanded(
+                child: _buildStep(),
               ),
-            ),
-          ],
+              
+              // Navigation Bar
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  border: Border(
+                    top: BorderSide(
+                      color: colorScheme.onSurface.withValues(alpha: 0.2),
+                      width: 1.5,
+                    ),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    if (_currentStep > 0 || (_currentStep == 2 && _subStep > 0))
+                      OutlinedButton.icon(
+                        onPressed: _handleBackNavigation,
+                        icon: const Icon(Icons.arrow_back, size: 18),
+                        label: const Text('BACK'),
+                      )
+                    else
+                      const SizedBox.shrink(),
+                    ElevatedButton.icon(
+                      onPressed: _handleNextNavigation,
+                      label: Text(isFinalButton ? 'FINISH' : 'NEXT'),
+                      icon: Icon(isFinalButton ? Icons.check : Icons.arrow_forward, size: 18),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -417,16 +484,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: colorScheme.onSurface, width: 2),
-            ),
-            child: Icon(Icons.pin_drop, size: 48, color: colorScheme.onSurface),
-          ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           Text(
             'Welcome to PingPin',
             style: GoogleFonts.googleSans(
@@ -724,231 +782,616 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   Widget _buildOfficeWifiStep() {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return ListView(
-      padding: const EdgeInsets.all(24),
-      children: [
-        Text(
-          'Office, Alarms & Portal',
-          style: GoogleFonts.googleSans(
-            fontSize: 22,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Configure your office network, daily alarm times, and portal link.',
-          style: GoogleFonts.googleSans(
-            fontSize: 13,
-            color: colorScheme.onSurface.withValues(alpha: 0.7),
-          ),
-        ),
-        const SizedBox(height: 16),
+    final subStepTitles = [
+      'Office Wi-Fi',
+      'Company Portal',
+      'Work Days',
+      'WFO Schedule',
+      'Alarm Schedule',
+    ];
 
-        if (!_locationGranted) ...[
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: colorScheme.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: colorScheme.primary.withValues(alpha: 0.3)),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.location_on_outlined, color: colorScheme.primary, size: 22),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Location permission is required to auto-detect Wi-Fi name.',
-                    style: GoogleFonts.googleSans(fontSize: 12, fontWeight: FontWeight.w500),
-                  ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Stack Step Indicator Header
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Step 3: Setup (${_subStep + 1} of 5)',
+                style: GoogleFonts.googleSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: colorScheme.primary,
+                  letterSpacing: 0.5,
                 ),
-                TextButton(
-                  onPressed: _requestLocationPermission,
-                  child: const Text('ALLOW'),
-                ),
-              ],
+              ),
+              Row(
+                children: List.generate(5, (index) {
+                  final isActive = index == _subStep;
+                  final isDone = index < _subStep;
+                  return Container(
+                    margin: const EdgeInsets.only(left: 4),
+                    width: isActive ? 20 : 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: isActive
+                          ? colorScheme.primary
+                          : (isDone
+                              ? colorScheme.primary.withValues(alpha: 0.4)
+                              : colorScheme.outlineVariant),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  );
+                }),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            subStepTitles[_subStep],
+            style: GoogleFonts.googleSans(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
             ),
           ),
           const SizedBox(height: 16),
+
+          // Card Stack with Smooth Fade & Slide Transition
+          Expanded(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 320),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              transitionBuilder: (Widget child, Animation<double> animation) {
+                final inTween = _isMovingForward
+                    ? Tween<Offset>(begin: const Offset(0, 0.15), end: Offset.zero)
+                    : Tween<Offset>(begin: const Offset(0, -0.15), end: Offset.zero);
+                final outTween = _isMovingForward
+                    ? Tween<Offset>(begin: Offset.zero, end: const Offset(0, -0.15))
+                    : Tween<Offset>(begin: Offset.zero, end: const Offset(0, 0.15));
+
+                if (child.key == ValueKey<int>(_subStep)) {
+                  return FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(
+                      position: animation.drive(inTween),
+                      child: child,
+                    ),
+                  );
+                } else {
+                  return FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(
+                      position: animation.drive(outTween),
+                      child: child,
+                    ),
+                  );
+                }
+              },
+              child: SizedBox(
+                key: ValueKey<int>(_subStep),
+                width: double.infinity,
+                child: _buildSubStepCard(_subStep),
+              ),
+            ),
+          ),
         ],
+      ),
+    );
+  }
 
-        // Office Wi-Fi Network Dropdown
-        FutureBuilder<List<String>>(
-          future: _wifiService.getKnownSSIDs(),
-          builder: (context, snapshot) {
-            final knownList = snapshot.data ?? [];
-            final currentText = _ssidController.text.trim();
+  Widget _buildSubStepCard(int subStep) {
+    switch (subStep) {
+      case 0:
+        return _buildWifiSubCard();
+      case 1:
+        return _buildPortalSubCard();
+      case 2:
+        return _buildWorkDaysSubCard();
+      case 3:
+        return _buildWfoDaysSubCard();
+      case 4:
+        return _buildAlarmsSubCard();
+      default:
+        return const SizedBox.shrink();
+    }
+  }
 
-            final options = <String>{
-              if (currentText.isNotEmpty && !_isCustomSsid) currentText,
-              ...knownList,
-              '+ Enter Custom Wi-Fi SSID',
-            }.toList();
+  Widget _buildWfoDaysSubCard() {
+    final colorScheme = Theme.of(context).colorScheme;
 
-            // Set default SSID if empty and knownList available
-            if (_ssidController.text.isEmpty && knownList.isNotEmpty && !_isCustomSsid) {
-              _ssidController.text = knownList.first;
-            }
-
-            final selectedValue = _isCustomSsid
-                ? '+ Enter Custom Wi-Fi SSID'
-                : (options.contains(_ssidController.text.trim())
-                    ? _ssidController.text.trim()
-                    : options.first);
-
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Office Wi-Fi Network *',
-                      style: GoogleFonts.googleSans(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                      ),
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    TextButton.icon(
-                      onPressed: _refreshWifi,
-                      icon: const Icon(Icons.refresh, size: 16),
-                      label: const Text('Refresh Wi-Fi', style: TextStyle(fontSize: 12)),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  initialValue: options.contains(selectedValue) ? selectedValue : options.first,
-                  decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.wifi),
-                    labelText: 'Select Office Wi-Fi Network',
+                    child: const Icon(Icons.corporate_fare_rounded, color: Color(0xFF3B82F6), size: 28),
                   ),
-                  items: options
-                      .map((ssid) => DropdownMenuItem(
-                            value: ssid,
-                            child: Text(
-                              ssid,
-                              style: TextStyle(
-                                fontWeight: ssid == selectedValue
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
-                              ),
-                            ),
-                          ))
-                      .toList(),
-                  onChanged: (val) {
-                    if (val == null) return;
-                    if (val == '+ Enter Custom Wi-Fi SSID') {
-                      setState(() {
-                        _isCustomSsid = true;
-                        _ssidController.clear();
-                      });
-                    } else {
-                      setState(() {
-                        _isCustomSsid = false;
-                        _ssidController.text = val;
-                      });
-                    }
-                  },
-                ),
-                if (_isCustomSsid) ...[
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _ssidController,
-                    autofocus: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Custom Wi-Fi Network Name (SSID) *',
-                      prefixIcon: Icon(Icons.edit_outlined),
-                      hintText: 'e.g., Office_WiFi_5G',
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'WFO Schedule',
+                          style: GoogleFonts.googleSans(
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          'Select days when you work from office (marked on calendar)',
+                          style: GoogleFonts.googleSans(
+                            fontSize: 12,
+                            color: colorScheme.onSurface.withValues(alpha: 0.7),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'WFO Days:',
+                style: GoogleFonts.googleSans(fontSize: 14, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _buildWfoDayChip('Mon', WorkingDays.monday),
+                  _buildWfoDayChip('Tue', WorkingDays.tuesday),
+                  _buildWfoDayChip('Wed', WorkingDays.wednesday),
+                  _buildWfoDayChip('Thu', WorkingDays.thursday),
+                  _buildWfoDayChip('Fri', WorkingDays.friday),
+                  _buildWfoDayChip('Sat', WorkingDays.saturday),
+                  _buildWfoDayChip('Sun', WorkingDays.sunday),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWfoDayChip(String label, int bit) {
+    final isSelected = (_wfoDaysMask & bit) != 0;
+    final colorScheme = Theme.of(context).colorScheme;
+    const activeColor = Color(0xFF3B82F6);
+
+    return FilterChip(
+      label: Text(label),
+      labelStyle: TextStyle(
+        fontSize: 12.5,
+        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+        color: isSelected ? activeColor : colorScheme.onSurfaceVariant,
+      ),
+      selected: isSelected,
+      onSelected: (_) => _toggleWfoDay(bit),
+      backgroundColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+      selectedColor: activeColor.withValues(alpha: 0.15),
+      checkmarkColor: activeColor,
+      side: BorderSide(
+        color: isSelected ? activeColor.withValues(alpha: 0.5) : colorScheme.outlineVariant.withValues(alpha: 0.4),
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+    );
+  }
+
+  Widget _buildWifiSubCard() {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: colorScheme.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(Icons.wifi_rounded, color: colorScheme.primary, size: 28),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Connect Office Wi-Fi',
+                          style: GoogleFonts.googleSans(
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          'Used for silent check-in upon arrival',
+                          style: GoogleFonts.googleSans(
+                            fontSize: 12,
+                            color: colorScheme.onSurface.withValues(alpha: 0.7),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              if (!_locationGranted) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: colorScheme.primary.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.location_on_outlined, color: colorScheme.primary, size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Location permission is required to detect Wi-Fi name.',
+                          style: GoogleFonts.googleSans(fontSize: 12, fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: _requestLocationPermission,
+                        child: const Text('ALLOW'),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
               ],
-            );
-          },
-        ),
-        const SizedBox(height: 20),
 
-        // Portal URL
-        TextFormField(
-          controller: _portalUrlController,
-          decoration: const InputDecoration(
-            labelText: 'Company Portal URL',
-            prefixIcon: Icon(Icons.language),
-            hintText: 'e.g., https://portal.office.com',
+              // Known SSIDs Dropdown
+              FutureBuilder<List<String>>(
+                future: _wifiService.getKnownSSIDs(includeCurrentLive: false),
+                builder: (context, snapshot) {
+                  final knownList = snapshot.data ?? [];
+                  final currentText = _ssidController.text.trim();
+
+                  final options = <String>{
+                    if (currentText.isNotEmpty && !_isCustomSsid) currentText,
+                    ...knownList,
+                    '+ Enter Custom Wi-Fi SSID',
+                  }.toList();
+
+                  if (_ssidController.text.isEmpty && knownList.isNotEmpty && !_isCustomSsid) {
+                    _ssidController.text = knownList.first;
+                  }
+
+                  final selectedValue = _isCustomSsid
+                      ? '+ Enter Custom Wi-Fi SSID'
+                      : (options.contains(_ssidController.text.trim())
+                          ? _ssidController.text.trim()
+                          : options.first);
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Select Office Wi-Fi *',
+                            style: GoogleFonts.googleSans(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          TextButton.icon(
+                            onPressed: _refreshWifi,
+                            icon: const Icon(Icons.refresh, size: 16),
+                            label: const Text('Refresh', style: TextStyle(fontSize: 12)),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<String>(
+                        initialValue: options.contains(selectedValue) ? selectedValue : options.first,
+                        decoration: const InputDecoration(
+                          prefixIcon: Icon(Icons.wifi),
+                          labelText: 'Network Name (SSID)',
+                        ),
+                        items: options
+                            .map((ssid) => DropdownMenuItem(
+                                  value: ssid,
+                                  child: Text(
+                                    ssid,
+                                    style: TextStyle(
+                                      fontWeight: ssid == selectedValue
+                                          ? FontWeight.bold
+                                          : FontWeight.normal,
+                                    ),
+                                  ),
+                                ))
+                            .toList(),
+                        onChanged: (val) {
+                          if (val == null) return;
+                          if (val == '+ Enter Custom Wi-Fi SSID') {
+                            setState(() {
+                              _isCustomSsid = true;
+                              _ssidController.clear();
+                            });
+                          } else {
+                            setState(() {
+                              _isCustomSsid = false;
+                              _ssidController.text = val;
+                            });
+                          }
+                        },
+                      ),
+                      if (_isCustomSsid) ...[
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _ssidController,
+                          autofocus: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Custom Network Name (SSID) *',
+                            prefixIcon: Icon(Icons.edit_outlined),
+                            hintText: 'e.g., Office_WiFi_5G',
+                          ),
+                        ),
+                      ],
+                    ],
+                  );
+                },
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 24),
+      ),
+    );
+  }
 
-        // Check-in and Check-out Times
-        Text(
-          'Alarm Times',
-          style: GoogleFonts.googleSans(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () => _selectTime(_checkInTime, (t) => setState(() => _checkInTime = t)),
-                icon: const Icon(Icons.login, size: 18),
-                label: Text('Check-in: ${_checkInTime.format(context)}'),
+  Widget _buildPortalSubCard() {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: colorScheme.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(Icons.language_rounded, color: colorScheme.primary, size: 28),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Company Portal Link',
+                          style: GoogleFonts.googleSans(
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          'Quick access when alarm notification fires',
+                          style: GoogleFonts.googleSans(
+                            fontSize: 12,
+                            color: colorScheme.onSurface.withValues(alpha: 0.7),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () => _selectTime(_checkOutTime, (t) => setState(() => _checkOutTime = t)),
-                icon: const Icon(Icons.logout, size: 18),
-                label: Text('Check-out: ${_checkOutTime.format(context)}'),
+              const SizedBox(height: 24),
+              TextFormField(
+                controller: _portalUrlController,
+                decoration: const InputDecoration(
+                  labelText: 'Attendance Portal Web URL',
+                  prefixIcon: Icon(Icons.link),
+                  hintText: 'e.g., https://portal.company.com',
+                ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: () async {
-              final portalUrl = _portalUrlController.text.trim();
-              await NotificationService().testCheckInAlarmNow(portalUrl: portalUrl);
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('⏰ Test alarm scheduled! It will ring in 5 seconds.')),
-                );
-              }
-            },
-            icon: const Icon(Icons.alarm_on, size: 18),
-            label: const Text('TEST ALARM (RINGS IN 5 SEC)'),
+              const SizedBox(height: 12),
+              Text(
+                'Optional: PingPin can open your official attendance portal directly from the check-in alarm notification action button.',
+                style: GoogleFonts.googleSans(
+                  fontSize: 12,
+                  color: colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 24),
+      ),
+    );
+  }
 
-        // Working Days Chips
-        Text(
-          'Working Days:',
-          style: GoogleFonts.googleSans(fontSize: 14, fontWeight: FontWeight.bold),
+  Widget _buildWorkDaysSubCard() {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: colorScheme.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(Icons.calendar_today_rounded, color: colorScheme.primary, size: 28),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Working Schedule',
+                          style: GoogleFonts.googleSans(
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          'Select days when alarms and tracking are active',
+                          style: GoogleFonts.googleSans(
+                            fontSize: 12,
+                            color: colorScheme.onSurface.withValues(alpha: 0.7),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Active Days:',
+                style: GoogleFonts.googleSans(fontSize: 14, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _buildDayChip('Mon', WorkingDays.monday),
+                  _buildDayChip('Tue', WorkingDays.tuesday),
+                  _buildDayChip('Wed', WorkingDays.wednesday),
+                  _buildDayChip('Thu', WorkingDays.thursday),
+                  _buildDayChip('Fri', WorkingDays.friday),
+                  _buildDayChip('Sat', WorkingDays.saturday),
+                  _buildDayChip('Sun', WorkingDays.sunday),
+                ],
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 10),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _buildDayChip('Mon', WorkingDays.monday),
-            _buildDayChip('Tue', WorkingDays.tuesday),
-            _buildDayChip('Wed', WorkingDays.wednesday),
-            _buildDayChip('Thu', WorkingDays.thursday),
-            _buildDayChip('Fri', WorkingDays.friday),
-            _buildDayChip('Sat', WorkingDays.saturday),
-            _buildDayChip('Sun', WorkingDays.sunday),
-          ],
+      ),
+    );
+  }
+
+  Widget _buildAlarmsSubCard() {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: colorScheme.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(Icons.alarm_rounded, color: colorScheme.primary, size: 28),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Check-in & Check-out Alarms',
+                          style: GoogleFonts.googleSans(
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          'Set your preferred reminder alarm times',
+                          style: GoogleFonts.googleSans(
+                            fontSize: 12,
+                            color: colorScheme.onSurface.withValues(alpha: 0.7),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _selectTime(
+                        _checkInTime,
+                        (t) => setState(() {
+                          _checkInTime = t;
+                          _checkOutTime = addHoursAndMinutes(t, 8, 32);
+                        }),
+                      ),
+                      icon: const Icon(Icons.login, size: 18),
+                      label: Text('Check-in: ${_checkInTime.format(context)}'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _selectTime(_checkOutTime, (t) => setState(() => _checkOutTime = t)),
+                      icon: const Icon(Icons.logout, size: 18),
+                      label: Text('Check-out: ${_checkOutTime.format(context)}'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
-      ],
+      ),
     );
   }
 
@@ -976,3 +1419,4 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     );
   }
 }
+

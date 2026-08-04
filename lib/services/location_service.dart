@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -18,25 +19,28 @@ class LocationService {
   /// Gets current location
   Future<Position?> getCurrentLocation() async {
     try {
-      // Check permission first
-      final permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        final requested = await Geolocator.requestPermission();
-        if (requested == LocationPermission.denied) {
+      final hasPerm = await hasLocationPermission();
+      if (!hasPerm) {
+        final permission = await requestLocationPermission();
+        if (permission == LocationPermission.denied || 
+            permission == LocationPermission.deniedForever) {
           return null;
         }
       }
-      
+
+      final permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.deniedForever) {
         return null;
       }
 
       return await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 10),
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 10),
+        ),
       );
     } catch (e) {
-      print('Error getting location: $e');
+      debugPrint('Error getting location: $e');
       return null;
     }
   }
@@ -54,7 +58,7 @@ class LocationService {
         targetLon,
       );
     } catch (e) {
-      print('Error calculating distance: $e');
+      debugPrint('Error calculating distance: $e');
       return null;
     }
   }

@@ -86,6 +86,14 @@ class $OfficeConfigsTable extends OfficeConfigs
       type: DriftSqlType.int,
       requiredDuringInsert: false,
       defaultValue: const Constant(31));
+  static const VerificationMeta _wfoDaysMaskMeta =
+      const VerificationMeta('wfoDaysMask');
+  @override
+  late final GeneratedColumn<int> wfoDaysMask = GeneratedColumn<int>(
+      'wfo_days_mask', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(31));
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -114,6 +122,7 @@ class $OfficeConfigsTable extends OfficeConfigs
         checkOutTime,
         portalUrl,
         workingDaysMask,
+        wfoDaysMask,
         createdAt,
         updatedAt
       ];
@@ -182,6 +191,12 @@ class $OfficeConfigsTable extends OfficeConfigs
           workingDaysMask.isAcceptableOrUnknown(
               data['working_days_mask']!, _workingDaysMaskMeta));
     }
+    if (data.containsKey('wfo_days_mask')) {
+      context.handle(
+          _wfoDaysMaskMeta,
+          wfoDaysMask.isAcceptableOrUnknown(
+              data['wfo_days_mask']!, _wfoDaysMaskMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -219,6 +234,8 @@ class $OfficeConfigsTable extends OfficeConfigs
           .read(DriftSqlType.string, data['${effectivePrefix}portal_url'])!,
       workingDaysMask: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}working_days_mask'])!,
+      wfoDaysMask: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}wfo_days_mask'])!,
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -243,6 +260,7 @@ class OfficeConfig extends DataClass implements Insertable<OfficeConfig> {
   final String checkOutTime;
   final String portalUrl;
   final int workingDaysMask;
+  final int wfoDaysMask;
   final DateTime createdAt;
   final DateTime updatedAt;
   const OfficeConfig(
@@ -256,6 +274,7 @@ class OfficeConfig extends DataClass implements Insertable<OfficeConfig> {
       required this.checkOutTime,
       required this.portalUrl,
       required this.workingDaysMask,
+      required this.wfoDaysMask,
       required this.createdAt,
       required this.updatedAt});
   @override
@@ -271,6 +290,7 @@ class OfficeConfig extends DataClass implements Insertable<OfficeConfig> {
     map['check_out_time'] = Variable<String>(checkOutTime);
     map['portal_url'] = Variable<String>(portalUrl);
     map['working_days_mask'] = Variable<int>(workingDaysMask);
+    map['wfo_days_mask'] = Variable<int>(wfoDaysMask);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -288,6 +308,7 @@ class OfficeConfig extends DataClass implements Insertable<OfficeConfig> {
       checkOutTime: Value(checkOutTime),
       portalUrl: Value(portalUrl),
       workingDaysMask: Value(workingDaysMask),
+      wfoDaysMask: Value(wfoDaysMask),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -307,6 +328,7 @@ class OfficeConfig extends DataClass implements Insertable<OfficeConfig> {
       checkOutTime: serializer.fromJson<String>(json['checkOutTime']),
       portalUrl: serializer.fromJson<String>(json['portalUrl']),
       workingDaysMask: serializer.fromJson<int>(json['workingDaysMask']),
+      wfoDaysMask: serializer.fromJson<int>(json['wfoDaysMask']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -325,6 +347,7 @@ class OfficeConfig extends DataClass implements Insertable<OfficeConfig> {
       'checkOutTime': serializer.toJson<String>(checkOutTime),
       'portalUrl': serializer.toJson<String>(portalUrl),
       'workingDaysMask': serializer.toJson<int>(workingDaysMask),
+      'wfoDaysMask': serializer.toJson<int>(wfoDaysMask),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -341,6 +364,7 @@ class OfficeConfig extends DataClass implements Insertable<OfficeConfig> {
           String? checkOutTime,
           String? portalUrl,
           int? workingDaysMask,
+          int? wfoDaysMask,
           DateTime? createdAt,
           DateTime? updatedAt}) =>
       OfficeConfig(
@@ -354,6 +378,7 @@ class OfficeConfig extends DataClass implements Insertable<OfficeConfig> {
         checkOutTime: checkOutTime ?? this.checkOutTime,
         portalUrl: portalUrl ?? this.portalUrl,
         workingDaysMask: workingDaysMask ?? this.workingDaysMask,
+        wfoDaysMask: wfoDaysMask ?? this.wfoDaysMask,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -378,6 +403,8 @@ class OfficeConfig extends DataClass implements Insertable<OfficeConfig> {
       workingDaysMask: data.workingDaysMask.present
           ? data.workingDaysMask.value
           : this.workingDaysMask,
+      wfoDaysMask:
+          data.wfoDaysMask.present ? data.wfoDaysMask.value : this.wfoDaysMask,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -396,6 +423,7 @@ class OfficeConfig extends DataClass implements Insertable<OfficeConfig> {
           ..write('checkOutTime: $checkOutTime, ')
           ..write('portalUrl: $portalUrl, ')
           ..write('workingDaysMask: $workingDaysMask, ')
+          ..write('wfoDaysMask: $wfoDaysMask, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -414,6 +442,7 @@ class OfficeConfig extends DataClass implements Insertable<OfficeConfig> {
       checkOutTime,
       portalUrl,
       workingDaysMask,
+      wfoDaysMask,
       createdAt,
       updatedAt);
   @override
@@ -430,6 +459,7 @@ class OfficeConfig extends DataClass implements Insertable<OfficeConfig> {
           other.checkOutTime == this.checkOutTime &&
           other.portalUrl == this.portalUrl &&
           other.workingDaysMask == this.workingDaysMask &&
+          other.wfoDaysMask == this.wfoDaysMask &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -445,6 +475,7 @@ class OfficeConfigsCompanion extends UpdateCompanion<OfficeConfig> {
   final Value<String> checkOutTime;
   final Value<String> portalUrl;
   final Value<int> workingDaysMask;
+  final Value<int> wfoDaysMask;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   const OfficeConfigsCompanion({
@@ -458,6 +489,7 @@ class OfficeConfigsCompanion extends UpdateCompanion<OfficeConfig> {
     this.checkOutTime = const Value.absent(),
     this.portalUrl = const Value.absent(),
     this.workingDaysMask = const Value.absent(),
+    this.wfoDaysMask = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -472,6 +504,7 @@ class OfficeConfigsCompanion extends UpdateCompanion<OfficeConfig> {
     this.checkOutTime = const Value.absent(),
     this.portalUrl = const Value.absent(),
     this.workingDaysMask = const Value.absent(),
+    this.wfoDaysMask = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   })  : ssid = Value(ssid),
@@ -488,6 +521,7 @@ class OfficeConfigsCompanion extends UpdateCompanion<OfficeConfig> {
     Expression<String>? checkOutTime,
     Expression<String>? portalUrl,
     Expression<int>? workingDaysMask,
+    Expression<int>? wfoDaysMask,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
   }) {
@@ -502,6 +536,7 @@ class OfficeConfigsCompanion extends UpdateCompanion<OfficeConfig> {
       if (checkOutTime != null) 'check_out_time': checkOutTime,
       if (portalUrl != null) 'portal_url': portalUrl,
       if (workingDaysMask != null) 'working_days_mask': workingDaysMask,
+      if (wfoDaysMask != null) 'wfo_days_mask': wfoDaysMask,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -518,6 +553,7 @@ class OfficeConfigsCompanion extends UpdateCompanion<OfficeConfig> {
       Value<String>? checkOutTime,
       Value<String>? portalUrl,
       Value<int>? workingDaysMask,
+      Value<int>? wfoDaysMask,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt}) {
     return OfficeConfigsCompanion(
@@ -531,6 +567,7 @@ class OfficeConfigsCompanion extends UpdateCompanion<OfficeConfig> {
       checkOutTime: checkOutTime ?? this.checkOutTime,
       portalUrl: portalUrl ?? this.portalUrl,
       workingDaysMask: workingDaysMask ?? this.workingDaysMask,
+      wfoDaysMask: wfoDaysMask ?? this.wfoDaysMask,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -569,6 +606,9 @@ class OfficeConfigsCompanion extends UpdateCompanion<OfficeConfig> {
     if (workingDaysMask.present) {
       map['working_days_mask'] = Variable<int>(workingDaysMask.value);
     }
+    if (wfoDaysMask.present) {
+      map['wfo_days_mask'] = Variable<int>(wfoDaysMask.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -591,6 +631,7 @@ class OfficeConfigsCompanion extends UpdateCompanion<OfficeConfig> {
           ..write('checkOutTime: $checkOutTime, ')
           ..write('portalUrl: $portalUrl, ')
           ..write('workingDaysMask: $workingDaysMask, ')
+          ..write('wfoDaysMask: $wfoDaysMask, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -1649,6 +1690,239 @@ class NotificationLogsCompanion extends UpdateCompanion<NotificationLog> {
   }
 }
 
+class $WfoScheduleHistoryTable extends WfoScheduleHistory
+    with TableInfo<$WfoScheduleHistoryTable, WfoScheduleHistoryEntry> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $WfoScheduleHistoryTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _wfoDaysMaskMeta =
+      const VerificationMeta('wfoDaysMask');
+  @override
+  late final GeneratedColumn<int> wfoDaysMask = GeneratedColumn<int>(
+      'wfo_days_mask', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _effectiveFromMeta =
+      const VerificationMeta('effectiveFrom');
+  @override
+  late final GeneratedColumn<DateTime> effectiveFrom =
+      GeneratedColumn<DateTime>('effective_from', aliasedName, false,
+          type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [id, wfoDaysMask, effectiveFrom];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'wfo_schedule_history';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<WfoScheduleHistoryEntry> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('wfo_days_mask')) {
+      context.handle(
+          _wfoDaysMaskMeta,
+          wfoDaysMask.isAcceptableOrUnknown(
+              data['wfo_days_mask']!, _wfoDaysMaskMeta));
+    } else if (isInserting) {
+      context.missing(_wfoDaysMaskMeta);
+    }
+    if (data.containsKey('effective_from')) {
+      context.handle(
+          _effectiveFromMeta,
+          effectiveFrom.isAcceptableOrUnknown(
+              data['effective_from']!, _effectiveFromMeta));
+    } else if (isInserting) {
+      context.missing(_effectiveFromMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  WfoScheduleHistoryEntry map(Map<String, dynamic> data,
+      {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return WfoScheduleHistoryEntry(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      wfoDaysMask: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}wfo_days_mask'])!,
+      effectiveFrom: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}effective_from'])!,
+    );
+  }
+
+  @override
+  $WfoScheduleHistoryTable createAlias(String alias) {
+    return $WfoScheduleHistoryTable(attachedDatabase, alias);
+  }
+}
+
+class WfoScheduleHistoryEntry extends DataClass
+    implements Insertable<WfoScheduleHistoryEntry> {
+  final int id;
+  final int wfoDaysMask;
+  final DateTime effectiveFrom;
+  const WfoScheduleHistoryEntry(
+      {required this.id,
+      required this.wfoDaysMask,
+      required this.effectiveFrom});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['wfo_days_mask'] = Variable<int>(wfoDaysMask);
+    map['effective_from'] = Variable<DateTime>(effectiveFrom);
+    return map;
+  }
+
+  WfoScheduleHistoryCompanion toCompanion(bool nullToAbsent) {
+    return WfoScheduleHistoryCompanion(
+      id: Value(id),
+      wfoDaysMask: Value(wfoDaysMask),
+      effectiveFrom: Value(effectiveFrom),
+    );
+  }
+
+  factory WfoScheduleHistoryEntry.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return WfoScheduleHistoryEntry(
+      id: serializer.fromJson<int>(json['id']),
+      wfoDaysMask: serializer.fromJson<int>(json['wfoDaysMask']),
+      effectiveFrom: serializer.fromJson<DateTime>(json['effectiveFrom']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'wfoDaysMask': serializer.toJson<int>(wfoDaysMask),
+      'effectiveFrom': serializer.toJson<DateTime>(effectiveFrom),
+    };
+  }
+
+  WfoScheduleHistoryEntry copyWith(
+          {int? id, int? wfoDaysMask, DateTime? effectiveFrom}) =>
+      WfoScheduleHistoryEntry(
+        id: id ?? this.id,
+        wfoDaysMask: wfoDaysMask ?? this.wfoDaysMask,
+        effectiveFrom: effectiveFrom ?? this.effectiveFrom,
+      );
+  WfoScheduleHistoryEntry copyWithCompanion(WfoScheduleHistoryCompanion data) {
+    return WfoScheduleHistoryEntry(
+      id: data.id.present ? data.id.value : this.id,
+      wfoDaysMask:
+          data.wfoDaysMask.present ? data.wfoDaysMask.value : this.wfoDaysMask,
+      effectiveFrom: data.effectiveFrom.present
+          ? data.effectiveFrom.value
+          : this.effectiveFrom,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WfoScheduleHistoryEntry(')
+          ..write('id: $id, ')
+          ..write('wfoDaysMask: $wfoDaysMask, ')
+          ..write('effectiveFrom: $effectiveFrom')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, wfoDaysMask, effectiveFrom);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is WfoScheduleHistoryEntry &&
+          other.id == this.id &&
+          other.wfoDaysMask == this.wfoDaysMask &&
+          other.effectiveFrom == this.effectiveFrom);
+}
+
+class WfoScheduleHistoryCompanion
+    extends UpdateCompanion<WfoScheduleHistoryEntry> {
+  final Value<int> id;
+  final Value<int> wfoDaysMask;
+  final Value<DateTime> effectiveFrom;
+  const WfoScheduleHistoryCompanion({
+    this.id = const Value.absent(),
+    this.wfoDaysMask = const Value.absent(),
+    this.effectiveFrom = const Value.absent(),
+  });
+  WfoScheduleHistoryCompanion.insert({
+    this.id = const Value.absent(),
+    required int wfoDaysMask,
+    required DateTime effectiveFrom,
+  })  : wfoDaysMask = Value(wfoDaysMask),
+        effectiveFrom = Value(effectiveFrom);
+  static Insertable<WfoScheduleHistoryEntry> custom({
+    Expression<int>? id,
+    Expression<int>? wfoDaysMask,
+    Expression<DateTime>? effectiveFrom,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (wfoDaysMask != null) 'wfo_days_mask': wfoDaysMask,
+      if (effectiveFrom != null) 'effective_from': effectiveFrom,
+    });
+  }
+
+  WfoScheduleHistoryCompanion copyWith(
+      {Value<int>? id,
+      Value<int>? wfoDaysMask,
+      Value<DateTime>? effectiveFrom}) {
+    return WfoScheduleHistoryCompanion(
+      id: id ?? this.id,
+      wfoDaysMask: wfoDaysMask ?? this.wfoDaysMask,
+      effectiveFrom: effectiveFrom ?? this.effectiveFrom,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (wfoDaysMask.present) {
+      map['wfo_days_mask'] = Variable<int>(wfoDaysMask.value);
+    }
+    if (effectiveFrom.present) {
+      map['effective_from'] = Variable<DateTime>(effectiveFrom.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WfoScheduleHistoryCompanion(')
+          ..write('id: $id, ')
+          ..write('wfoDaysMask: $wfoDaysMask, ')
+          ..write('effectiveFrom: $effectiveFrom')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -1658,12 +1932,19 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $UserProfilesTable userProfiles = $UserProfilesTable(this);
   late final $NotificationLogsTable notificationLogs =
       $NotificationLogsTable(this);
+  late final $WfoScheduleHistoryTable wfoScheduleHistory =
+      $WfoScheduleHistoryTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
-  List<DatabaseSchemaEntity> get allSchemaEntities =>
-      [officeConfigs, attendanceRecords, userProfiles, notificationLogs];
+  List<DatabaseSchemaEntity> get allSchemaEntities => [
+        officeConfigs,
+        attendanceRecords,
+        userProfiles,
+        notificationLogs,
+        wfoScheduleHistory
+      ];
 }
 
 typedef $$OfficeConfigsTableCreateCompanionBuilder = OfficeConfigsCompanion
@@ -1678,6 +1959,7 @@ typedef $$OfficeConfigsTableCreateCompanionBuilder = OfficeConfigsCompanion
   Value<String> checkOutTime,
   Value<String> portalUrl,
   Value<int> workingDaysMask,
+  Value<int> wfoDaysMask,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
 });
@@ -1693,6 +1975,7 @@ typedef $$OfficeConfigsTableUpdateCompanionBuilder = OfficeConfigsCompanion
   Value<String> checkOutTime,
   Value<String> portalUrl,
   Value<int> workingDaysMask,
+  Value<int> wfoDaysMask,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
 });
@@ -1737,6 +2020,9 @@ class $$OfficeConfigsTableFilterComposer
   ColumnFilters<int> get workingDaysMask => $composableBuilder(
       column: $table.workingDaysMask,
       builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get wfoDaysMask => $composableBuilder(
+      column: $table.wfoDaysMask, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -1788,6 +2074,9 @@ class $$OfficeConfigsTableOrderingComposer
       column: $table.workingDaysMask,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<int> get wfoDaysMask => $composableBuilder(
+      column: $table.wfoDaysMask, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
@@ -1834,6 +2123,9 @@ class $$OfficeConfigsTableAnnotationComposer
   GeneratedColumn<int> get workingDaysMask => $composableBuilder(
       column: $table.workingDaysMask, builder: (column) => column);
 
+  GeneratedColumn<int> get wfoDaysMask => $composableBuilder(
+      column: $table.wfoDaysMask, builder: (column) => column);
+
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -1877,6 +2169,7 @@ class $$OfficeConfigsTableTableManager extends RootTableManager<
             Value<String> checkOutTime = const Value.absent(),
             Value<String> portalUrl = const Value.absent(),
             Value<int> workingDaysMask = const Value.absent(),
+            Value<int> wfoDaysMask = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
           }) =>
@@ -1891,6 +2184,7 @@ class $$OfficeConfigsTableTableManager extends RootTableManager<
             checkOutTime: checkOutTime,
             portalUrl: portalUrl,
             workingDaysMask: workingDaysMask,
+            wfoDaysMask: wfoDaysMask,
             createdAt: createdAt,
             updatedAt: updatedAt,
           ),
@@ -1905,6 +2199,7 @@ class $$OfficeConfigsTableTableManager extends RootTableManager<
             Value<String> checkOutTime = const Value.absent(),
             Value<String> portalUrl = const Value.absent(),
             Value<int> workingDaysMask = const Value.absent(),
+            Value<int> wfoDaysMask = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
           }) =>
@@ -1919,6 +2214,7 @@ class $$OfficeConfigsTableTableManager extends RootTableManager<
             checkOutTime: checkOutTime,
             portalUrl: portalUrl,
             workingDaysMask: workingDaysMask,
+            wfoDaysMask: wfoDaysMask,
             createdAt: createdAt,
             updatedAt: updatedAt,
           ),
@@ -2500,6 +2796,148 @@ typedef $$NotificationLogsTableProcessedTableManager = ProcessedTableManager<
     ),
     NotificationLog,
     PrefetchHooks Function()>;
+typedef $$WfoScheduleHistoryTableCreateCompanionBuilder
+    = WfoScheduleHistoryCompanion Function({
+  Value<int> id,
+  required int wfoDaysMask,
+  required DateTime effectiveFrom,
+});
+typedef $$WfoScheduleHistoryTableUpdateCompanionBuilder
+    = WfoScheduleHistoryCompanion Function({
+  Value<int> id,
+  Value<int> wfoDaysMask,
+  Value<DateTime> effectiveFrom,
+});
+
+class $$WfoScheduleHistoryTableFilterComposer
+    extends Composer<_$AppDatabase, $WfoScheduleHistoryTable> {
+  $$WfoScheduleHistoryTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get wfoDaysMask => $composableBuilder(
+      column: $table.wfoDaysMask, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get effectiveFrom => $composableBuilder(
+      column: $table.effectiveFrom, builder: (column) => ColumnFilters(column));
+}
+
+class $$WfoScheduleHistoryTableOrderingComposer
+    extends Composer<_$AppDatabase, $WfoScheduleHistoryTable> {
+  $$WfoScheduleHistoryTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get wfoDaysMask => $composableBuilder(
+      column: $table.wfoDaysMask, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get effectiveFrom => $composableBuilder(
+      column: $table.effectiveFrom,
+      builder: (column) => ColumnOrderings(column));
+}
+
+class $$WfoScheduleHistoryTableAnnotationComposer
+    extends Composer<_$AppDatabase, $WfoScheduleHistoryTable> {
+  $$WfoScheduleHistoryTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get wfoDaysMask => $composableBuilder(
+      column: $table.wfoDaysMask, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get effectiveFrom => $composableBuilder(
+      column: $table.effectiveFrom, builder: (column) => column);
+}
+
+class $$WfoScheduleHistoryTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $WfoScheduleHistoryTable,
+    WfoScheduleHistoryEntry,
+    $$WfoScheduleHistoryTableFilterComposer,
+    $$WfoScheduleHistoryTableOrderingComposer,
+    $$WfoScheduleHistoryTableAnnotationComposer,
+    $$WfoScheduleHistoryTableCreateCompanionBuilder,
+    $$WfoScheduleHistoryTableUpdateCompanionBuilder,
+    (
+      WfoScheduleHistoryEntry,
+      BaseReferences<_$AppDatabase, $WfoScheduleHistoryTable,
+          WfoScheduleHistoryEntry>
+    ),
+    WfoScheduleHistoryEntry,
+    PrefetchHooks Function()> {
+  $$WfoScheduleHistoryTableTableManager(
+      _$AppDatabase db, $WfoScheduleHistoryTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$WfoScheduleHistoryTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$WfoScheduleHistoryTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$WfoScheduleHistoryTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<int> wfoDaysMask = const Value.absent(),
+            Value<DateTime> effectiveFrom = const Value.absent(),
+          }) =>
+              WfoScheduleHistoryCompanion(
+            id: id,
+            wfoDaysMask: wfoDaysMask,
+            effectiveFrom: effectiveFrom,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            required int wfoDaysMask,
+            required DateTime effectiveFrom,
+          }) =>
+              WfoScheduleHistoryCompanion.insert(
+            id: id,
+            wfoDaysMask: wfoDaysMask,
+            effectiveFrom: effectiveFrom,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$WfoScheduleHistoryTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $WfoScheduleHistoryTable,
+    WfoScheduleHistoryEntry,
+    $$WfoScheduleHistoryTableFilterComposer,
+    $$WfoScheduleHistoryTableOrderingComposer,
+    $$WfoScheduleHistoryTableAnnotationComposer,
+    $$WfoScheduleHistoryTableCreateCompanionBuilder,
+    $$WfoScheduleHistoryTableUpdateCompanionBuilder,
+    (
+      WfoScheduleHistoryEntry,
+      BaseReferences<_$AppDatabase, $WfoScheduleHistoryTable,
+          WfoScheduleHistoryEntry>
+    ),
+    WfoScheduleHistoryEntry,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -2512,4 +2950,6 @@ class $AppDatabaseManager {
       $$UserProfilesTableTableManager(_db, _db.userProfiles);
   $$NotificationLogsTableTableManager get notificationLogs =>
       $$NotificationLogsTableTableManager(_db, _db.notificationLogs);
+  $$WfoScheduleHistoryTableTableManager get wfoScheduleHistory =>
+      $$WfoScheduleHistoryTableTableManager(_db, _db.wfoScheduleHistory);
 }

@@ -7,7 +7,7 @@ import 'wifi_service.dart';
 import 'attendance_service.dart';
 import 'notification_service.dart';
 
-const String backgroundWifiAttendanceTask = "com.example.pingpin.wifiCheckTask";
+const String backgroundWifiAttendanceTask = "com.urunkarpm.pingpin.wifiCheckTask";
 
 @pragma('vm:entry-point')
 void callbackDispatcher() {
@@ -45,7 +45,6 @@ class BackgroundService {
     try {
       await Workmanager().initialize(
         callbackDispatcher,
-        isInDebugMode: false,
       );
       await registerPeriodicWifiCheck();
     } catch (e) {
