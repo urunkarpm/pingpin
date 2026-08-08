@@ -176,8 +176,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final onSurface = Theme.of(context).colorScheme.onSurface;
+    final theme = Theme.of(context);
+    final onSurface = theme.colorScheme.onSurface;
 
     return Scaffold(
       appBar: AppBar(
@@ -201,10 +201,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surface,
+                      color: theme.colorScheme.surface,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.15),
+                        color: theme.colorScheme.outlineVariant,
                         width: 1.5,
                       ),
                     ),
@@ -213,7 +213,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         Text(
                           'Today\'s Status',
                           style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                            color: onSurface.withValues(alpha: 0.6),
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
                           ),
@@ -226,7 +226,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               ? 'Office Wi-Fi: ${_officeConfig!.ssid}'
                               : 'Configuring Office Wi-Fi...',
                           style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                            color: onSurface.withValues(alpha: 0.7),
                             fontSize: 12,
                           ),
                         ),
@@ -239,11 +239,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   // Calendar Card
                   Card(
                     elevation: 0,
-                    color: Theme.of(context).colorScheme.surface,
+                    color: theme.colorScheme.surface,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
                       side: BorderSide(
-                        color: onSurface.withValues(alpha: isDark ? 0.15 : 0.08),
+                        color: theme.colorScheme.outlineVariant,
                       ),
                     ),
                     child: Padding(
@@ -332,7 +332,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     : (isOutside ? blueColor.withValues(alpha: 0.08) : blueColor.withValues(alpha: 0.18)),
                                 border: Border.all(
                                   color: isToday
-                                      ? (isSelected ? Colors.white : blueColor)
+                                      ? (isSelected ? theme.colorScheme.surface : blueColor)
                                       : blueColor.withValues(alpha: isOutside ? 0.3 : 0.7),
                                   width: isToday ? 2.0 : 1.2,
                                 ),
@@ -346,7 +346,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       ? Colors.white
                                       : (isOutside
                                           ? onSurface.withValues(alpha: 0.4)
-                                          : (isDark ? const Color(0xFF93C5FD) : const Color(0xFF1D4ED8))),
+                                          : onSurface),
                                 ),
                               ),
                             );
@@ -359,8 +359,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   mainAxisSize: MainAxisSize.min,
                                   children: events.map((record) {
                                     final dotColor = record.status == AttendanceStatus.present
-                                        ? (isDark ? const Color(0xFF60A5FA) : const Color(0xFF3B82F6))
-                                        : (isDark ? const Color(0xFFFBBF24) : const Color(0xFFF59E0B));
+                                        ? theme.colorScheme.primary
+                                        : const Color(0xFFF59E0B);
                                     return Container(
                                       margin: const EdgeInsets.symmetric(horizontal: 1.5),
                                       width: 5,
@@ -379,12 +379,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                         daysOfWeekStyle: DaysOfWeekStyle(
                           weekdayStyle: TextStyle(
-                            color: onSurface.withValues(alpha: isDark ? 0.5 : 0.55),
+                            color: onSurface.withValues(alpha: 0.55),
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                           ),
                           weekendStyle: TextStyle(
-                            color: onSurface.withValues(alpha: isDark ? 0.5 : 0.55),
+                            color: onSurface.withValues(alpha: 0.55),
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                           ),
@@ -404,36 +404,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             fontWeight: FontWeight.w500,
                           ),
                           outsideTextStyle: TextStyle(
-                            color: onSurface.withValues(alpha: isDark ? 0.25 : 0.35),
+                            color: onSurface.withValues(alpha: 0.35),
                             fontSize: 16,
                             fontWeight: FontWeight.w400,
                           ),
                           todayTextStyle: TextStyle(
                             color: isSameDay(_selectedDay, DateTime.now())
-                                ? (isDark ? const Color(0xFF0F172A) : Colors.white)
+                                ? theme.colorScheme.onPrimary
                                 : onSurface,
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
                           todayDecoration: BoxDecoration(
                             color: isSameDay(_selectedDay, DateTime.now())
-                                ? (isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B))
+                                ? theme.colorScheme.primary
                                 : Colors.transparent,
                             shape: BoxShape.circle,
                             border: isSameDay(_selectedDay, DateTime.now())
                                 ? null
                                 : Border.all(
-                                    color: onSurface.withValues(alpha: isDark ? 0.4 : 0.3),
+                                    color: onSurface.withValues(alpha: 0.35),
                                     width: 1.5,
                                   ),
                           ),
                           selectedTextStyle: TextStyle(
-                            color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                            color: theme.colorScheme.onPrimary,
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
                           selectedDecoration: BoxDecoration(
-                            color: isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B),
+                            color: theme.colorScheme.primary,
                             shape: BoxShape.circle,
                           ),
                         ),

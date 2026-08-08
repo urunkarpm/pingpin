@@ -10,12 +10,18 @@ import '../../providers/providers.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>();
 
+/// Live GoRouter reference, exposed for callers (e.g. NotificationService) that
+/// need to push routes from outside the widget tree — most importantly the
+/// full-screen alarm screen which must appear above any active route, no
+/// matter where the user is.
+GoRouter? routerForAlarmPush;
+
 SharedPreferences? _cachedPrefs;
 
 final routerProvider = Provider<GoRouter>((ref) {
   final onboardingState = ref.watch(onboardingCompleteProvider);
 
-  return GoRouter(
+  final router = GoRouter(
     navigatorKey: rootNavigatorKey,
     initialLocation: '/',
     redirect: (context, state) async {
@@ -55,4 +61,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
+
+  // Publish live router reference for non-widget callers.
+  routerForAlarmPush = router;
+  return router;
 });

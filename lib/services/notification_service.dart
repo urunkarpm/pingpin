@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:flutter_timezone/flutter_timezone.dart';
@@ -19,29 +22,120 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _notifications =
       FlutterLocalNotificationsPlugin();
 
+  static const MethodChannel _platformChannel =
+      MethodChannel('com.urunkarpm.pingpin/alarm');
+
   bool _isInitialized = false;
   String _storedPortalUrl = '';
 
   static bool _isAlarmScreenShowing = false;
+  static DateTime _alarmScreenFlagSetAt = DateTime.fromMillisecondsSinceEpoch(0);
+
+  /// Brings the app activity to the foreground (even when phone is unlocked / using another app)
+  static Future<void> _bringAppToForeground() async {
+    try {
+      await _platformChannel.invokeMethod('bringToForeground');
+    } catch (e) {
+      debugPrint('Error bringing app to foreground: $e');
+    }
+  }
+
+  /// Checks if System Alert Window / Overlay permission is granted
+  static Future<bool> checkOverlayPermission() async {
+    try {
+      final bool result =
+          await _platformChannel.invokeMethod('checkOverlayPermission');
+      return result;
+    } catch (e) {
+      debugPrint('Error checking overlay permission: $e');
+      return true;
+    }
+  }
+
+  /// Opens System Alert Window / Overlay permission settings
+  static Future<void> requestOverlayPermission() async {
+    try {
+      await _platformChannel.invokeMethod('requestOverlayPermission');
+    } catch (e) {
+      debugPrint('Error requesting overlay permission: $e');
+    }
+  }
+
+  /// Dismisses small notifications from status bar / notification shade
+  static Future<void> _dismissNativeNotifications(int? id) async {
+    try {
+      await _platformChannel.invokeMethod('dismissNotifications', {'id': id});
+    } catch (e) {
+      debugPrint('Error dismissing native notifications: $e');
+    }
+  }
+
+  /// Clear the dedupe flag explicitly. Call this from AlarmRingingScreen's
+  /// dismissal handlers so the next alarm isn't blocked even if the route's
+  /// pop future hasn't resolved yet (or if the alarm was dismissed externally
+  /// via the system notification's stop button, where the route never pops).
+  static void clearAlarmScreenFlag() {
+    _isAlarmScreenShowing = false;
+  }
 
   /// Helper to safely present the AlarmRingingScreen
   static void showAlarmScreen(int alarmId) {
-    final context = rootNavigatorKey.currentContext;
-    if (context != null && !_isAlarmScreenShowing) {
+    void tryPushScreen() {
+      // Self-healing flag: if it has been stuck on for >30s (e.g. user dismissed
+      // via the notification's stop button and the route was never popped),
+      // clear it so the next alarm can actually appear.
+      if (_isAlarmScreenShowing) {
+        final stuckFor = DateTime.now().difference(_alarmScreenFlagSetAt);
+        if (stuckFor > const Duration(seconds: 30)) {
+          _isAlarmScreenShowing = false;
+        } else {
+          return;
+        }
+      }
+
       _isAlarmScreenShowing = true;
-      Navigator.of(context, rootNavigator: true)
-          .push(
-        MaterialPageRoute(
-          builder: (_) => AlarmRingingScreen(
-            alarmId: alarmId,
-            portalUrl: _instance._storedPortalUrl,
-          ),
-        ),
-      )
-          .then((_) {
+      _alarmScreenFlagSetAt = DateTime.now();
+
+      void clearFlag() {
         _isAlarmScreenShowing = false;
-      });
+      }
+
+      // Preferred path: push via go_router so the alarm screen sits on top
+      // of ANY current route (home, settings, onboarding, …).
+      final router = routerForAlarmPush;
+      if (router != null) {
+        router.push(
+          '/alarm-ringing',
+          extra: <String, dynamic>{
+            'alarmId': alarmId,
+            'portalUrl': _instance._storedPortalUrl,
+          },
+        ).whenComplete(clearFlag);
+        return;
+      }
+
+      // Fallback: raw Navigator push on the rootNavigatorKey.
+      final context = rootNavigatorKey.currentContext;
+      if (context != null) {
+        Navigator.of(context, rootNavigator: true)
+            .push(
+          MaterialPageRoute(
+            builder: (_) => AlarmRingingScreen(
+              alarmId: alarmId,
+              portalUrl: _instance._storedPortalUrl,
+            ),
+          ),
+        )
+            .then((_) => clearFlag());
+      } else {
+        clearFlag();
+      }
     }
+
+    tryPushScreen();
+    WidgetsBinding.instance.addPostFrameCallback((_) => tryPushScreen());
+    Future.delayed(const Duration(milliseconds: 100), () => tryPushScreen());
+    Future.delayed(const Duration(milliseconds: 500), () => tryPushScreen());
   }
 
   /// Initialize notification service
@@ -64,12 +158,23 @@ class NotificationService {
         // Fallback if lookup fails
       }
     }
+
+    // ─── CRITICAL: Attach ringStream listener BEFORE Alarm.init() ──────────
+    // The native AlarmActivity handles the full-screen UI. This listener's
+    // job is purely to reschedule the alarm for the next day so the daily
+    // loop continues even after the user dismisses via the in-app buttons
+    // (which don't go through Alarm.stop with rescheduling).
+    Alarm.ringStream.stream.listen((alarmSettings) async {
+      _rescheduleAlarmNextDay(alarmSettings);
+      // Dismiss any lingering native notification once the user has opened
+      // the alarm UI (native AlarmActivity handles the actual display).
+      await _dismissNativeNotifications(null);
+    });
+
+    // NOW initialize the alarm package — any currently-ringing alarm will
+    // be picked up by the listener we just attached above.
     await Alarm.init();
 
-    // ─── Single source of truth for the full-screen alarm UI ───────────────
-    Alarm.ringStream.stream.listen((alarmSettings) {
-      showAlarmScreen(alarmSettings.id);
-    });
 
     // Android initialization settings
     const androidSettings =
@@ -113,6 +218,14 @@ class NotificationService {
 
   void setPortalUrl(String url) {
     _storedPortalUrl = url;
+    // Mirror to SharedPreferences so the native AlarmActivity can read the
+    // portal URL on a cold-start full-screen launch (when the Flutter engine
+    // is not yet alive).
+    try {
+      SharedPreferences.getInstance().then((prefs) {
+        prefs.setString('flutter.portal_url', url);
+      });
+    } catch (_) { }
   }
 
   /// Handles taps & fullScreenIntent launches for notifications
@@ -207,6 +320,27 @@ class NotificationService {
     await plugin?.createNotificationChannel(alarmChannel);
     await plugin?.requestNotificationsPermission();
     await plugin?.requestExactAlarmsPermission();
+
+    try {
+      if (!await Permission.systemAlertWindow.isGranted) {
+        await Permission.systemAlertWindow.request();
+      }
+    } catch (e) {
+      debugPrint('Error requesting systemAlertWindow permission: $e');
+    }
+
+    // Request USE_FULL_SCREEN_INTENT permission (required on Android 14+)
+    // Without this, the alarm package's notification cannot launch the activity
+    // over the lock screen when the app is killed.
+    try {
+      final bool hasFullScreen =
+          await _platformChannel.invokeMethod('checkFullScreenIntentPermission');
+      if (!hasFullScreen) {
+        await _platformChannel.invokeMethod('requestFullScreenIntentPermission');
+      }
+    } catch (e) {
+      debugPrint('Error checking/requesting fullScreenIntent permission: $e');
+    }
   }
 
   /// Calculates the next occurrence of a given HH:mm time
@@ -220,7 +354,26 @@ class NotificationService {
     return scheduled;
   }
 
-  // ─── Alarm scheduling helpers ─────────────────────────────────────────────
+  /// Re-schedules a fired alarm for the same time the next day.
+  /// This ensures the daily loop continues even if the app is never opened
+  /// between alarm firings (e.g. after a reboot + BootReceiver reschedule).
+  Future<void> _rescheduleAlarmNextDay(AlarmSettings fired) async {
+    try {
+      final nextDay = fired.dateTime.add(const Duration(days: 1));
+      // Only reschedule if next day is in the future (guard against edge cases)
+      if (nextDay.isAfter(DateTime.now())) {
+        await Alarm.set(
+          alarmSettings: fired.copyWith(dateTime: nextDay),
+        );
+        debugPrint(
+            'Alarm ${fired.id} rescheduled for next day: $nextDay');
+      }
+    } catch (e) {
+      debugPrint('Failed to reschedule alarm ${fired.id} for next day: $e');
+    }
+  }
+
+
 
 
 
@@ -255,9 +408,6 @@ class NotificationService {
         androidFullScreenIntent: true,
       ),
     );
-
-    // Cancel any standalone local notification with ID 101 to avoid notification center popups
-    await _notifications.cancel(101);
   }
 
   /// Schedule Check-Out Daily Clock Alarm
@@ -291,9 +441,6 @@ class NotificationService {
         androidFullScreenIntent: true,
       ),
     );
-
-    // Cancel any standalone local notification with ID 102 to avoid notification center popups
-    await _notifications.cancel(102);
   }
 
   /// Schedule both alarms from OfficeConfig
@@ -332,8 +479,6 @@ class NotificationService {
         androidFullScreenIntent: true,
       ),
     );
-
-    await _notifications.cancel(101);
   }
 
   /// Shows attendance success notification
@@ -395,12 +540,14 @@ class NotificationService {
   Future<void> cancelAll() async {
     await Alarm.stopAll();
     await _notifications.cancelAll();
+    await _dismissNativeNotifications(null);
   }
 
   /// Cancels a specific alarm + notification by ID
   Future<void> cancel(int id) async {
     await Alarm.stop(id);
     await _notifications.cancel(id);
+    await _dismissNativeNotifications(id);
   }
 
   /// Cancels only the check-out alarm (ID 102).
@@ -408,6 +555,7 @@ class NotificationService {
   Future<void> cancelCheckOutAlarm() async {
     await Alarm.stop(102);
     await _notifications.cancel(102);
+    await _dismissNativeNotifications(102);
   }
 }
 

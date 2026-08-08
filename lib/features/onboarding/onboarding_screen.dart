@@ -12,6 +12,7 @@ import '../../core/constants/app_constants.dart';
 import '../../services/wifi_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/background_service.dart';
+import '../../services/oem_battery_helper.dart';
 import '../../providers/providers.dart';
 import '../../core/utils/date_utils.dart';
 
@@ -156,6 +157,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final picked = await showTimePicker(
       context: context,
       initialTime: initialTime,
+      builder: (context, child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+          child: child!,
+        );
+      },
     );
     if (picked != null) {
       onSelected(picked);
@@ -688,12 +695,110 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               ),
             ),
           ),
+
+          // OEM Autostart Guidance Card (only shown on restricted OEMs)
+          if (OemBatteryHelper.getGuidance() != null) ...[  
+            const SizedBox(height: 16),
+            _buildOemOnboardingCard(colorScheme, OemBatteryHelper.getGuidance()!),
+          ],
         ],
       ),
     );
   }
   
+  /// OEM autostart guidance card for onboarding — shown only on Xiaomi,
+  /// Samsung, OnePlus, Vivo, Oppo, and Huawei devices.
+  Widget _buildOemOnboardingCard(ColorScheme colorScheme, OemBatteryGuidance guidance) {
+    return Card(
+      color: Colors.deepOrange.withValues(alpha: 0.08),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.deepOrange.withValues(alpha: 0.4), width: 1.5),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.phone_android_rounded, size: 28, color: Colors.deepOrange),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Enable Autostart — ${guidance.oemName}',
+                    style: GoogleFonts.googleSans(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.deepOrange,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              '${guidance.oemName} aggressively kills background apps. Without Autostart, alarms will NOT fire when PingPin is closed.',
+              style: GoogleFonts.googleSans(
+                fontSize: 13,
+                color: colorScheme.onSurface.withValues(alpha: 0.85),
+              ),
+            ),
+            const SizedBox(height: 12),
+            ...guidance.steps.asMap().entries.map((e) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 22,
+                    height: 22,
+                    margin: const EdgeInsets.only(right: 10, top: 1),
+                    decoration: BoxDecoration(
+                      color: Colors.deepOrange.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Text(
+                        '${e.key + 1}',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.deepOrange,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      e.value,
+                      style: GoogleFonts.googleSans(fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+            )),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                style: FilledButton.styleFrom(backgroundColor: Colors.deepOrange),
+                icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                label: Text(
+                  'OPEN ${guidance.oemName.toUpperCase().split('/').first.trim()} SETTINGS',
+                  style: GoogleFonts.googleSans(fontWeight: FontWeight.w700),
+                ),
+                onPressed: () => OemBatteryHelper.launchOemSettings(guidance),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildProfileStep() {
+
     final colorScheme = Theme.of(context).colorScheme;
 
     return Form(

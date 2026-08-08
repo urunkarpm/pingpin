@@ -10,6 +10,7 @@ import '../../data/database/app_database.dart';
 import '../../core/constants/app_constants.dart';
 import '../../services/background_service.dart';
 import '../../services/notification_service.dart';
+import '../../services/oem_battery_helper.dart';
 import '../../services/wifi_service.dart';
 import '../../providers/providers.dart';
 import '../../core/utils/date_utils.dart';
@@ -279,13 +280,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       context: context,
       initialTime: initialTime,
       builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            timePickerTheme: TimePickerThemeData(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+          child: Theme(
+            data: Theme.of(context).copyWith(
+              timePickerTheme: TimePickerThemeData(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              ),
             ),
+            child: child!,
           ),
-          child: child!,
         );
       },
     );
@@ -414,6 +418,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _buildSectionHeader('BATTERY & SYSTEM PERMISSIONS', Icons.battery_saver_rounded, colorScheme),
                   const SizedBox(height: 10),
                   _buildPermissionsCard(colorScheme),
+                  // OEM-specific autostart guidance (shown only on restricted OEMs)
+                  if (OemBatteryHelper.getGuidance() != null) ...[  
+                    const SizedBox(height: 10),
+                    _buildOemGuidanceCard(colorScheme),
+                  ],
 
                   const SizedBox(height: 24),
 
@@ -428,6 +437,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _buildSectionHeader('WORK SCHEDULE & ALARMS', Icons.schedule_rounded, colorScheme),
                   const SizedBox(height: 10),
                   _buildScheduleCard(colorScheme, isDark),
+
+                  const SizedBox(height: 12),
+                  // Test Alarm Quick Trigger for Appium E2E testing
+                  Semantics(
+                    label: 'Test Check-in Alarm',
+                    container: true,
+                    explicitChildNodes: true,
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        final configRepo = ref.read(officeConfigRepositoryProvider);
+                        final config = await configRepo.getConfig();
+                        await NotificationService().testCheckInAlarmNow(portalUrl: config?.portalUrl);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Test Check-in alarm scheduled in 5s')),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.alarm_add_rounded),
+                      label: const Text('Test Check-in Alarm'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ),
 
                   const SizedBox(height: 24),
 
@@ -1126,6 +1161,171 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         );
       },
+    );
+  }
+
+  /// OEM-specific autostart guidance card.
+  /// Only rendered on Xiaomi, Samsung, OnePlus, Vivo, Oppo, Huawei devices.
+  Widget _buildOemGuidanceCard(ColorScheme colorScheme) {
+    final guidance = OemBatteryHelper.getGuidance()!;
+    return _buildCardContainer(
+      colorScheme: colorScheme,
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.deepOrange.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.phone_android_rounded,
+              color: Colors.deepOrange,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'OEM Autostart Required',
+                        style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.deepOrange.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        guidance.oemName.toUpperCase().split('/').first.trim(),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.deepOrange,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${guidance.oemName} restricts background apps. Enable Autostart so alarms fire even when the app is closed.',
+                  style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.deepOrange,
+                          side: const BorderSide(color: Colors.deepOrange),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                        ),
+                        icon: const Icon(Icons.list_alt_rounded, size: 16),
+                        label: const Text('View Steps', style: TextStyle(fontSize: 13)),
+                        onPressed: () => _showOemStepsDialog(guidance),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.deepOrange,
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                        ),
+                        icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                        label: const Text('Open Settings', style: TextStyle(fontSize: 13)),
+                        onPressed: () => OemBatteryHelper.launchOemSettings(guidance),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showOemStepsDialog(OemBatteryGuidance guidance) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.phone_android_rounded, color: Colors.deepOrange),
+            const SizedBox(width: 8),
+            Expanded(child: Text(guidance.oemName, style: const TextStyle(fontSize: 16))),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Enable Autostart / Background activity so alarms ring even when PingPin is closed:',
+              style: TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            ...guidance.steps.asMap().entries.map((e) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 22,
+                    height: 22,
+                    margin: const EdgeInsets.only(right: 10, top: 1),
+                    decoration: BoxDecoration(
+                      color: Colors.deepOrange.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Text(
+                        '${e.key + 1}',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.deepOrange,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(e.value, style: const TextStyle(fontSize: 13)),
+                  ),
+                ],
+              ),
+            )),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('CLOSE'),
+          ),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(backgroundColor: Colors.deepOrange),
+            icon: const Icon(Icons.open_in_new_rounded, size: 16),
+            label: const Text('Open Settings'),
+            onPressed: () {
+              Navigator.pop(ctx);
+              OemBatteryHelper.launchOemSettings(guidance);
+            },
+          ),
+        ],
+      ),
     );
   }
 

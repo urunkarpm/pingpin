@@ -12,7 +12,6 @@ class OfficeOccupancyCard extends ConsumerWidget {
     final state = ref.watch(bleLaptopNotifierProvider);
     final notifier = ref.read(bleLaptopNotifierProvider.notifier);
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
     final onSurface = theme.colorScheme.onSurface;
 
     return GlassCard(
@@ -79,7 +78,7 @@ class OfficeOccupancyCard extends ConsumerWidget {
           const SizedBox(height: 16),
           Divider(
             height: 1,
-            color: onSurface.withValues(alpha: isDark ? 0.1 : 0.06),
+            color: theme.dividerColor,
           ),
           const SizedBox(height: 16),
 

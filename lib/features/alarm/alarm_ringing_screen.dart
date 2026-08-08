@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:alarm/alarm.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../../services/notification_service.dart';
 
 class AlarmRingingScreen extends StatefulWidget {
@@ -25,6 +26,9 @@ class _AlarmRingingScreenState extends State<AlarmRingingScreen>
 
   bool get isCheckIn => widget.alarmId == 101;
 
+  static const MethodChannel _platformChannel =
+      MethodChannel('com.urunkarpm.pingpin/alarm');
+
   @override
   void initState() {
     super.initState();
@@ -36,16 +40,51 @@ class _AlarmRingingScreenState extends State<AlarmRingingScreen>
     _pulseAnimation = Tween<double>(begin: 1.0, end: 1.15).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
+
+    // Set immersive full-screen mode for maximum alarm impact
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   }
 
   @override
   void dispose() {
     _pulseController.dispose();
+    // Restore normal system UI mode when alarm screen is dismissed
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
+  }
+
+  /// Dismiss notifications from every source to prevent any small notification
+  /// from appearing in the status bar or notification shade.
+  Future<void> _dismissAllNotifications() async {
+    final notifications = FlutterLocalNotificationsPlugin();
+
+    // Immediate pass
+    try {
+      await _platformChannel.invokeMethod('dismissNotifications', {'id': null});
+    } catch (_) {}
+    try {
+      await notifications.cancelAll();
+    } catch (_) {}
+
+    // Delayed passes to catch async notification posting by alarm package
+    for (final delay in [300, 600, 1200]) {
+      Future.delayed(Duration(milliseconds: delay), () async {
+        try {
+          await _platformChannel
+              .invokeMethod('dismissNotifications', {'id': null});
+        } catch (_) {}
+        try {
+          await notifications.cancel(widget.alarmId);
+        } catch (_) {}
+      });
+    }
   }
 
   Future<void> _stopAlarmAndDismiss(BuildContext context) async {
     HapticFeedback.heavyImpact();
+    // Clear dedupe flag immediately so the next alarm can push even if the
+    // route's pop future hasn't resolved yet.
+    NotificationService.clearAlarmScreenFlag();
     try {
       await Alarm.stop(widget.alarmId);
       await Alarm.stopAll();
@@ -57,6 +96,10 @@ class _AlarmRingingScreenState extends State<AlarmRingingScreen>
     } catch (e) {
       debugPrint('Error cancelling notification: $e');
     }
+    // Dismiss any lingering notifications from alarm package
+    await _dismissAllNotifications();
+    // Restore normal system UI
+    await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     if (context.mounted) {
       Navigator.of(context, rootNavigator: true).pop();
     }
@@ -111,13 +154,17 @@ class _AlarmRingingScreenState extends State<AlarmRingingScreen>
                       ),
                     ],
                   ),
-                  child: Text(
-                    isCheckIn ? 'CHECK-IN ALARM' : 'CHECK-OUT ALARM',
-                    style: GoogleFonts.googleSans(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      color: paperBg,
-                      letterSpacing: 1.2,
+                  child: Semantics(
+                    label: isCheckIn ? 'CHECK-IN ALARM' : 'CHECK-OUT ALARM',
+                    container: true,
+                    child: Text(
+                      isCheckIn ? 'CHECK-IN ALARM' : 'CHECK-OUT ALARM',
+                      style: GoogleFonts.googleSans(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: paperBg,
+                        letterSpacing: 1.2,
+                      ),
                     ),
                   ),
                 ),

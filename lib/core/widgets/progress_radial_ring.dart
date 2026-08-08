@@ -75,11 +75,8 @@ class _ProgressRadialRingState extends State<ProgressRadialRing>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
     final primaryColor = widget.color ?? theme.colorScheme.primary;
-    final trackColor = isDark
-        ? Colors.white.withValues(alpha: 0.08)
-        : theme.colorScheme.onSurface.withValues(alpha: 0.08);
+    final trackColor = theme.colorScheme.onSurface.withValues(alpha: 0.08);
 
     return AnimatedBuilder(
       animation: _animation,

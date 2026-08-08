@@ -21,14 +21,23 @@ class AppTheme {
       textTheme: googleSansTheme,
       primaryColor: inkBlack,
       scaffoldBackgroundColor: paperBg,
-      colorScheme: const ColorScheme.light(
+      shadowColor: Colors.black.withValues(alpha: 0.08),
+      colorScheme: ColorScheme.light(
         primary: inkBlack,
         secondary: inkBlack,
         surface: surfaceBg,
+        surfaceContainer: const Color(0xFFE8E5DC),
+        surfaceContainerHighest: const Color(0xFFDFDCD3),
         error: Colors.black,
         onPrimary: paperBg,
         onSecondary: paperBg,
         onSurface: inkBlack,
+        onSurfaceVariant: const Color(0xFF555555),
+        outline: borderDark,
+        outlineVariant: borderDark.withValues(alpha: 0.2),
+      ),
+      iconTheme: const IconThemeData(
+        color: inkBlack,
       ),
       appBarTheme: AppBarTheme(
         backgroundColor: paperBg,
@@ -112,6 +121,22 @@ class AppTheme {
           side: const BorderSide(color: borderDark, width: 2.5),
         ),
       ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: surfaceBg,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          side: BorderSide(color: borderDark, width: 2.0),
+        ),
+      ),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: inkBlack,
+        foregroundColor: paperBg,
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: borderDark, width: 2.0),
+        ),
+      ),
     );
   }
 
@@ -134,14 +159,23 @@ class AppTheme {
       textTheme: googleSansTheme,
       primaryColor: inkWhite,
       scaffoldBackgroundColor: darkPaperBg,
-      colorScheme: const ColorScheme.dark(
+      shadowColor: Colors.black.withValues(alpha: 0.45),
+      colorScheme: ColorScheme.dark(
         primary: inkWhite,
         secondary: inkWhite,
         surface: darkSurfaceBg,
+        surfaceContainer: const Color(0xFF252525),
+        surfaceContainerHighest: const Color(0xFF2C2C2C),
         error: Colors.white,
         onPrimary: darkPaperBg,
         onSecondary: darkPaperBg,
         onSurface: inkWhite,
+        onSurfaceVariant: const Color(0xFFA0A0A0),
+        outline: borderLight,
+        outlineVariant: borderLight.withValues(alpha: 0.2),
+      ),
+      iconTheme: const IconThemeData(
+        color: inkWhite,
       ),
       appBarTheme: AppBarTheme(
         backgroundColor: darkPaperBg,
@@ -223,6 +257,22 @@ class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
           side: const BorderSide(color: borderLight, width: 2.5),
+        ),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: darkSurfaceBg,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          side: BorderSide(color: borderLight, width: 2.0),
+        ),
+      ),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: inkWhite,
+        foregroundColor: darkPaperBg,
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: borderLight, width: 2.0),
         ),
       ),
     );

@@ -19,6 +19,8 @@
     <uses-permission android:name="android.permission.VIBRATE"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <uses-permission android:name="android.permission.DISABLE_KEYGUARD"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
 
     <!-- Bluetooth permissions -->
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
@@ -63,12 +65,35 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+        </activity>
+
+        <!--
+            AlarmActivity is registered as MAIN/LAUNCHER. The alarm package
+            builds its fullScreenIntent PendingIntent from
+            getLaunchIntentForPackage(), which returns whichever activity has
+            the LAUNCHER category. By owning that role, AlarmActivity is what
+            the system launches when a full-screen alarm fires — guaranteeing
+            the alarm UI appears over the lock screen even when the Flutter
+            engine is dead. Manually launching PingPin from the app drawer
+            routes through AlarmActivity as well, which then forwards to
+            MainActivity via the standard Android task switching.
+        -->
+        <activity
+            android:name=".AlarmActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:showWhenLocked="true"
+            android:showOnLockScreen="true"
+            android:turnScreenOn="true"
+            android:launchMode="singleTask"
+            android:theme="@style/AlarmTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER"/>
             </intent-filter>
-
         </activity>
         
         <!-- Flutter Local Notifications -->
@@ -81,6 +106,29 @@
                 <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
             </intent-filter>
         </receiver>
+
+        <!-- PingPin Boot Receiver: reschedules AlarmManager alarms after reboot/update -->
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="true"
+            android:directBootAware="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+                <action android:name="android.intent.action.QUICKBOOT_POWERON"/>
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
+            </intent-filter>
+        </receiver>
+
+        <!-- alarm package foreground service (needed for Android 14+ background start)
+             The alarm package uses FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK on API 29+
+             so the declared type must match, otherwise the service crashes on Android 14+. -->
+        <service
+            android:name="com.gdelataillade.alarm.services.AlarmService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback"
+            android:stopWithTask="false" />
         
         <meta-data
             android:name="flutterEmbedding"

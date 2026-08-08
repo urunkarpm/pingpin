@@ -109,11 +109,11 @@ class _GlassCapsule extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
     const radius = BorderRadius.all(Radius.circular(36));
 
-    final bgColor = isDark ? const Color(0xFF1A1A1A) : const Color(0xFFEFECE2);
-    final borderColor = isDark ? const Color(0xFF2E2E2E) : const Color(0xFF222222);
+    final bgColor = theme.colorScheme.surface;
+    final borderColor = theme.colorScheme.outline;
 
     return Container(
       height: 70,
@@ -123,7 +123,7 @@ class _GlassCapsule extends StatelessWidget {
         border: Border.all(color: borderColor, width: 2.0),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha(isDark ? 80 : 30),
+            color: theme.shadowColor,
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),
@@ -142,9 +142,9 @@ class _SelectionPuck extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final puckBg = isDark ? const Color(0xFFF7F4EB) : const Color(0xFF121212);
-    final puckBorder = isDark ? const Color(0xFF121212) : const Color(0xFFF7F4EB);
+    final theme = Theme.of(context);
+    final puckBg = theme.colorScheme.primary;
+    final puckBorder = theme.colorScheme.onPrimary;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
@@ -155,7 +155,7 @@ class _SelectionPuck extends StatelessWidget {
           border: Border.all(color: puckBorder, width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withAlpha(isDark ? 25 : 40),
+              color: theme.shadowColor,
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
@@ -179,11 +179,11 @@ class _PillTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
     
     // Invert text/icon color on puck when selected
-    final activeColor = isDark ? const Color(0xFF121212) : const Color(0xFFF7F4EB);
-    final inactiveColor = isDark ? const Color(0xFFA0A0A0) : const Color(0xFF555555);
+    final activeColor = theme.colorScheme.onPrimary;
+    final inactiveColor = theme.colorScheme.onSurfaceVariant;
 
     final color = selected ? activeColor : inactiveColor;
 

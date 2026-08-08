@@ -44,3 +44,11 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 /android/build/
+
+# Node modules
+node_modules/
+
+# Appium test artifacts
+appium_tests/*.png
+appium_tests/*.xml
+

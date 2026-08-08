@@ -43,9 +43,9 @@ class _ShimmerLoadingState extends State<ShimmerLoading>
   Widget build(BuildContext context) {
     if (!widget.isLoading) return widget.child;
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final baseColor = isDark ? const Color(0xFF2A2A2A) : const Color(0xFFE5E5E5);
-    final highlightColor = isDark ? const Color(0xFF3F3F3F) : const Color(0xFFF5F5F5);
+    final theme = Theme.of(context);
+    final baseColor = theme.colorScheme.surfaceContainer;
+    final highlightColor = theme.colorScheme.surfaceContainerHighest;
 
     return AnimatedBuilder(
       animation: _animation,
@@ -93,12 +93,12 @@ class SkeletonBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
     return Container(
       width: width,
       height: height,
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF262626) : const Color(0xFFE0E0E0),
+        color: theme.colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(borderRadius),
       ),
     );

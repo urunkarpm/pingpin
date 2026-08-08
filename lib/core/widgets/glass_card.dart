@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-/// A reusable glassmorphic container with micro-shimmer line, ambient soft drop shadow,
+/// A reusable card container with smooth theme lerping, ambient soft drop shadow,
 /// dynamic surface border, and optional tactile haptic response.
 class GlassCard extends StatelessWidget {
   final Widget child;
@@ -26,19 +26,11 @@ class GlassCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
-    final defaultBg = backgroundColor ??
-        (isDark ? const Color(0xFF1E1E1E) : theme.colorScheme.surface);
+    final defaultBg = backgroundColor ?? theme.colorScheme.surface;
+    final defaultBorder = borderColor ?? theme.colorScheme.outlineVariant;
 
-    final defaultBorder = borderColor ??
-        (isDark
-            ? Colors.white.withValues(alpha: 0.08)
-            : theme.colorScheme.onSurface.withValues(alpha: 0.08));
-
-    final cardWidget = AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeOut,
+    final cardWidget = Container(
       margin: margin,
       padding: padding,
       decoration: BoxDecoration(
@@ -47,20 +39,11 @@ class GlassCard extends StatelessWidget {
         border: Border.all(color: defaultBorder, width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: isDark
-                ? Colors.black.withValues(alpha: 0.35)
-                : Colors.black.withValues(alpha: 0.04),
+            color: theme.shadowColor,
             blurRadius: 18,
             spreadRadius: 0,
             offset: const Offset(0, 8),
           ),
-          if (!isDark)
-            BoxShadow(
-              color: Colors.white.withValues(alpha: 0.8),
-              blurRadius: 1,
-              spreadRadius: 0,
-              offset: const Offset(0, 1),
-            ),
         ],
       ),
       child: child,
