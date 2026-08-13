@@ -51,6 +51,22 @@ fun HomeScreen(
     val wifiService = remember { WifiService(context) }
     val attendanceService = remember { AttendanceService(context, wifiService) }
     val bleScanner = remember { BleLaptopScannerService(context) }
+    val notifService = remember { NotificationService(context) }
+    var hasExactAlarmPerm by remember { mutableStateOf(notifService.canScheduleExactAlarms()) }
+
+    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                hasExactAlarmPerm = notifService.canScheduleExactAlarms()
+                notifService.verifyAndRescheduleAlarmsIfNeeded()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     var currentSsid by remember { mutableStateOf<String?>(null) }
     var isConnectedToOffice by remember { mutableStateOf(false) }
@@ -158,11 +174,62 @@ fun HomeScreen(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "$currentStreak Day Streak",
-                        fontSize = 12.sp,
+                        text = "$currentStreak Days",
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (isDark) Color(0xFFFDE68A) else Color(0xFF92400E)
+                        color = AmberOrange
                     )
+                }
+            }
+        }
+
+        // Exact Alarm Permission Alert Banner (Android 12+)
+        if (!hasExactAlarmPerm && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = AmberOrange.copy(alpha = 0.15f),
+                border = androidx.compose.foundation.BorderStroke(1.dp, AmberOrange.copy(alpha = 0.4f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Exact Alarm Permission Missing",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AmberOrange
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Clock alarms may be delayed by Android battery optimization. Tap to grant permission.",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Button(
+                        onClick = {
+                            try {
+                                val intent = android.content.Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+                                    data = android.net.Uri.parse("package:${context.packageName}")
+                                }
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = AmberOrange),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("Enable", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
                 }
             }
         }

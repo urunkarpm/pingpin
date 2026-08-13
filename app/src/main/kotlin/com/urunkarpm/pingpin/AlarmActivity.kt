@@ -92,9 +92,11 @@ class AlarmActivity : ComponentActivity() {
                     onCheckIn = {
                         stopAlarmSound()
                         val notifService = NotificationService(this)
-                        notifService.cancelAlarm(alarmId)
-                        dismissKeyguardAndOpenBrowser(portalUrlState)
-                        finish()
+                        notifService.dismissNotification(alarmId)
+                        if (alarmId == NotificationService.CHECK_IN_SNOOZE_ID || alarmId == NotificationService.CHECK_OUT_SNOOZE_ID) {
+                            notifService.cancelAlarm(alarmId)
+                        }
+                        dismissKeyguardAndExecute { openBrowser(portalUrlState) }
                     },
                     onSnooze = {
                         stopAlarmSound()
@@ -105,17 +107,20 @@ class AlarmActivity : ComponentActivity() {
                     onLeave = {
                         stopAlarmSound()
                         val notifService = NotificationService(this)
-                        notifService.cancelAlarm(alarmId)
-                        notifService.cancelCheckOutAlarm()
-                        openLeaveMail()
-                        finish()
+                        notifService.dismissNotification(alarmId)
+                        if (alarmId == NotificationService.CHECK_IN_SNOOZE_ID || alarmId == NotificationService.CHECK_OUT_SNOOZE_ID) {
+                            notifService.cancelAlarm(alarmId)
+                        }
+                        dismissKeyguardAndExecute { openLeaveMail() }
                     },
                     onCheckOut = {
                         stopAlarmSound()
                         val notifService = NotificationService(this)
-                        notifService.cancelAlarm(alarmId)
-                        dismissKeyguardAndOpenBrowser(portalUrlState)
-                        finish()
+                        notifService.dismissNotification(alarmId)
+                        if (alarmId == NotificationService.CHECK_IN_SNOOZE_ID || alarmId == NotificationService.CHECK_OUT_SNOOZE_ID) {
+                            notifService.cancelAlarm(alarmId)
+                        }
+                        dismissKeyguardAndExecute { openBrowser(portalUrlState) }
                     }
                 )
             }
@@ -223,22 +228,25 @@ class AlarmActivity : ComponentActivity() {
         super.onDestroy()
     }
 
-    private fun dismissKeyguardAndOpenBrowser(url: String) {
+    private fun dismissKeyguardAndExecute(action: () -> Unit) {
         val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && keyguardManager != null && keyguardManager.isKeyguardLocked) {
             keyguardManager.requestDismissKeyguard(this, object : KeyguardManager.KeyguardDismissCallback() {
                 override fun onDismissSucceeded() {
-                    openBrowser(url)
+                    action()
+                    finish()
                 }
                 override fun onDismissError() {
-                    openBrowser(url)
+                    action()
+                    finish()
                 }
                 override fun onDismissCancelled() {
-                    openBrowser(url)
+                    finish()
                 }
             })
         } else {
-            openBrowser(url)
+            action()
+            finish()
         }
     }
 

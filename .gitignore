@@ -17,7 +17,6 @@ key.properties
 **/*.jks
 
 # Appium / test artifacts
-appium_tests/node_modules/
-appium_tests/*.png
-appium_tests/*.xml
+appium_tests/
+
 

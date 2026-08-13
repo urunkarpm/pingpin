@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Build
 import android.os.PowerManager
+import android.provider.Settings
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.urunkarpm.pingpin.AlarmActivity
@@ -52,6 +53,22 @@ class NotificationService(private val context: Context) {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
             powerManager?.isIgnoringBatteryOptimizations(context.packageName) ?: true
+        } else {
+            true
+        }
+    }
+
+    fun canDrawOverlays(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            Settings.canDrawOverlays(context)
+        } else {
+            true
+        }
+    }
+
+    fun canUseFullScreenIntent(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            notificationManager.canUseFullScreenIntent()
         } else {
             true
         }
@@ -243,6 +260,25 @@ class NotificationService(private val context: Context) {
         notificationManager.notify(1, builder.build())
     }
 
+    fun dismissNotification(alarmId: Int) {
+        notificationManager.cancel(alarmId)
+    }
+
+    fun verifyAndRescheduleAlarmsIfNeeded() {
+        val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val enabled = prefs.getBoolean("enabled", true)
+        val checkInTime = prefs.getString("checkInTime", null)
+        val checkOutTime = prefs.getString("checkOutTime", null)
+        val workingDaysMask = prefs.getInt("workingDaysMask", 0x1F)
+        val portalUrl = prefs.getString("portalUrl", "") ?: ""
+
+        if (enabled && !checkInTime.isNullOrEmpty() && !checkOutTime.isNullOrEmpty()) {
+            scheduleCheckInAlarm(checkInTime, workingDaysMask, portalUrl)
+            scheduleCheckOutAlarm(checkOutTime, workingDaysMask, portalUrl)
+            Log.d(TAG, "verifyAndRescheduleAlarmsIfNeeded: Alarms re-verified and scheduled.")
+        }
+    }
+
     private fun parseTime(timeStr: String): Pair<Int, Int>? {
         val parts = timeStr.split(":")
         if (parts.size < 2) return null
@@ -260,8 +296,8 @@ class NotificationService(private val context: Context) {
         cal.set(Calendar.SECOND, 0)
         cal.set(Calendar.MILLISECOND, 0)
 
-        // If target time is in the past or within 60 seconds of current time (e.g., when alarm just fired), move to tomorrow
-        if (cal.timeInMillis <= System.currentTimeMillis() + 60_000L) {
+        // If target time is in the past, move to tomorrow
+        if (cal.timeInMillis <= System.currentTimeMillis()) {
             cal.add(Calendar.DAY_OF_YEAR, 1)
         }
 

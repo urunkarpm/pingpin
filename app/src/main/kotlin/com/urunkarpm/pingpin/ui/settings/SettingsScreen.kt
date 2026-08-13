@@ -483,8 +483,26 @@ fun SettingsScreen(
 
         // 3. Alarm Reliability & Precision Diagnostics Card
         val notifService = remember { NotificationService(context) }
-        val hasExactAlarmPerm = remember { notifService.canScheduleExactAlarms() }
-        val isBatteryIgnored = remember { notifService.isIgnoringBatteryOptimizations() }
+        var hasExactAlarmPerm by remember { mutableStateOf(notifService.canScheduleExactAlarms()) }
+        var isBatteryIgnored by remember { mutableStateOf(notifService.isIgnoringBatteryOptimizations()) }
+        var hasOverlayPerm by remember { mutableStateOf(notifService.canDrawOverlays()) }
+        var hasFullScreenIntentPerm by remember { mutableStateOf(notifService.canUseFullScreenIntent()) }
+
+        val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+        DisposableEffect(lifecycleOwner) {
+            val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+                if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                    hasExactAlarmPerm = notifService.canScheduleExactAlarms()
+                    isBatteryIgnored = notifService.isIgnoringBatteryOptimizations()
+                    hasOverlayPerm = notifService.canDrawOverlays()
+                    hasFullScreenIntentPerm = notifService.canUseFullScreenIntent()
+                }
+            }
+            lifecycleOwner.lifecycle.addObserver(observer)
+            onDispose {
+                lifecycleOwner.lifecycle.removeObserver(observer)
+            }
+        }
 
         GlassCard(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.fillMaxWidth()) {
@@ -620,6 +638,67 @@ fun SettingsScreen(
                                 }
                             ) {
                                 Text("UNRESTRICT", fontWeight = FontWeight.Bold, color = ElectricBlue, fontSize = 12.sp)
+                            }
+                        }
+                    }
+                }
+
+                // Display Over Other Apps / Full Screen Intent Status
+                val hasFullScreenAccess = hasOverlayPerm && hasFullScreenIntentPerm
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (hasFullScreenAccess) EmeraldGreen.copy(alpha = 0.12f) else ElectricBlue.copy(alpha = 0.15f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, if (hasFullScreenAccess) EmeraldGreen.copy(alpha = 0.3f) else ElectricBlue.copy(alpha = 0.4f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = if (hasFullScreenAccess) Icons.Default.Fullscreen else Icons.Default.Layers,
+                                contentDescription = null,
+                                tint = if (hasFullScreenAccess) EmeraldGreen else ElectricBlue,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Column {
+                                Text(
+                                    text = "Full-Screen Alert Display",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = if (hasFullScreenAccess) "Granted • Alarm pops up full-screen when screen is on" else "Restricted • Tap to allow full-screen alerts when screen is on",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        if (!hasFullScreenAccess) {
+                            TextButton(
+                                onClick = {
+                                    try {
+                                        val intent = if (!hasOverlayPerm && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                                            android.content.Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:${context.packageName}"))
+                                        } else if (!hasFullScreenIntentPerm && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                                            android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, android.net.Uri.parse("package:${context.packageName}"))
+                                        } else {
+                                            android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${context.packageName}"))
+                                        }
+                                        context.startActivity(intent)
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Open Settings -> Permissions to grant display over apps", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            ) {
+                                Text("GRANT", fontWeight = FontWeight.Bold, color = ElectricBlue, fontSize = 12.sp)
                             }
                         }
                     }

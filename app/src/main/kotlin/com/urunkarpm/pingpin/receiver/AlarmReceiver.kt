@@ -1,10 +1,12 @@
 package com.urunkarpm.pingpin.receiver
 
+import android.app.ActivityOptions
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -45,7 +47,8 @@ class AlarmReceiver : BroadcastReceiver() {
             addFlags(
                 Intent.FLAG_ACTIVITY_NEW_TASK or
                         Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                        Intent.FLAG_ACTIVITY_SINGLE_TOP
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                        Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
             )
         }
 
@@ -73,14 +76,33 @@ class AlarmReceiver : BroadcastReceiver() {
         notificationManager?.notify(alarmId, notification)
 
         // Direct launch to bring AlarmActivity into foreground instantly even when phone is actively in use
+        val options = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            ActivityOptions.makeBasic().apply {
+                setPendingIntentBackgroundActivityStartMode(ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)
+            }.toBundle()
+        } else null
+
         try {
-            context.startActivity(alarmIntent)
+            fullScreenPendingIntent.send(context, 0, null, null, null, null, options)
+            Log.d(TAG, "Triggered AlarmActivity full-screen launch via fullScreenPendingIntent.send()")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to start AlarmActivity directly: ${e.message}", e)
+            Log.w(TAG, "fullScreenPendingIntent.send() failed (${e.message}), falling back to startActivity")
+            try {
+                if (options != null) {
+                    context.startActivity(alarmIntent, options)
+                } else {
+                    context.startActivity(alarmIntent)
+                }
+            } catch (ex: Exception) {
+                Log.e(TAG, "Failed to start AlarmActivity directly: ${ex.message}", ex)
+            }
         }
 
-        // Reschedule next occurrence for recurring daily alarms
-        if (alarmId == NotificationService.CHECK_IN_ALARM_ID || alarmId == NotificationService.CHECK_OUT_ALARM_ID) {
+        // Reschedule next occurrence for recurring daily alarms (handles regular & snoozed triggers)
+        val isCheckInType = alarmId == NotificationService.CHECK_IN_ALARM_ID || alarmId == NotificationService.CHECK_IN_SNOOZE_ID
+        val isCheckOutType = alarmId == NotificationService.CHECK_OUT_ALARM_ID || alarmId == NotificationService.CHECK_OUT_SNOOZE_ID
+
+        if (isCheckInType || isCheckOutType) {
             try {
                 val prefs = context.getSharedPreferences(NotificationService.PREFS_NAME, Context.MODE_PRIVATE)
                 val checkInTime = prefs.getString("checkInTime", null)
@@ -91,12 +113,13 @@ class AlarmReceiver : BroadcastReceiver() {
 
                 if (enabled) {
                     val notifService = NotificationService(context)
-                    if (alarmId == NotificationService.CHECK_IN_ALARM_ID && !checkInTime.isNullOrEmpty()) {
+                    if (isCheckInType && !checkInTime.isNullOrEmpty()) {
                         notifService.scheduleCheckInAlarm(checkInTime, workingDaysMask, prefPortalUrl)
-                        Log.d(TAG, "Successfully auto-rescheduled next check-in alarm")
-                    } else if (alarmId == NotificationService.CHECK_OUT_ALARM_ID && !checkOutTime.isNullOrEmpty()) {
+                        Log.d(TAG, "Successfully auto-rescheduled next check-in alarm (triggered by $alarmId)")
+                    }
+                    if (isCheckOutType && !checkOutTime.isNullOrEmpty()) {
                         notifService.scheduleCheckOutAlarm(checkOutTime, workingDaysMask, prefPortalUrl)
-                        Log.d(TAG, "Successfully auto-rescheduled next check-out alarm")
+                        Log.d(TAG, "Successfully auto-rescheduled next check-out alarm (triggered by $alarmId)")
                     }
                 }
             } catch (e: Exception) {
