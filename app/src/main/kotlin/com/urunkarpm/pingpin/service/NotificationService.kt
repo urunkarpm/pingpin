@@ -28,6 +28,7 @@ class NotificationService(private val context: Context) {
         const val CHECK_OUT_ALARM_ID = 102
         const val CHECK_IN_SNOOZE_ID = 103
         const val CHECK_OUT_SNOOZE_ID = 104
+        const val MAKEUP_WFO_ALARM_ID = 201
 
         const val PREFS_NAME = "pingpin_native_alarm_prefs"
     }
@@ -165,6 +166,37 @@ class NotificationService(private val context: Context) {
         Log.d(TAG, "Check-out alarm scheduled for $targetTime")
     }
 
+    fun scheduleMakeupAlarm(targetDateYyyyMmDd: String, alarmId: Int = MAKEUP_WFO_ALARM_ID, portalUrl: String = "") {
+        val parts = targetDateYyyyMmDd.split("-")
+        if (parts.size < 3) return
+        val year = parts[0].toIntOrNull() ?: return
+        val month = (parts[1].toIntOrNull() ?: return) - 1
+        val day = parts[2].toIntOrNull() ?: return
+
+        val cal = Calendar.getInstance().apply {
+            set(Calendar.YEAR, year)
+            set(Calendar.MONTH, month)
+            set(Calendar.DAY_OF_MONTH, day)
+            set(Calendar.HOUR_OF_DAY, 7)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+
+        if (cal.timeInMillis <= System.currentTimeMillis()) {
+            Log.w(TAG, "Makeup alarm time is in the past: $targetDateYyyyMmDd 07:00")
+            return
+        }
+
+        setExactAlarm(
+            alarmId = alarmId,
+            timeInMillis = cal.timeInMillis,
+            title = "PLANNED OFFICE DAY TODAY",
+            portalUrl = portalUrl
+        )
+        Log.d(TAG, "Makeup 7 AM alarm scheduled for $targetDateYyyyMmDd 07:00 AM (ID=$alarmId)")
+    }
+
     fun snoozeAlarm(alarmId: Int, durationMins: Int = 10, portalUrl: String = "") {
         cancelAlarm(alarmId)
         val isCheckIn = alarmId == CHECK_IN_ALARM_ID || alarmId == CHECK_IN_SNOOZE_ID
@@ -251,7 +283,8 @@ class NotificationService(private val context: Context) {
 
     fun showAttendanceSuccessNotification() {
         val builder = NotificationCompat.Builder(context, ATTENDANCE_CHANNEL_ID)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_stat_notification)
+            .setColor(android.graphics.Color.parseColor("#10B981"))
             .setContentTitle("Attendance Marked Successfully")
             .setContentText("Your attendance has been recorded for today.")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -333,7 +366,7 @@ class NotificationService(private val context: Context) {
         setExactAlarm(
             alarmId = testAlarmId,
             timeInMillis = triggerAt,
-            title = "🔔 TEST ALARM",
+            title = "TEST ALARM",
             portalUrl = savedPortalUrl
         )
         Log.d(TAG, "Test alarm scheduled to fire in ${delaySeconds}s (at $triggerAt) with portalUrl='$savedPortalUrl'")

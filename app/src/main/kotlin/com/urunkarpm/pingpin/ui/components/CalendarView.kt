@@ -1,8 +1,10 @@
 package com.urunkarpm.pingpin.ui.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -14,18 +16,31 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.urunkarpm.pingpin.data.local.entity.AttendanceRecordEntity
+import com.urunkarpm.pingpin.service.AppInstallManager
 import com.urunkarpm.pingpin.service.WorkingDays
 import com.urunkarpm.pingpin.ui.theme.*
-import androidx.compose.ui.platform.LocalContext
-import com.urunkarpm.pingpin.service.AppInstallManager
 import java.text.SimpleDateFormat
 import java.util.*
 
+private data class MonthDayCellData(
+    val dayNum: Int,
+    val dateStr: String,
+    val isCurrentMonthDay: Boolean,
+    val isToday: Boolean,
+    val isFuture: Boolean,
+    val isBeforeInstall: Boolean,
+    val isWorking: Boolean,
+    val isWfo: Boolean,
+    val isAttended: Boolean
+)
+
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MonthlyCalendarView(
     year: Int,
@@ -37,256 +52,326 @@ fun MonthlyCalendarView(
     onNextMonth: () -> Unit,
     onMonthClick: () -> Unit,
     onDayClick: ((dayNum: Int, dateYyyyMmDd: String) -> Unit)? = null,
+    onDayLongClick: ((dayNum: Int, dateYyyyMmDd: String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val installCal = remember(context) { AppInstallManager.getInstallDateCalendar(context) }
     val isDark = MaterialTheme.colorScheme.background.red < 0.5f
 
-    val cal = Calendar.getInstance().apply {
-        set(Calendar.YEAR, year)
-        set(Calendar.MONTH, month - 1)
-        set(Calendar.DAY_OF_MONTH, 1)
+    val monthTitle = remember(year, month) {
+        val cal = Calendar.getInstance().apply {
+            set(Calendar.YEAR, year)
+            set(Calendar.MONTH, month - 1)
+            set(Calendar.DAY_OF_MONTH, 1)
+        }
+        SimpleDateFormat("MMMM yyyy", Locale.US).format(cal.time)
     }
 
-    val monthTitle = SimpleDateFormat("MMMM yyyy", Locale.US).format(cal.time)
-    val maxDays = cal.getActualMaximum(Calendar.DAY_OF_MONTH)
-    val firstDayOfWeek = (cal.get(Calendar.DAY_OF_WEEK) + 5) % 7 // Monday = 0
+    val monthCellsData = remember(year, month, records, workingDaysMask, wfoDaysMask, installCal) {
+        val cal = Calendar.getInstance().apply {
+            set(Calendar.YEAR, year)
+            set(Calendar.MONTH, month - 1)
+            set(Calendar.DAY_OF_MONTH, 1)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
 
-    val attendedSet = records.map { it.dateYyyyMmDd }.toSet()
+        val maxDays = cal.getActualMaximum(Calendar.DAY_OF_MONTH)
+        val firstDayOfWeek = (cal.get(Calendar.DAY_OF_WEEK) + 5) % 7 // Mon = 0
+        val prevCal = (cal.clone() as Calendar).apply { add(Calendar.MONTH, -1) }
+        val prevMaxDays = prevCal.getActualMaximum(Calendar.DAY_OF_MONTH)
+        val nextCal = (cal.clone() as Calendar).apply { add(Calendar.MONTH, 1) }
 
-    val todayCal = Calendar.getInstance().apply {
-        set(Calendar.HOUR_OF_DAY, 0)
-        set(Calendar.MINUTE, 0)
-        set(Calendar.SECOND, 0)
-        set(Calendar.MILLISECOND, 0)
+        val todayCal = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val attendedSet = records.map { it.dateYyyyMmDd }.toSet()
+
+        val list = ArrayList<MonthDayCellData>(42)
+        val cellCal = Calendar.getInstance()
+
+        for (slotIndex in 0 until 42) {
+            val isPreceding = slotIndex < firstDayOfWeek
+            val isFollowing = slotIndex >= (firstDayOfWeek + maxDays)
+
+            val (cellDayNum, dateStr, isCurrentMonthDay) = when {
+                isPreceding -> {
+                    val pDay = prevMaxDays - (firstDayOfWeek - 1 - slotIndex)
+                    val dStr = String.format(Locale.US, "%04d-%02d-%02d", prevCal.get(Calendar.YEAR), prevCal.get(Calendar.MONTH) + 1, pDay)
+                    Triple(pDay, dStr, false)
+                }
+                isFollowing -> {
+                    val nDay = slotIndex - (firstDayOfWeek + maxDays) + 1
+                    val dStr = String.format(Locale.US, "%04d-%02d-%02d", nextCal.get(Calendar.YEAR), nextCal.get(Calendar.MONTH) + 1, nDay)
+                    Triple(nDay, dStr, false)
+                }
+                else -> {
+                    val cDay = slotIndex - firstDayOfWeek + 1
+                    val dStr = String.format(Locale.US, "%04d-%02d-%02d", year, month, cDay)
+                    Triple(cDay, dStr, true)
+                }
+            }
+
+            val parts = dateStr.split("-")
+            cellCal.set(parts[0].toInt(), parts[1].toInt() - 1, parts[2].toInt(), 0, 0, 0)
+            cellCal.set(Calendar.MILLISECOND, 0)
+
+            val isBeforeInstall = cellCal.before(installCal)
+            val isToday = cellCal.timeInMillis == todayCal.timeInMillis
+            val isWorking = WorkingDays.isWorkingDay(cellCal, workingDaysMask)
+            val isWfo = WorkingDays.isWfoDay(cellCal, wfoDaysMask)
+            val isAttended = attendedSet.contains(dateStr)
+            val isFuture = cellCal.after(todayCal)
+
+            list.add(
+                MonthDayCellData(
+                    dayNum = cellDayNum,
+                    dateStr = dateStr,
+                    isCurrentMonthDay = isCurrentMonthDay,
+                    isToday = isToday,
+                    isFuture = isFuture,
+                    isBeforeInstall = isBeforeInstall,
+                    isWorking = isWorking,
+                    isWfo = isWfo,
+                    isAttended = isAttended
+                )
+            )
+        }
+        list
     }
 
-    GlassCard(modifier = modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            // Header with circular stepping buttons & Month Pill
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+    Column(modifier = modifier.fillMaxWidth()) {
+        // Header with circular stepping buttons & Month Pill
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(
+                onClick = onPreviousMonth,
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
             ) {
-                IconButton(
-                    onClick = onPreviousMonth,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                ) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                        contentDescription = "Prev Month",
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    modifier = Modifier.clickable { onMonthClick() }
-                ) {
-                    Text(
-                        text = monthTitle,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
-                    )
-                }
-
-                IconButton(
-                    onClick = onNextMonth,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                ) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = "Next Month",
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
+                Icon(
+                    Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                    contentDescription = "Prev Month",
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(22.dp)
+                )
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
-
-            // Day labels header
-            Row(modifier = Modifier.fillMaxWidth()) {
-                val days = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
-                for (day in days) {
-                    Text(
-                        text = day,
-                        modifier = Modifier.weight(1f),
-                        textAlign = TextAlign.Center,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Days grid with Circle Aesthetics
-            val totalSlots = firstDayOfWeek + maxDays
-            val rows = (totalSlots + 6) / 7
-
-            for (row in 0 until rows) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 3.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    for (col in 0..6) {
-                        val dayNum = row * 7 + col - firstDayOfWeek + 1
-                        if (dayNum in 1..maxDays) {
-                            val dayCal = Calendar.getInstance().apply {
-                                set(year, month - 1, dayNum, 0, 0, 0)
-                                set(Calendar.MILLISECOND, 0)
-                            }
-
-                            val isBeforeInstall = dayCal.before(installCal)
-                            val isToday = dayCal.timeInMillis == todayCal.timeInMillis
-                            val isWorking = WorkingDays.isWorkingDay(dayCal, workingDaysMask)
-                            val isWfo = WorkingDays.isWfoDay(dayCal, wfoDaysMask)
-                            val dateStr = String.format(Locale.US, "%04d-%02d-%02d", year, month, dayNum)
-                            val isAttended = attendedSet.contains(dateStr)
-                            val isFuture = dayCal.after(todayCal)
-
-                            val circleBg = when {
-                                isAttended -> if (isDark) EmeraldGreenBgDark else EmeraldGreenBgLight
-                                isBeforeInstall -> Color.Transparent
-                                !isWorking -> Color.Transparent
-                                !isWfo -> MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.25f)
-                                isToday -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
-                                isFuture -> MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.35f)
-                                else -> if (isDark) CrimsonRedBgDark else CrimsonRedBgLight
-                            }
-
-                            val textColor = when {
-                                isAttended -> if (isDark) Color(0xFF6EE7B7) else Color(0xFF047857)
-                                isBeforeInstall -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
-                                !isWorking -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
-                                !isWfo -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                                isToday -> MaterialTheme.colorScheme.primary
-                                isFuture -> MaterialTheme.colorScheme.onSurfaceVariant
-                                else -> if (isDark) Color(0xFFFCA5A5) else Color(0xFFB91C1C)
-                            }
-
-                            val statusDotColor = when {
-                                isAttended -> EmeraldGreen
-                                isBeforeInstall -> Color.Transparent
-                                !isWorking -> Color.Transparent
-                                !isWfo -> Color.Transparent
-                                isToday -> Color.Transparent
-                                isFuture -> Color.Transparent
-                                else -> CrimsonRed
-                            }
-
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .aspectRatio(1f)
-                                    .padding(3.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                var circleModifier = Modifier
-                                    .fillMaxSize()
-                                    .clip(CircleShape)
-                                    .background(circleBg)
-
-                                if (isToday) {
-                                    circleModifier = circleModifier.border(
-                                        width = 2.dp,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        shape = CircleShape
-                                    )
-                                } else if (isWfo && isWorking && !isAttended && !isFuture && !isBeforeInstall) {
-                                    circleModifier = circleModifier.border(
-                                        width = 1.dp,
-                                        color = CrimsonRed.copy(alpha = 0.5f),
-                                        shape = CircleShape
-                                    )
-                                }
-
-                                circleModifier = circleModifier.clickable {
-                                    onDayClick?.invoke(dayNum, dateStr)
-                                }
-
-                                Box(
-                                    modifier = circleModifier,
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.Center
-                                    ) {
-                                        Text(
-                                            text = "$dayNum",
-                                            fontSize = 13.sp,
-                                            fontWeight = if (isToday || isAttended) FontWeight.ExtraBold else FontWeight.SemiBold,
-                                            color = textColor
-                                        )
-                                        
-                                        // Status dot under date for active days
-                                        if (isWorking && !isBeforeInstall && (isAttended || (!isFuture && !isToday))) {
-                                            Spacer(modifier = Modifier.height(1.dp))
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(4.dp)
-                                                    .clip(CircleShape)
-                                                    .background(statusDotColor)
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        } else {
-                            Spacer(modifier = Modifier.weight(1f))
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f))
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Calendar Legend Bar with Circle aesthetics
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceAround,
-                verticalAlignment = Alignment.CenterVertically
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primaryContainer,
+                modifier = Modifier.clickable { onMonthClick() }
             ) {
-                LegendItem(
-                    color = if (isDark) EmeraldGreenBgDark else EmeraldGreenBgLight,
-                    dotColor = EmeraldGreen,
-                    label = "Present"
+                Text(
+                    text = monthTitle,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
                 )
-                LegendItem(
-                    color = if (isDark) CrimsonRedBgDark else CrimsonRedBgLight,
-                    dotColor = CrimsonRed,
-                    label = "Missed"
+            }
+
+            IconButton(
+                onClick = onNextMonth,
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = "Next Month",
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(22.dp)
                 )
-                LegendItem(
-                    color = MaterialTheme.colorScheme.primary,
-                    dotColor = MaterialTheme.colorScheme.primary,
-                    label = "Today",
-                    isBorderOnly = true
+            }
+        }
+
+        Spacer(modifier = Modifier.height(18.dp))
+
+        // Day labels header
+        Row(modifier = Modifier.fillMaxWidth()) {
+            val days = remember { listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun") }
+            for (day in days) {
+                Text(
+                    text = day,
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                 )
-                LegendItem(
-                    color = Color.Transparent,
-                    dotColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                    label = "Off-Day"
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Days grid with 7 columns x 6 rows (42 slots)
+        for (row in 0 until 6) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 3.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                for (col in 0..6) {
+                    val slotIndex = row * 7 + col
+                    val cell = monthCellsData[slotIndex]
+
+                    MonthDayCellItem(
+                        cell = cell,
+                        isDark = isDark,
+                        onDayClick = onDayClick,
+                        onDayLongClick = onDayLongClick,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f))
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // Calendar Legend Bar with Circle aesthetics
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceAround,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            LegendItem(
+                color = if (isDark) EmeraldGreenBgDark else EmeraldGreenBgLight,
+                dotColor = EmeraldGreen,
+                label = "Present"
+            )
+            LegendItem(
+                color = if (isDark) CrimsonRedBgDark else CrimsonRedBgLight,
+                dotColor = CrimsonRed,
+                label = "Missed"
+            )
+            LegendItem(
+                color = ElectricBlue,
+                dotColor = ElectricBlue,
+                label = "Today",
+                isBorderOnly = true
+            )
+            LegendItem(
+                color = Color.Transparent,
+                dotColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                label = "Off-Day"
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun MonthDayCellItem(
+    cell: MonthDayCellData,
+    isDark: Boolean,
+    onDayClick: ((dayNum: Int, dateYyyyMmDd: String) -> Unit)?,
+    onDayLongClick: ((dayNum: Int, dateYyyyMmDd: String) -> Unit)?,
+    modifier: Modifier = Modifier
+) {
+    val circleBg = when {
+        !cell.isCurrentMonthDay -> Color.Transparent
+        cell.isToday -> if (isDark) ElectricBlueBgDark else ElectricBlueBgLight
+        cell.isAttended -> if (isDark) EmeraldGreenBgDark else EmeraldGreenBgLight
+        cell.isBeforeInstall -> Color.Transparent
+        !cell.isWorking -> Color.Transparent
+        !cell.isWfo -> MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.25f)
+        cell.isFuture -> MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.35f)
+        else -> if (isDark) CrimsonRedBgDark else CrimsonRedBgLight
+    }
+
+    val textColor = when {
+        !cell.isCurrentMonthDay -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+        cell.isToday -> ElectricBlue
+        cell.isAttended -> if (isDark) Color(0xFF6EE7B7) else Color(0xFF047857)
+        cell.isBeforeInstall -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
+        !cell.isWorking -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
+        !cell.isWfo -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+        cell.isFuture -> MaterialTheme.colorScheme.onSurfaceVariant
+        else -> if (isDark) Color(0xFFFCA5A5) else Color(0xFFB91C1C)
+    }
+
+    val statusDotColor = when {
+        !cell.isCurrentMonthDay -> Color.Transparent
+        cell.isAttended -> EmeraldGreen
+        cell.isBeforeInstall -> Color.Transparent
+        !cell.isWorking -> Color.Transparent
+        !cell.isWfo -> Color.Transparent
+        cell.isFuture -> Color.Transparent
+        else -> CrimsonRed
+    }
+
+    Box(
+        modifier = modifier
+            .aspectRatio(1f)
+            .padding(2.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        var circleModifier = Modifier
+            .fillMaxSize()
+            .clip(CircleShape)
+            .background(circleBg)
+
+        if (cell.isToday) {
+            circleModifier = circleModifier.border(
+                width = 2.dp,
+                color = ElectricBlue,
+                shape = CircleShape
+            )
+        } else if (cell.isCurrentMonthDay && cell.isWfo && cell.isWorking && !cell.isAttended && !cell.isFuture && !cell.isBeforeInstall) {
+            circleModifier = circleModifier.border(
+                width = 1.dp,
+                color = CrimsonRed.copy(alpha = 0.5f),
+                shape = CircleShape
+            )
+        }
+
+        if (!cell.isFuture) {
+            circleModifier = circleModifier.combinedClickable(
+                onClick = { onDayClick?.invoke(cell.dayNum, cell.dateStr) },
+                onLongClick = { onDayLongClick?.invoke(cell.dayNum, cell.dateStr) }
+            )
+        }
+
+        Box(
+            modifier = circleModifier,
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = "${cell.dayNum}",
+                    fontSize = 12.sp,
+                    fontWeight = if (cell.isToday || cell.isAttended) FontWeight.ExtraBold else FontWeight.SemiBold,
+                    color = textColor
                 )
+
+                if (cell.isCurrentMonthDay && cell.isWorking && !cell.isBeforeInstall && (cell.isAttended || (!cell.isFuture && !cell.isToday))) {
+                    Spacer(modifier = Modifier.height(1.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(4.dp)
+                            .clip(CircleShape)
+                            .background(statusDotColor)
+                    )
+                }
             }
         }
     }
@@ -331,4 +416,3 @@ private fun LegendItem(
         )
     }
 }
-

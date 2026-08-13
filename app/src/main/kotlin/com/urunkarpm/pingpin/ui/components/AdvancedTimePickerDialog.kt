@@ -51,6 +51,22 @@ object TimeFormatUtils {
         }
         return String.format(Locale.US, "%02d:%02d %s", hour12, minute, period)
     }
+
+    fun calculateShiftDuration(checkIn: String, checkOut: String): String {
+        return try {
+            val inParts = checkIn.split(":").map { it.toInt() }
+            val outParts = checkOut.split(":").map { it.toInt() }
+            val inMins = inParts[0] * 60 + inParts[1]
+            var outMins = outParts[0] * 60 + outParts[1]
+            if (outMins < inMins) outMins += 24 * 60
+            val diff = outMins - inMins
+            val hours = diff / 60
+            val mins = diff % 60
+            if (mins == 0) "$hours hrs 00 mins" else "$hours hrs ${mins} mins"
+        } catch (e: Exception) {
+            "8 hrs 00 mins"
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

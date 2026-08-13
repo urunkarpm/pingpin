@@ -95,20 +95,13 @@ fun OfficeOccupancyCard(
                     }
 
                     Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(
-                            text = "Office Occupancy Radar",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            letterSpacing = (-0.2).sp
-                        )
-                        Text(
-                            text = if (isScanning) "Scanning BLE signals..." else "BLE Laptop Scanner",
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                    Text(
+                        text = "Office Occupancy Radar",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        letterSpacing = (-0.2).sp
+                    )
                 }
 
                 Button(
@@ -143,15 +136,15 @@ fun OfficeOccupancyCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-            HorizontalDivider(
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-                thickness = 1.dp
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-
             // Stats Body
             if (scanResult != null) {
+                Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                    thickness = 1.dp
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -176,22 +169,6 @@ fun OfficeOccupancyCard(
                         count = "${scanResult.macCount}",
                         icon = Icons.Default.LaptopMac,
                         badgeColor = Color(0xFF6B7280)
-                    )
-                }
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.5f))
-                        .padding(vertical = 14.dp, horizontal = 12.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Tap \"Scan Now\" to detect active office laptops in BLE range.",
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
                     )
                 }
             }

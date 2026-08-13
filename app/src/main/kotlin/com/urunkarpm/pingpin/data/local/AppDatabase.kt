@@ -13,9 +13,10 @@ import com.urunkarpm.pingpin.data.local.entity.*
         AttendanceRecordEntity::class,
         UserProfileEntity::class,
         NotificationLogEntity::class,
-        WfoScheduleHistoryEntity::class
+        WfoScheduleHistoryEntity::class,
+        MakeupWfoSuggestionEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -25,6 +26,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun userProfileDao(): UserProfileDao
     abstract fun notificationLogDao(): NotificationLogDao
     abstract fun wfoScheduleHistoryDao(): WfoScheduleHistoryDao
+    abstract fun makeupWfoSuggestionDao(): MakeupWfoSuggestionDao
 
     companion object {
         @Volatile

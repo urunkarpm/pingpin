@@ -734,7 +734,7 @@ fun SettingsScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (testAlarmFired) "\u2714 Test Alarm Scheduled (−5s)" else "Fire Test Alarm in 5 Seconds",
+                            text = if (testAlarmFired) "Test Alarm Scheduled (−5s)" else "Fire Test Alarm in 5 Seconds",
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp
                         )
@@ -1029,18 +1029,6 @@ private fun StatSummaryChip(
 }
 
 private fun calculateShiftDuration(checkIn: String, checkOut: String): String {
-    return try {
-        val inParts = checkIn.split(":").map { it.toInt() }
-        val outParts = checkOut.split(":").map { it.toInt() }
-        val inMins = inParts[0] * 60 + inParts[1]
-        var outMins = outParts[0] * 60 + outParts[1]
-        if (outMins < inMins) outMins += 24 * 60
-        val diff = outMins - inMins
-        val hours = diff / 60
-        val mins = diff % 60
-        if (mins == 0) "$hours hrs 00 mins" else "$hours hrs ${mins} mins"
-    } catch (e: Exception) {
-        "8 hrs 00 mins"
-    }
+    return TimeFormatUtils.calculateShiftDuration(checkIn, checkOut)
 }
 

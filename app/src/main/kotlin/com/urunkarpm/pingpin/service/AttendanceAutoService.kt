@@ -28,7 +28,7 @@ import kotlinx.coroutines.launch
  *  1. Started by [WifiConnectionReceiver] when a WiFi connection event fires.
  *  2. Posts a low-key "Checking attendance…" foreground notification immediately.
  *  3. Runs [AttendanceService.checkAndMarkAttendance] on IO dispatcher.
- *  4. On SUCCESS  → updates notification to "✅ Attendance marked", sets daily guard.
+ *  4. On SUCCESS  → updates notification to "Attendance marked", sets daily guard.
  *  5. On ALREADY_MARKED → sets daily guard (no duplicate notification).
  *  6. On any other result → stops silently.
  *  7. Always calls [stopSelf] when done.
@@ -130,7 +130,8 @@ class AttendanceAutoService : Service() {
 
     private fun buildCheckingNotification(): Notification {
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_stat_notification)
+            .setColor(android.graphics.Color.parseColor("#6366F1"))
             .setContentTitle("PingPin")
             .setContentText("Checking office WiFi attendance…")
             .setPriority(NotificationCompat.PRIORITY_MIN)
@@ -143,8 +144,9 @@ class AttendanceAutoService : Service() {
     private fun showSuccessNotification() {
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val notification = NotificationCompat.Builder(this, NotificationService.ATTENDANCE_CHANNEL_ID)
-            .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle("Attendance Marked Automatically ✅")
+            .setSmallIcon(R.drawable.ic_stat_notification)
+            .setColor(android.graphics.Color.parseColor("#10B981"))
+            .setContentTitle("Attendance Marked Automatically")
             .setContentText("You're connected to the office WiFi — attendance recorded for today.")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)

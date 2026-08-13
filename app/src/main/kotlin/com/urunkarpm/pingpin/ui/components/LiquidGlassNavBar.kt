@@ -11,11 +11,9 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Insights
 import androidx.compose.material.icons.outlined.Settings
@@ -42,7 +40,6 @@ data class NavItemData(
 
 private val NavItems = listOf(
     NavItemData(Icons.Outlined.Home, Icons.Filled.Home, "Home"),
-    NavItemData(Icons.Outlined.CalendarMonth, Icons.Filled.CalendarMonth, "Calendar"),
     NavItemData(Icons.Outlined.Insights, Icons.Filled.Insights, "Insights"),
     NavItemData(Icons.Outlined.Settings, Icons.Filled.Settings, "Settings")
 )

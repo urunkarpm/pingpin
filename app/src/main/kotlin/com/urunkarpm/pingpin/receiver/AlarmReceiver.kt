@@ -6,6 +6,7 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import android.util.Log
@@ -59,19 +60,96 @@ class AlarmReceiver : BroadcastReceiver() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Post High-Priority Full Screen Intent Notification for system-level pop-up UI
-        val notificationManager =
-            context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+        // Build Action PendingIntents for Quick Action Buttons
+        val snoozeIntent = Intent(context, NotificationActionReceiver::class.java).apply {
+            action = NotificationActionReceiver.ACTION_SNOOZE
+            putExtra(NotificationActionReceiver.EXTRA_ALARM_ID, alarmId)
+            putExtra(NotificationActionReceiver.EXTRA_PORTAL_URL, portalUrl)
+        }
+        val snoozePendingIntent = PendingIntent.getBroadcast(
+            context,
+            alarmId * 10 + 1,
+            snoozeIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val rawPortalUrl = portalUrl.ifBlank {
+            context.getSharedPreferences(NotificationService.PREFS_NAME, Context.MODE_PRIVATE)
+                .getString("portalUrl", "") ?: ""
+        }.trim()
+
+        val urlToOpen = if (rawPortalUrl.isNotBlank()) {
+            if (!rawPortalUrl.startsWith("http://") && !rawPortalUrl.startsWith("https://")) {
+                "https://$rawPortalUrl"
+            } else {
+                rawPortalUrl
+            }
+        } else {
+            "https://google.com"
+        }
+
+        val browserViewIntent = Intent(Intent.ACTION_VIEW, Uri.parse(urlToOpen)).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        }
+
+        val openPortalPendingIntent = PendingIntent.getActivity(
+            context,
+            alarmId * 10 + 2,
+            browserViewIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val dismissIntent = Intent(context, NotificationActionReceiver::class.java).apply {
+            action = NotificationActionReceiver.ACTION_DISMISS
+            putExtra(NotificationActionReceiver.EXTRA_ALARM_ID, alarmId)
+        }
+        val dismissPendingIntent = PendingIntent.getBroadcast(
+            context,
+            alarmId * 10 + 3,
+            dismissIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val timeFormatter = java.text.SimpleDateFormat("hh:mm a", java.util.Locale.getDefault())
+        val formattedTime = timeFormatter.format(java.util.Date())
+
+        val smallLayout = android.widget.RemoteViews(context.packageName, R.layout.notification_small).apply {
+            setTextViewText(R.id.notif_title, title)
+            setTextViewText(R.id.notif_text, "Tap to open HR portal or swipe to manage alarm")
+            setTextViewText(R.id.notif_time, formattedTime)
+            setOnClickPendingIntent(R.id.btn_notif_snooze, snoozePendingIntent)
+            setOnClickPendingIntent(R.id.btn_notif_open, openPortalPendingIntent)
+            setOnClickPendingIntent(R.id.btn_notif_dismiss, dismissPendingIntent)
+        }
+
+        val expandedLayout = android.widget.RemoteViews(context.packageName, R.layout.notification_expanded).apply {
+            setTextViewText(R.id.notif_expanded_title, title)
+            setTextViewText(R.id.notif_expanded_text, "Don't forget to mark your daily attendance on the office HR portal.")
+            setTextViewText(R.id.notif_expanded_time, formattedTime)
+            setOnClickPendingIntent(R.id.btn_notif_expanded_snooze, snoozePendingIntent)
+            setOnClickPendingIntent(R.id.btn_notif_expanded_open, openPortalPendingIntent)
+            setOnClickPendingIntent(R.id.btn_notif_expanded_dismiss, dismissPendingIntent)
+        }
 
         val notification = NotificationCompat.Builder(context, NotificationService.ALARM_CHANNEL_ID)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_stat_notification)
+            .setColor(android.graphics.Color.parseColor("#6366F1"))
+            .setCustomContentView(smallLayout)
+            .setCustomBigContentView(expandedLayout)
+            .setStyle(NotificationCompat.DecoratedCustomViewStyle())
             .setContentTitle(title)
             .setContentText("Tap or swipe to manage alarm")
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setFullScreenIntent(fullScreenPendingIntent, true)
+            .setContentIntent(fullScreenPendingIntent)
+            .addAction(R.drawable.ic_stat_notification, "Open Portal", openPortalPendingIntent)
+            .addAction(R.drawable.ic_stat_notification, "Snooze 10m", snoozePendingIntent)
             .setAutoCancel(true)
             .build()
+
+        val notificationManager =
+            context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
 
         notificationManager?.notify(alarmId, notification)
 

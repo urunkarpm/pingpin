@@ -10,13 +10,20 @@ val InkDark = Color(0xFF1E293B)
 val InkMuted = Color(0xFF64748B)
 val BorderDark = Color(0xFFE2E8F0)
 
-// Dark Palette
-val CharcoalDarkBg = Color(0xFF0B0F17)
-val CharcoalDarkSurface = Color(0xFF131B2A)
-val CharcoalSurfaceContainer = Color(0xFF1B2538)
-val CharcoalSurfaceContainerHighest = Color(0xFF25334D)
+// Pitch Black / AMOLED Dark Palette
+val PitchBlackBg = Color(0xFF000000) // Pure AMOLED Pitch Black
+val PitchDarkSurface = Color(0xFF090B10)
+val PitchSurfaceContainer = Color(0xFF10141D)
+val PitchSurfaceContainerHighest = Color(0xFF181D2A)
 val InkWhite = Color(0xFFF8FAFC)
-val BorderLight = Color(0xFF2E3D59)
+val BorderPitchDark = Color(0xFF242A38)
+
+// Backward compatibility references
+val CharcoalDarkBg = PitchBlackBg
+val CharcoalDarkSurface = PitchDarkSurface
+val CharcoalSurfaceContainer = PitchSurfaceContainer
+val CharcoalSurfaceContainerHighest = PitchSurfaceContainerHighest
+val BorderLight = BorderPitchDark
 
 // Vibrant Semantic Accents
 val EmeraldGreen = Color(0xFF10B981)
@@ -41,3 +48,9 @@ val AccentGreen = EmeraldGreen
 val AccentOrange = Color(0xFFEA580C)
 val AccentAmber = AmberOrange
 val AccentRed = CrimsonRed
+
+// Teal Accent for Calendar
+val TealAccent = Color(0xFF00BFA5)
+val TealAccentBgLight = Color(0xFFE0F2F1)
+val TealAccentBgDark = Color(0xFF004D40)
+

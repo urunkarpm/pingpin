@@ -34,7 +34,7 @@ data class ScannedWifiNetwork(
     }
 }
 
-class WifiService(private val context: Context) {
+open class WifiService(private val context: Context) {
 
     private val prefs: SharedPreferences =
         context.getSharedPreferences("pingpin_wifi_prefs", Context.MODE_PRIVATE)
@@ -68,7 +68,7 @@ class WifiService(private val context: Context) {
     /**
      * Gets current active Wi-Fi SSID (removes surrounding quotes).
      */
-    suspend fun getWifiSSID(): String? = withContext(Dispatchers.IO) {
+    open suspend fun getWifiSSID(): String? = withContext(Dispatchers.IO) {
         try {
             val connectivityManager =
                 context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
@@ -229,7 +229,7 @@ class WifiService(private val context: Context) {
     /**
      * Checks if current connection matches target SSID.
      */
-    suspend fun isConnectedToSSID(targetSSID: String): Boolean {
+    open suspend fun isConnectedToSSID(targetSSID: String): Boolean {
         val currentSSID = getWifiSSID() ?: return false
         return currentSSID.equals(targetSSID.trim(), ignoreCase = true)
     }

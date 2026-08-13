@@ -59,8 +59,13 @@ fun OnboardingScreen(
     var ssid by remember { mutableStateOf("") }
     var checkInTime by remember { mutableStateOf("09:30") }
     var checkOutTime by remember { mutableStateOf("17:30") }
+    var portalUrl by remember { mutableStateOf("") }
     var workingDaysMask by remember { mutableStateOf(WorkingDays.DEFAULT_WEEKDAYS) }
     var wfoDaysMask by remember { mutableStateOf(WorkingDays.DEFAULT_WEEKDAYS) }
+
+    val shiftDurationText = remember(checkInTime, checkOutTime) {
+        com.urunkarpm.pingpin.ui.components.TimeFormatUtils.calculateShiftDuration(checkInTime, checkOutTime)
+    }
 
     val fieldShape = RoundedCornerShape(16.dp)
 
@@ -270,6 +275,59 @@ fun OnboardingScreen(
                         )
                     }
 
+                    // Shift Duration Badge
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Bolt,
+                                    contentDescription = null,
+                                    tint = EmeraldGreen,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Calculated Shift Duration",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Text(
+                                text = shiftDurationText,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = EmeraldGreen
+                            )
+                        }
+                    }
+
+                    // Company HR Portal URL Field
+                    OutlinedTextField(
+                        value = portalUrl,
+                        onValueChange = { portalUrl = it },
+                        label = { Text("Company HR Portal URL (Optional)") },
+                        placeholder = { Text("e.g. hr.mycompany.com") },
+                        leadingIcon = { Icon(Icons.Default.Language, contentDescription = null, tint = EmeraldGreen) },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = fieldShape,
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = EmeraldGreen,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                        )
+                    )
+
                     WorkingDaysSelector(
                         workingDaysMask = workingDaysMask,
                         onMaskChanged = { workingDaysMask = it }
@@ -351,6 +409,7 @@ fun OnboardingScreen(
                             ssid = ssid.trim(),
                             checkInTime = checkInTime.trim(),
                             checkOutTime = checkOutTime.trim(),
+                            portalUrl = portalUrl.trim(),
                             workingDaysMask = workingDaysMask,
                             wfoDaysMask = wfoDaysMask
                         )

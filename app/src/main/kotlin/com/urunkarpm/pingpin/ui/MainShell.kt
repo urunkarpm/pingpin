@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import com.urunkarpm.pingpin.ui.calendar.CalendarScreen
 import com.urunkarpm.pingpin.ui.components.LiquidGlassNavBar
 import com.urunkarpm.pingpin.ui.home.HomeScreen
 import com.urunkarpm.pingpin.ui.insights.InsightsScreen
@@ -40,9 +39,8 @@ fun MainShell(
         ) {
             when (selectedTab) {
                 0 -> HomeScreen()
-                1 -> CalendarScreen()
-                2 -> InsightsScreen()
-                3 -> SettingsScreen(
+                1 -> InsightsScreen()
+                2 -> SettingsScreen(
                     isDarkTheme = isDarkTheme,
                     onToggleTheme = onToggleTheme
                 )

@@ -20,15 +20,15 @@ private val DarkColorScheme = darkColorScheme(
     secondary = EmeraldGreen,
     onSecondary = Color.White,
     tertiary = AmberOrange,
-    background = CharcoalDarkBg,
+    background = PitchBlackBg,
     onBackground = InkWhite,
-    surface = CharcoalDarkSurface,
+    surface = PitchDarkSurface,
     onSurface = InkWhite,
-    surfaceContainer = CharcoalSurfaceContainer,
-    surfaceContainerHighest = CharcoalSurfaceContainerHighest,
+    surfaceContainer = PitchSurfaceContainer,
+    surfaceContainerHighest = PitchSurfaceContainerHighest,
     onSurfaceVariant = Color(0xFF94A3B8),
-    outline = BorderLight,
-    outlineVariant = BorderLight.copy(alpha = 0.3f)
+    outline = BorderPitchDark,
+    outlineVariant = BorderPitchDark.copy(alpha = 0.4f)
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -53,15 +53,15 @@ private val LightColorScheme = lightColorScheme(
 @Composable
 fun PingPinTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
+        darkTheme -> DarkColorScheme
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            dynamicLightColorScheme(context)
         }
-        darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
 

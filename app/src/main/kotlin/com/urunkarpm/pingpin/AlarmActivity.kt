@@ -230,23 +230,30 @@ class AlarmActivity : ComponentActivity() {
 
     private fun dismissKeyguardAndExecute(action: () -> Unit) {
         val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+        val safeFinish = {
+            window?.decorView?.post {
+                finishAndRemoveTask()
+            } ?: finishAndRemoveTask()
+        }
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && keyguardManager != null && keyguardManager.isKeyguardLocked) {
             keyguardManager.requestDismissKeyguard(this, object : KeyguardManager.KeyguardDismissCallback() {
                 override fun onDismissSucceeded() {
                     action()
-                    finish()
+                    safeFinish()
                 }
                 override fun onDismissError() {
                     action()
-                    finish()
+                    safeFinish()
                 }
                 override fun onDismissCancelled() {
-                    finish()
+                    action()
+                    safeFinish()
                 }
             })
         } else {
             action()
-            finish()
+            safeFinish()
         }
     }
 
@@ -262,11 +269,22 @@ class AlarmActivity : ComponentActivity() {
         if (!rawUrl.startsWith("http://") && !rawUrl.startsWith("https://")) {
             rawUrl = "https://$rawUrl"
         }
+
+        val options = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            android.app.ActivityOptions.makeBasic().apply {
+                setPendingIntentBackgroundActivityStartMode(android.app.ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)
+            }.toBundle()
+        } else null
+
         try {
             val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(rawUrl)).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             }
-            startActivity(browserIntent)
+            if (options != null) {
+                startActivity(browserIntent, options)
+            } else {
+                startActivity(browserIntent)
+            }
         } catch (e: Exception) {
             android.util.Log.e("AlarmActivity", "Error opening browser: ${e.message}", e)
             try {
@@ -278,9 +296,19 @@ class AlarmActivity : ComponentActivity() {
                 ).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
-                startActivity(chooserIntent)
+                if (options != null) {
+                    startActivity(chooserIntent, options)
+                } else {
+                    startActivity(chooserIntent)
+                }
             } catch (ex: Exception) {
                 android.util.Log.e("AlarmActivity", "Error opening chooser: ${ex.message}", ex)
+                try {
+                    val fallbackIntent = Intent(this, MainActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    }
+                    startActivity(fallbackIntent)
+                } catch (_: Exception) {}
             }
         }
     }
@@ -311,9 +339,9 @@ fun AlarmScreenContent(
 ) {
     val isCheckIn = alarmId == NotificationService.CHECK_IN_ALARM_ID || alarmId == NotificationService.CHECK_IN_SNOOZE_ID
 
-    // Dark sleek color palette
-    val bgGradientStart = Color(0xFF070A11)
-    val bgGradientEnd = Color(0xFF0F172A)
+    // Pitch Black AMOLED color palette
+    val bgGradientStart = Color(0xFF000000)
+    val bgGradientEnd = Color(0xFF06080F)
     val inkWhite = Color(0xFFF8FAFC)
     val inkMuted = Color(0xFF94A3B8)
 

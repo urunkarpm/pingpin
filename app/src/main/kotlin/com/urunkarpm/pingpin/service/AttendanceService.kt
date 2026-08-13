@@ -59,7 +59,7 @@ object WorkingDays {
     }
 }
 
-class AttendanceService(
+open class AttendanceService(
     private val context: Context,
     private val wifiService: WifiService = WifiService(context)
 ) {
@@ -72,7 +72,7 @@ class AttendanceService(
         }
     }
 
-    suspend fun checkAndMarkAttendance(
+    open suspend fun checkAndMarkAttendance(
         officeConfig: OfficeConfigEntity,
         attendanceRepo: AttendanceRepository,
         onAttendanceMarked: suspend () -> Unit

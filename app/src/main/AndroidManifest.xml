@@ -82,6 +82,16 @@
             android:exported="true" />
 
         <receiver
+            android:name=".receiver.NotificationActionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.urunkarpm.pingpin.ACTION_SNOOZE" />
+                <action android:name="com.urunkarpm.pingpin.ACTION_OPEN_PORTAL" />
+                <action android:name="com.urunkarpm.pingpin.ACTION_DISMISS" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
             android:name=".receiver.BootReceiver"
             android:directBootAware="true"
             android:exported="true">
