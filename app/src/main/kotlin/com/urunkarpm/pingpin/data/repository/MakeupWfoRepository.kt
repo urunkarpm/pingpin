@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.Flow
 class MakeupWfoRepository(private val dao: MakeupWfoSuggestionDao) {
 
     val activeSuggestionFlow: Flow<MakeupWfoSuggestionEntity?> = dao.watchActiveSuggestion()
+    val acceptedDatesFlow: Flow<List<String>> = dao.watchAcceptedDates()
 
     suspend fun getActiveSuggestion(): MakeupWfoSuggestionEntity? {
         return dao.getActiveSuggestion()

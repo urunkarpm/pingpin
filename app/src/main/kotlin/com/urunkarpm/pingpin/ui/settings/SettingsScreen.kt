@@ -49,6 +49,14 @@ import com.urunkarpm.pingpin.ui.theme.ElectricBlue
 import com.urunkarpm.pingpin.ui.theme.EmeraldGreen
 import kotlinx.coroutines.launch
 
+private enum class SettingsSection {
+    PROFILE,
+    WORKSPACE,
+    PORTAL_AUTOMATION,
+    ALARM,
+    OEM
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
@@ -76,14 +84,23 @@ fun SettingsScreen(
     var workingDaysMask by remember { mutableStateOf(WorkingDays.DEFAULT_WEEKDAYS) }
     var wfoDaysMask by remember { mutableStateOf(WorkingDays.DEFAULT_WEEKDAYS) }
 
+    val credManager = remember { com.urunkarpm.pingpin.service.portal.PortalCredentialManager(context) }
+    var portalMode by remember { mutableStateOf("EXTERNAL_BROWSER") }
+    var autoLoginEnabled by remember { mutableStateOf(false) }
+    var autoCheckInEnabled by remember { mutableStateOf(false) }
+    var portalUsername by remember { mutableStateOf("") }
+    var portalPassword by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
 
     var testAlarmFired by remember { mutableStateOf(false) }
 
-    // Expand/collapse state for each major section (all collapsed by default)
-    var profileExpanded by remember { mutableStateOf(false) }
-    var workspaceExpanded by remember { mutableStateOf(false) }
-    var alarmExpanded by remember { mutableStateOf(false) }
-    var oemExpanded by remember { mutableStateOf(false) }
+    // Accordion expansion state: only one section expanded at a time
+    var expandedSection by remember { mutableStateOf<SettingsSection?>(null) }
+    val profileExpanded = expandedSection == SettingsSection.PROFILE
+    val workspaceExpanded = expandedSection == SettingsSection.WORKSPACE
+    val portalAutomationExpanded = expandedSection == SettingsSection.PORTAL_AUTOMATION
+    val alarmExpanded = expandedSection == SettingsSection.ALARM
+    val oemExpanded = expandedSection == SettingsSection.OEM
 
     val oemGuidance = remember { OemBatteryHelper.getGuidance() }
 
@@ -97,10 +114,15 @@ fun SettingsScreen(
             portalUrl = cfg.portalUrl
             workingDaysMask = cfg.workingDaysMask
             wfoDaysMask = cfg.wfoDaysMask
+            portalMode = cfg.portalMode
+            autoLoginEnabled = cfg.autoLoginEnabled
+            autoCheckInEnabled = cfg.autoCheckInEnabled
         }
         profileState?.let { prof ->
             fullName = prof.fullName
         }
+        portalUsername = credManager.getUsername()
+        portalPassword = credManager.getPassword()
     }
 
     val avatarInitials = remember(fullName) {
@@ -312,7 +334,7 @@ fun SettingsScreen(
                     subtitle = "Personal identity & organizational profile",
                     gradientColors = listOf(ElectricBlue, Color(0xFF06B6D4)),
                     expanded = profileExpanded,
-                    onToggle = { profileExpanded = !profileExpanded }
+                    onToggle = { expandedSection = if (profileExpanded) null else SettingsSection.PROFILE }
                 )
 
                 AnimatedVisibility(
@@ -353,7 +375,7 @@ fun SettingsScreen(
                     subtitle = "Office Wi-Fi network & automated shift schedule",
                     gradientColors = listOf(EmeraldGreen, Color(0xFF10B981)),
                     expanded = workspaceExpanded,
-                    onToggle = { workspaceExpanded = !workspaceExpanded }
+                    onToggle = { expandedSection = if (workspaceExpanded) null else SettingsSection.WORKSPACE }
                 )
 
                 AnimatedVisibility(
@@ -481,6 +503,171 @@ fun SettingsScreen(
             }
         }
 
+        // HR Portal Automation Card (Separated Module)
+        GlassCard(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                SectionHeader(
+                    icon = Icons.Default.VpnKey,
+                    title = "HR PORTAL AUTOMATION",
+                    subtitle = "Automate login & check-in when alert triggers",
+                    gradientColors = listOf(Color(0xFF8B5CF6), Color(0xFFEC4899)),
+                    expanded = portalAutomationExpanded,
+                    onToggle = { expandedSection = if (portalAutomationExpanded) null else SettingsSection.PORTAL_AUTOMATION }
+                )
+
+                AnimatedVisibility(
+                    visible = portalAutomationExpanded,
+                    enter = expandVertically(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) + fadeIn(),
+                    exit = shrinkVertically(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) + fadeOut()
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Text(
+                            text = "Execution Mode",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            FilterChip(
+                                selected = portalMode == "IN_APP_AUTO",
+                                onClick = { portalMode = "IN_APP_AUTO" },
+                                label = { Text("In-App Auto Portal", fontSize = 12.sp) },
+                                leadingIcon = {
+                                    if (portalMode == "IN_APP_AUTO") {
+                                        Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+                            FilterChip(
+                                selected = portalMode == "EXTERNAL_BROWSER",
+                                onClick = { portalMode = "EXTERNAL_BROWSER" },
+                                label = { Text("Chrome Browser", fontSize = 12.sp) },
+                                leadingIcon = {
+                                    if (portalMode == "EXTERNAL_BROWSER") {
+                                        Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+
+                        if (portalMode == "IN_APP_AUTO") {
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+
+                            // Auto Check-In Toggle
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Auto Check-In / Check-Out Button Click",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "Auto-clicks Punch button when portal loads",
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Switch(
+                                    checked = autoCheckInEnabled,
+                                    onCheckedChange = { autoCheckInEnabled = it }
+                                )
+                            }
+
+                            // Auto Login Toggle
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Auto-Fill & Submit Credentials",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "Fills username & password on login form",
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Switch(
+                                    checked = autoLoginEnabled,
+                                    onCheckedChange = { autoLoginEnabled = it }
+                                )
+                            }
+
+                            if (autoLoginEnabled) {
+                                OutlinedTextField(
+                                    value = portalUsername,
+                                    onValueChange = { portalUsername = it },
+                                    label = { Text("Portal Username / Email / Emp ID") },
+                                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = Color(0xFF8B5CF6)) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = fieldShape,
+                                    singleLine = true
+                                )
+
+                                OutlinedTextField(
+                                    value = portalPassword,
+                                    onValueChange = { portalPassword = it },
+                                    label = { Text("Portal Password") },
+                                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = Color(0xFF8B5CF6)) },
+                                    trailingIcon = {
+                                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                            Icon(
+                                                imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                                contentDescription = null
+                                            )
+                                        }
+                                    },
+                                    visualTransformation = if (passwordVisible) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = fieldShape,
+                                    singleLine = true
+                                )
+                            }
+
+                            Button(
+                                onClick = {
+                                    val intent = com.urunkarpm.pingpin.ui.portal.PortalActivity.createIntent(
+                                        context = context,
+                                        actionType = com.urunkarpm.pingpin.ui.portal.PortalActivity.ACTION_CHECK_IN,
+                                        portalUrl = portalUrl
+                                    )
+                                    context.startActivity(intent)
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = fieldShape,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8B5CF6))
+                            ) {
+                                Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Test In-App Auto Portal Now", fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // 3. Alarm Reliability & Precision Diagnostics Card
         val notifService = remember { NotificationService(context) }
         var hasExactAlarmPerm by remember { mutableStateOf(notifService.canScheduleExactAlarms()) }
@@ -512,7 +699,7 @@ fun SettingsScreen(
                     subtitle = "System permissions for on-time clock alarms",
                     gradientColors = listOf(Color(0xFF8B5CF6), Color(0xFF6366F1)),
                     expanded = alarmExpanded,
-                    onToggle = { alarmExpanded = !alarmExpanded }
+                    onToggle = { expandedSection = if (alarmExpanded) null else SettingsSection.ALARM }
                 )
 
                 AnimatedVisibility(
@@ -755,7 +942,7 @@ fun SettingsScreen(
                         subtitle = "Device specific optimization settings for ${oemGuidance.oemName}",
                         gradientColors = listOf(AmberOrange, Color(0xFFF59E0B)),
                         expanded = oemExpanded,
-                        onToggle = { oemExpanded = !oemExpanded }
+                        onToggle = { expandedSection = if (oemExpanded) null else SettingsSection.OEM }
                     )
 
                     AnimatedVisibility(
@@ -894,22 +1081,32 @@ fun SettingsScreen(
 
         // Auto-save effect: debounced 600ms after any field change
         val isFirstLoad = remember { mutableStateOf(true) }
-        LaunchedEffect(fullName, ssid, checkInTime, checkOutTime, portalUrl, workingDaysMask, wfoDaysMask) {
+        LaunchedEffect(
+            fullName, ssid, checkInTime, checkOutTime, portalUrl,
+            workingDaysMask, wfoDaysMask, portalMode, autoLoginEnabled,
+            autoCheckInEnabled, portalUsername, portalPassword
+        ) {
             if (isFirstLoad.value) {
                 isFirstLoad.value = false
                 return@LaunchedEffect
             }
             kotlinx.coroutines.delay(600L)
-            val newConfig = OfficeConfigEntity(
+            val currentCfg = configState ?: OfficeConfigEntity()
+            val newConfig = currentCfg.copy(
                 id = configState?.id ?: 0,
                 ssid = ssid.trim(),
                 checkInTime = checkInTime.trim(),
                 checkOutTime = checkOutTime.trim(),
                 portalUrl = portalUrl.trim(),
                 workingDaysMask = workingDaysMask,
-                wfoDaysMask = wfoDaysMask
+                wfoDaysMask = wfoDaysMask,
+                portalMode = portalMode,
+                autoLoginEnabled = autoLoginEnabled,
+                autoCheckInEnabled = autoCheckInEnabled
             )
             officeConfigRepo.saveConfig(newConfig)
+
+            credManager.saveCredentials(portalUsername, portalPassword)
 
             val newProfile = UserProfileEntity(
                 id = profileState?.id ?: 0,

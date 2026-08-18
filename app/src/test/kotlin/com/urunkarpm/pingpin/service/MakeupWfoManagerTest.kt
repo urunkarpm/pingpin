@@ -27,13 +27,17 @@ import java.util.Calendar
 class FakeMakeupWfoSuggestionDao : MakeupWfoSuggestionDao {
     private val suggestions = mutableListOf<MakeupWfoSuggestionEntity>()
     private val activeFlow = MutableStateFlow<MakeupWfoSuggestionEntity?>(null)
+    private val acceptedDatesFlow = MutableStateFlow<List<String>>(emptyList())
     private var autoId = 1
 
     private fun updateActive() {
         activeFlow.value = suggestions.find { it.status == "PENDING" || it.status == "ACCEPTED" }
+        acceptedDatesFlow.value = suggestions.filter { it.status == "ACCEPTED" }.map { it.suggestedDateYyyyMmDd }
     }
 
     override fun watchActiveSuggestion(): Flow<MakeupWfoSuggestionEntity?> = activeFlow
+
+    override fun watchAcceptedDates(): Flow<List<String>> = acceptedDatesFlow
 
     override suspend fun getActiveSuggestion(): MakeupWfoSuggestionEntity? {
         return suggestions.find { it.status == "PENDING" || it.status == "ACCEPTED" }
@@ -41,10 +45,6 @@ class FakeMakeupWfoSuggestionDao : MakeupWfoSuggestionDao {
 
     override suspend fun getByMissedDate(missedDate: String): MakeupWfoSuggestionEntity? {
         return suggestions.find { it.missedDateYyyyMmDd == missedDate }
-    }
-
-    override suspend fun getAcceptedForDate(suggestedDate: String): MakeupWfoSuggestionEntity? {
-        return suggestions.find { it.suggestedDateYyyyMmDd == suggestedDate && it.status == "ACCEPTED" }
     }
 
     override suspend fun getAll(): List<MakeupWfoSuggestionEntity> = suggestions

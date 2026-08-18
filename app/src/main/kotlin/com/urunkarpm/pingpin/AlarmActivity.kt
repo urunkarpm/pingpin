@@ -48,6 +48,10 @@ import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
 
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import android.media.MediaPlayer
 
 class AlarmActivity : ComponentActivity() {
@@ -96,7 +100,7 @@ class AlarmActivity : ComponentActivity() {
                         if (alarmId == NotificationService.CHECK_IN_SNOOZE_ID || alarmId == NotificationService.CHECK_OUT_SNOOZE_ID) {
                             notifService.cancelAlarm(alarmId)
                         }
-                        dismissKeyguardAndExecute { openBrowser(portalUrlState) }
+                        dismissKeyguardAndExecute { openPortalAction(com.urunkarpm.pingpin.ui.portal.PortalActivity.ACTION_CHECK_IN, alarmId, portalUrlState) }
                     },
                     onSnooze = {
                         stopAlarmSound()
@@ -120,7 +124,7 @@ class AlarmActivity : ComponentActivity() {
                         if (alarmId == NotificationService.CHECK_IN_SNOOZE_ID || alarmId == NotificationService.CHECK_OUT_SNOOZE_ID) {
                             notifService.cancelAlarm(alarmId)
                         }
-                        dismissKeyguardAndExecute { openBrowser(portalUrlState) }
+                        dismissKeyguardAndExecute { openPortalAction(com.urunkarpm.pingpin.ui.portal.PortalActivity.ACTION_CHECK_OUT, alarmId, portalUrlState) }
                     }
                 )
             }
@@ -254,6 +258,30 @@ class AlarmActivity : ComponentActivity() {
         } else {
             action()
             safeFinish()
+        }
+    }
+
+    private fun openPortalAction(actionType: String, currentAlarmId: Int, currentPortalUrl: String) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val db = com.urunkarpm.pingpin.data.local.AppDatabase.getInstance(applicationContext)
+            val config = db.officeConfigDao().getConfig()
+            val portalMode = config?.portalMode ?: "EXTERNAL_BROWSER"
+            val url = if (currentPortalUrl.isNotBlank()) currentPortalUrl else (config?.portalUrl ?: "")
+
+            withContext(Dispatchers.Main) {
+                if (portalMode == "IN_APP_AUTO") {
+                    val intent = com.urunkarpm.pingpin.ui.portal.PortalActivity.createIntent(
+                        context = this@AlarmActivity,
+                        actionType = actionType,
+                        portalUrl = url,
+                        alarmId = currentAlarmId
+                    )
+                    startActivity(intent)
+                    finish()
+                } else {
+                    openBrowser(url)
+                }
+            }
         }
     }
 

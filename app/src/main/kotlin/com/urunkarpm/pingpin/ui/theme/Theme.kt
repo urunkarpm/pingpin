@@ -2,9 +2,12 @@ package com.urunkarpm.pingpin.ui.theme
 
 import android.app.Activity
 import android.os.Build
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.LocalOverscrollConfiguration
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
@@ -50,6 +53,7 @@ private val LightColorScheme = lightColorScheme(
     outlineVariant = BorderDark.copy(alpha = 0.4f)
 )
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PingPinTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
@@ -77,9 +81,13 @@ fun PingPinTheme(
         }
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = AppTypography,
-        content = content
-    )
+    CompositionLocalProvider(
+        LocalOverscrollConfiguration provides null
+    ) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = AppTypography,
+            content = content
+        )
+    }
 }

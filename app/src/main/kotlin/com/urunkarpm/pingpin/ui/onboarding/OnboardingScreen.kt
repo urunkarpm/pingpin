@@ -40,6 +40,7 @@ import com.urunkarpm.pingpin.ui.components.WorkingDaysSelector
 import com.urunkarpm.pingpin.ui.components.WfoDaysSelector
 import com.urunkarpm.pingpin.ui.theme.ElectricBlue
 import com.urunkarpm.pingpin.ui.theme.EmeraldGreen
+import com.urunkarpm.pingpin.ui.theme.rememberWindowSizeInfo
 import kotlinx.coroutines.launch
 
 @Composable
@@ -89,6 +90,9 @@ fun OnboardingScreen(
 
     val isDark = MaterialTheme.colorScheme.background.red < 0.5f
 
+    val windowSizeInfo = rememberWindowSizeInfo()
+    val isWideOrLandscape = windowSizeInfo.useNavRail || windowSizeInfo.isMediumWidth || windowSizeInfo.isExpandedWidth
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -127,346 +131,709 @@ fun OnboardingScreen(
                 )
         )
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 22.dp, vertical = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(20.dp)
-        ) {
-            // Header Logo Orb & Title
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(top = 12.dp)
+        if (isWideOrLandscape) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 24.dp, vertical = 20.dp),
+                horizontalArrangement = Arrangement.spacedBy(24.dp)
             ) {
-                Box(
+                // Left Column: Branding & Privacy Guarantee Badges
+                Column(
                     modifier = Modifier
-                        .scale(pulseScale)
-                        .size(80.dp)
-                        .clip(CircleShape)
-                        .background(
-                            brush = Brush.radialGradient(
-                                colors = listOf(
-                                    ElectricBlue.copy(alpha = if (isDark) 0.4f else 0.25f),
-                                    if (isDark) Color.Black.copy(alpha = 0.6f) else MaterialTheme.colorScheme.primaryContainer
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .verticalScroll(rememberScrollState()),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .scale(pulseScale)
+                            .size(90.dp)
+                            .clip(CircleShape)
+                            .background(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(
+                                        ElectricBlue.copy(alpha = if (isDark) 0.4f else 0.25f),
+                                        if (isDark) Color.Black.copy(alpha = 0.6f) else MaterialTheme.colorScheme.primaryContainer
+                                    )
                                 )
                             )
-                        )
-                        .border(2.dp, ElectricBlue.copy(alpha = 0.8f), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.LocationOn,
-                        contentDescription = "PingPin Logo",
-                        tint = if (isDark) Color.White else ElectricBlue,
-                        modifier = Modifier.size(40.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                Text(
-                    text = "Welcome to PingPin",
-                    fontSize = 30.sp,
-                    fontWeight = FontWeight.Black,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    letterSpacing = (-1).sp,
-                    textAlign = TextAlign.Center
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "Automated local Wi-Fi attendance tracking & smart check-in alarms.",
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 12.dp)
-                )
-            }
-
-            // Card 1: Employee Details
-            GlassCard(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            .border(2.dp, ElectricBlue.copy(alpha = 0.8f), CircleShape),
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = null,
-                            tint = ElectricBlue,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Text(
-                            text = "EMPLOYEE PROFILE",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = ElectricBlue,
-                            letterSpacing = 0.8.sp
+                            imageVector = Icons.Default.LocationOn,
+                            contentDescription = "PingPin Logo",
+                            tint = if (isDark) Color.White else ElectricBlue,
+                            modifier = Modifier.size(44.dp)
                         )
                     }
 
-                    OutlinedTextField(
-                        value = fullName,
-                        onValueChange = { fullName = it },
-                        label = { Text("Full Name") },
-                        placeholder = { Text("e.g. Alex Morgan") },
-                        leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = ElectricBlue) },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = fieldShape,
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = ElectricBlue,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
-                        )
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    Text(
+                        text = "Welcome to PingPin",
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        letterSpacing = (-1).sp,
+                        textAlign = TextAlign.Center
                     )
-                }
-            }
-
-            // Card 2: Workspace & Schedule Configuration
-            GlassCard(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Business,
-                            contentDescription = null,
-                            tint = EmeraldGreen,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Text(
-                            text = "OFFICE WORKSPACE & ALARMS",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = EmeraldGreen,
-                            letterSpacing = 0.8.sp
-                        )
-                    }
-
-                    WifiSsidPickerField(
-                        value = ssid,
-                        onValueChange = { ssid = it },
-                        modifier = Modifier.fillMaxWidth()
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Automated local Wi-Fi attendance tracking & smart check-in alarms.",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 12.dp)
                     )
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        TimePickerField(
-                            label = "Check-In",
-                            time24 = checkInTime,
-                            onTimeSelected = { checkInTime = it },
-                            modifier = Modifier.weight(1f)
-                        )
-                        TimePickerField(
-                            label = "Check-Out",
-                            time24 = checkOutTime,
-                            onTimeSelected = { checkOutTime = it },
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
+                    Spacer(modifier = Modifier.height(24.dp))
 
-                    // Shift Duration Badge
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
-                        modifier = Modifier.fillMaxWidth()
+                    // Privacy & Guarantee Badges
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                modifier = Modifier.padding(vertical = 12.dp, horizontal = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Security, contentDescription = null, tint = ElectricBlue, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text("100% Local Privacy", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
+                                    Text("Your logs & config stay strictly on device", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(vertical = 12.dp, horizontal = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.BatterySaver, contentDescription = null, tint = EmeraldGreen, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text("Zero Battery Drain", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
+                                    Text("No continuous background GPS tracking", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(vertical = 12.dp, horizontal = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Alarm, contentDescription = null, tint = Color(0xFFF59E0B), modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text("Smart WFO Alarms", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
+                                    Text("Automatic morning alarms only on required days", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Right Column: Form Cards & Setup Button
+                Column(
+                    modifier = Modifier
+                        .weight(1.2f)
+                        .fillMaxHeight()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Card 1: Employee Details
+                    GlassCard(modifier = Modifier.fillMaxWidth()) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
                                 Icon(
-                                    imageVector = Icons.Default.Bolt,
+                                    imageVector = Icons.Default.Person,
                                     contentDescription = null,
-                                    tint = EmeraldGreen,
+                                    tint = ElectricBlue,
                                     modifier = Modifier.size(18.dp)
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "Calculated Shift Duration",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    text = "EMPLOYEE PROFILE",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = ElectricBlue,
+                                    letterSpacing = 0.8.sp
                                 )
                             }
-                            Text(
-                                text = shiftDurationText,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = EmeraldGreen
+
+                            OutlinedTextField(
+                                value = fullName,
+                                onValueChange = { fullName = it },
+                                label = { Text("Full Name") },
+                                placeholder = { Text("e.g. Alex Morgan") },
+                                leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = ElectricBlue) },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = fieldShape,
+                                singleLine = true,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = ElectricBlue,
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                                )
                             )
                         }
                     }
 
-                    // Company HR Portal URL Field
-                    OutlinedTextField(
-                        value = portalUrl,
-                        onValueChange = { portalUrl = it },
-                        label = { Text("Company HR Portal URL (Optional)") },
-                        placeholder = { Text("e.g. hr.mycompany.com") },
-                        leadingIcon = { Icon(Icons.Default.Language, contentDescription = null, tint = EmeraldGreen) },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = fieldShape,
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = EmeraldGreen,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
-                        )
-                    )
+                    // Card 2: Workspace & Schedule Configuration
+                    GlassCard(modifier = Modifier.fillMaxWidth()) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Business,
+                                    contentDescription = null,
+                                    tint = EmeraldGreen,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Text(
+                                    text = "OFFICE WORKSPACE & ALARMS",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = EmeraldGreen,
+                                    letterSpacing = 0.8.sp
+                                )
+                            }
 
-                    WorkingDaysSelector(
-                        workingDaysMask = workingDaysMask,
-                        onMaskChanged = { workingDaysMask = it }
-                    )
+                            WifiSsidPickerField(
+                                value = ssid,
+                                onValueChange = { ssid = it },
+                                modifier = Modifier.fillMaxWidth()
+                            )
 
-                    WfoDaysSelector(
-                        wfoDaysMask = wfoDaysMask,
-                        onMaskChanged = { wfoDaysMask = it }
-                    )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                TimePickerField(
+                                    label = "Check-In",
+                                    time24 = checkInTime,
+                                    onTimeSelected = { checkInTime = it },
+                                    modifier = Modifier.weight(1f)
+                                )
+                                TimePickerField(
+                                    label = "Check-Out",
+                                    time24 = checkOutTime,
+                                    onTimeSelected = { checkOutTime = it },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+
+                            // Shift Duration Badge
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.Bolt,
+                                            contentDescription = null,
+                                            tint = EmeraldGreen,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "Calculated Shift Duration",
+                                            fontSize = 12.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Text(
+                                        text = shiftDurationText,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = EmeraldGreen
+                                    )
+                                }
+                            }
+
+                            // Company HR Portal URL Field
+                            OutlinedTextField(
+                                value = portalUrl,
+                                onValueChange = { portalUrl = it },
+                                label = { Text("Company HR Portal URL (Optional)") },
+                                placeholder = { Text("e.g. hr.mycompany.com") },
+                                leadingIcon = { Icon(Icons.Default.Language, contentDescription = null, tint = EmeraldGreen) },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = fieldShape,
+                                singleLine = true,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = EmeraldGreen,
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                                )
+                            )
+
+                            WorkingDaysSelector(
+                                workingDaysMask = workingDaysMask,
+                                onMaskChanged = { workingDaysMask = it }
+                            )
+
+                            WfoDaysSelector(
+                                wfoDaysMask = wfoDaysMask,
+                                onMaskChanged = { wfoDaysMask = it }
+                            )
+                        }
+                    }
+
+                    // Complete Setup Hero CTA Button
+                    Button(
+                        onClick = {
+                            if (ssid.trim().isEmpty()) {
+                                Toast.makeText(context, "Please select or enter your Office Wi-Fi SSID", Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
+                            scope.launch {
+                                val config = OfficeConfigEntity(
+                                    ssid = ssid.trim(),
+                                    checkInTime = checkInTime.trim(),
+                                    checkOutTime = checkOutTime.trim(),
+                                    portalUrl = portalUrl.trim(),
+                                    workingDaysMask = workingDaysMask,
+                                    wfoDaysMask = wfoDaysMask
+                                )
+                                officeConfigRepo.saveConfig(config)
+
+                                val profile = UserProfileEntity(
+                                    fullName = fullName.trim()
+                                )
+                                profileRepo.saveProfile(profile)
+
+                                // Schedule Alarms
+                                NotificationService(context).scheduleAlarmsFromConfig(config)
+
+                                onOnboardingComplete()
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(60.dp),
+                        shape = RoundedCornerShape(20.dp),
+                        contentPadding = PaddingValues(0.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    brush = Brush.horizontalGradient(
+                                        colors = listOf(ElectricBlue, Color(0xFF06B6D4))
+                                    ),
+                                    shape = RoundedCornerShape(20.dp)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    text = "COMPLETE SETUP & LAUNCH",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 15.sp,
+                                    letterSpacing = 0.5.sp
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
-
-            // Card 3: Privacy & Local Guarantee Badges
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(vertical = 10.dp, horizontal = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(Icons.Default.Security, contentDescription = null, tint = ElectricBlue, modifier = Modifier.size(15.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("100% Local", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
-                    }
-                }
-
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(vertical = 10.dp, horizontal = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(Icons.Default.BatterySaver, contentDescription = null, tint = EmeraldGreen, modifier = Modifier.size(15.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Zero Drain", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
-                    }
-                }
-
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(vertical = 10.dp, horizontal = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(Icons.Default.Alarm, contentDescription = null, tint = Color(0xFFF59E0B), modifier = Modifier.size(15.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Smart Alarm", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-
-            // Complete Setup Hero CTA Button
-            Button(
-                onClick = {
-                    if (ssid.trim().isEmpty()) {
-                        Toast.makeText(context, "Please select or enter your Office Wi-Fi SSID", Toast.LENGTH_SHORT).show()
-                        return@Button
-                    }
-                    scope.launch {
-                        val config = OfficeConfigEntity(
-                            ssid = ssid.trim(),
-                            checkInTime = checkInTime.trim(),
-                            checkOutTime = checkOutTime.trim(),
-                            portalUrl = portalUrl.trim(),
-                            workingDaysMask = workingDaysMask,
-                            wfoDaysMask = wfoDaysMask
-                        )
-                        officeConfigRepo.saveConfig(config)
-
-                        val profile = UserProfileEntity(
-                            fullName = fullName.trim()
-                        )
-                        profileRepo.saveProfile(profile)
-
-                        // Schedule Alarms
-                        NotificationService(context).scheduleAlarmsFromConfig(config)
-
-                        onOnboardingComplete()
-                    }
-                },
+        } else {
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(60.dp),
-                shape = RoundedCornerShape(20.dp),
-                contentPadding = PaddingValues(0.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 22.dp, vertical = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            brush = Brush.horizontalGradient(
-                                colors = listOf(ElectricBlue, Color(0xFF06B6D4))
-                            ),
-                            shape = RoundedCornerShape(20.dp)
-                        ),
-                    contentAlignment = Alignment.Center
+                // Header Logo Orb & Title
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(top = 12.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
+                    Box(
+                        modifier = Modifier
+                            .scale(pulseScale)
+                            .size(80.dp)
+                            .clip(CircleShape)
+                            .background(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(
+                                        ElectricBlue.copy(alpha = if (isDark) 0.4f else 0.25f),
+                                        if (isDark) Color.Black.copy(alpha = 0.6f) else MaterialTheme.colorScheme.primaryContainer
+                                    )
+                                )
+                            )
+                            .border(2.dp, ElectricBlue.copy(alpha = 0.8f), CircleShape),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = "COMPLETE SETUP & LAUNCH",
-                            color = Color.White,
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 15.sp,
-                            letterSpacing = 0.5.sp
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
+                            imageVector = Icons.Default.LocationOn,
+                            contentDescription = "PingPin Logo",
+                            tint = if (isDark) Color.White else ElectricBlue,
+                            modifier = Modifier.size(40.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Text(
+                        text = "Welcome to PingPin",
+                        fontSize = 30.sp,
+                        fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        letterSpacing = (-1).sp,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Automated local Wi-Fi attendance tracking & smart check-in alarms.",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 12.dp)
+                    )
+                }
+
+                // Card 1: Employee Details
+                GlassCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = null,
+                                tint = ElectricBlue,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                text = "EMPLOYEE PROFILE",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = ElectricBlue,
+                                letterSpacing = 0.8.sp
+                            )
+                        }
+
+                        OutlinedTextField(
+                            value = fullName,
+                            onValueChange = { fullName = it },
+                            label = { Text("Full Name") },
+                            placeholder = { Text("e.g. Alex Morgan") },
+                            leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = ElectricBlue) },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = fieldShape,
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = ElectricBlue,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                            )
                         )
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(16.dp))
+                // Card 2: Workspace & Schedule Configuration
+                GlassCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Business,
+                                contentDescription = null,
+                                tint = EmeraldGreen,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                text = "OFFICE WORKSPACE & ALARMS",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = EmeraldGreen,
+                                letterSpacing = 0.8.sp
+                            )
+                        }
+
+                        WifiSsidPickerField(
+                            value = ssid,
+                            onValueChange = { ssid = it },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            TimePickerField(
+                                label = "Check-In",
+                                time24 = checkInTime,
+                                onTimeSelected = { checkInTime = it },
+                                modifier = Modifier.weight(1f)
+                            )
+                            TimePickerField(
+                                label = "Check-Out",
+                                time24 = checkOutTime,
+                                onTimeSelected = { checkOutTime = it },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+
+                        // Shift Duration Badge
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Bolt,
+                                        contentDescription = null,
+                                        tint = EmeraldGreen,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Calculated Shift Duration",
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Text(
+                                    text = shiftDurationText,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = EmeraldGreen
+                                )
+                            }
+                        }
+
+                        // Company HR Portal URL Field
+                        OutlinedTextField(
+                            value = portalUrl,
+                            onValueChange = { portalUrl = it },
+                            label = { Text("Company HR Portal URL (Optional)") },
+                            placeholder = { Text("e.g. hr.mycompany.com") },
+                            leadingIcon = { Icon(Icons.Default.Language, contentDescription = null, tint = EmeraldGreen) },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = fieldShape,
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = EmeraldGreen,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                            )
+                        )
+
+                        WorkingDaysSelector(
+                            workingDaysMask = workingDaysMask,
+                            onMaskChanged = { workingDaysMask = it }
+                        )
+
+                        WfoDaysSelector(
+                            wfoDaysMask = wfoDaysMask,
+                            onMaskChanged = { wfoDaysMask = it }
+                        )
+                    }
+                }
+
+                // Card 3: Privacy & Local Guarantee Badges
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(vertical = 10.dp, horizontal = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(Icons.Default.Security, contentDescription = null, tint = ElectricBlue, modifier = Modifier.size(15.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("100% Local", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(vertical = 10.dp, horizontal = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(Icons.Default.BatterySaver, contentDescription = null, tint = EmeraldGreen, modifier = Modifier.size(15.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Zero Drain", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(vertical = 10.dp, horizontal = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(Icons.Default.Alarm, contentDescription = null, tint = Color(0xFFF59E0B), modifier = Modifier.size(15.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Smart Alarm", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+
+                // Complete Setup Hero CTA Button
+                Button(
+                    onClick = {
+                        if (ssid.trim().isEmpty()) {
+                            Toast.makeText(context, "Please select or enter your Office Wi-Fi SSID", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+                        scope.launch {
+                            val config = OfficeConfigEntity(
+                                ssid = ssid.trim(),
+                                checkInTime = checkInTime.trim(),
+                                checkOutTime = checkOutTime.trim(),
+                                portalUrl = portalUrl.trim(),
+                                workingDaysMask = workingDaysMask,
+                                wfoDaysMask = wfoDaysMask
+                            )
+                            officeConfigRepo.saveConfig(config)
+
+                            val profile = UserProfileEntity(
+                                fullName = fullName.trim()
+                            )
+                            profileRepo.saveProfile(profile)
+
+                            // Schedule Alarms
+                            NotificationService(context).scheduleAlarmsFromConfig(config)
+
+                            onOnboardingComplete()
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(60.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    contentPadding = PaddingValues(0.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                brush = Brush.horizontalGradient(
+                                    colors = listOf(ElectricBlue, Color(0xFF06B6D4))
+                                ),
+                                shape = RoundedCornerShape(20.dp)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = "COMPLETE SETUP & LAUNCH",
+                                color = Color.White,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 15.sp,
+                                letterSpacing = 0.5.sp
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+            }
         }
     }
 }

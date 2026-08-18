@@ -7,6 +7,10 @@ import android.net.Uri
 import android.util.Log
 import com.urunkarpm.pingpin.MainActivity
 import com.urunkarpm.pingpin.service.NotificationService
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class NotificationActionReceiver : BroadcastReceiver() {
 
@@ -48,24 +52,49 @@ class NotificationActionReceiver : BroadcastReceiver() {
     }
 
     private fun openPortal(context: Context, portalUrl: String) {
-        try {
-            val rawUrl = portalUrl.ifBlank {
-                context.getSharedPreferences(NotificationService.PREFS_NAME, Context.MODE_PRIVATE)
-                    .getString("portalUrl", "") ?: ""
-            }.trim()
+        val pendingResult = goAsync()
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            try {
+                val db = com.urunkarpm.pingpin.data.local.AppDatabase.getInstance(context.applicationContext)
+                val config = db.officeConfigDao().getConfig()
+                val portalMode = config?.portalMode ?: "EXTERNAL_BROWSER"
+                val rawUrl = portalUrl.ifBlank { config?.portalUrl ?: "" }.trim()
+                val urlToOpen = if (rawUrl.isNotBlank()) {
+                    if (!rawUrl.startsWith("http://") && !rawUrl.startsWith("https://")) {
+                        "https://$rawUrl"
+                    } else rawUrl
+                } else "https://google.com"
 
-            val urlToOpen = if (rawUrl.isNotBlank()) {
-                if (!rawUrl.startsWith("http://") && !rawUrl.startsWith("https://")) {
-                    "https://$rawUrl"
-                } else {
-                    rawUrl
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    if (portalMode == "IN_APP_AUTO") {
+                        val portalIntent = com.urunkarpm.pingpin.ui.portal.PortalActivity.createIntent(
+                            context = context,
+                            actionType = com.urunkarpm.pingpin.ui.portal.PortalActivity.ACTION_CHECK_IN,
+                            portalUrl = urlToOpen
+                        ).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                        }
+                        context.startActivity(portalIntent)
+                    } else {
+                        launchExternalBrowser(context, urlToOpen)
+                    }
                 }
-            } else "https://google.com"
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to open portal: ${e.message}", e)
+                launchExternalBrowser(context, portalUrl)
+            } finally {
+                pendingResult.finish()
+            }
+        }
+    }
 
+    private fun launchExternalBrowser(context: Context, url: String) {
+        try {
+            val rawUrl = url.trim().ifBlank { "https://google.com" }
+            val urlToOpen = if (!rawUrl.startsWith("http://") && !rawUrl.startsWith("https://")) "https://$rawUrl" else rawUrl
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(urlToOpen)).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             }
-
             val options = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                 android.app.ActivityOptions.makeBasic().apply {
                     setPendingIntentBackgroundActivityStartMode(android.app.ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)
@@ -78,7 +107,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
                 context.startActivity(intent)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to open portal: ${e.message}", e)
+            Log.e(TAG, "Failed to launch external browser: ${e.message}", e)
             val fallbackIntent = Intent(context, MainActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             }

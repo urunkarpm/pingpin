@@ -12,8 +12,8 @@ android {
         applicationId = "com.urunkarpm.pingpin"
         minSdk = 24
         targetSdk = 34
-        versionCode = 5
-        versionName = "1.5.0"
+        versionCode = 6
+        versionName = "1.6.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -60,6 +60,12 @@ android {
         checkReleaseBuilds = false
         abortOnError = false
     }
+
+    testOptions {
+        unitTests {
+            isReturnDefaultValues = true
+        }
+    }
 }
 
 dependencies {
@@ -79,6 +85,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.ui:ui-text-google-fonts")
     implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material3:material3-window-size-class")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.navigation:navigation-compose:2.7.7")
 

@@ -49,6 +49,35 @@ open class IndianHolidayService {
         return allHolidays.sortedBy { it.dateYyyyMmDd }
     }
 
+    open fun getHolidaysFromPresent(fromDate: Calendar = Calendar.getInstance()): List<IndianHoliday> {
+        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+        val todayStr = sdf.format(fromDate.time)
+        return allHolidays.filter { it.dateYyyyMmDd >= todayStr }.sortedBy { it.dateYyyyMmDd }
+    }
+
+    fun calculateDaysRemaining(
+        dateYyyyMmDd: String,
+        fromDate: Calendar = Calendar.getInstance()
+    ): Int {
+        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+        val targetDate = sdf.parse(dateYyyyMmDd) ?: return 0
+        val startCal = (fromDate.clone() as Calendar).apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val targetCal = Calendar.getInstance().apply {
+            time = targetDate
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val diffMillis = targetCal.timeInMillis - startCal.timeInMillis
+        return (diffMillis / (1000 * 60 * 60 * 24)).toInt()
+    }
+
     fun getUpcomingHolidays(
         fromDate: Calendar = Calendar.getInstance(),
         daysAhead: Int = 21

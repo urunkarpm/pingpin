@@ -61,4 +61,20 @@ object AppInstallManager {
             set(Calendar.MILLISECOND, 0)
         }
     }
+
+    fun adjustInstallDateIfOlderRecordExists(context: Context, earliestRecordDateYyyyMmDd: String) {
+        if (earliestRecordDateYyyyMmDd.isBlank()) return
+        val currentInstallDate = getInstallDateYyyyMmDd(context)
+        if (earliestRecordDateYyyyMmDd < currentInstallDate) {
+            val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+            val parsedDate = try { sdf.parse(earliestRecordDateYyyyMmDd) } catch (e: Exception) { null }
+            if (parsedDate != null) {
+                val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                prefs.edit()
+                    .putLong(KEY_INSTALL_TIME_MS, parsedDate.time)
+                    .putString(KEY_INSTALL_DATE, earliestRecordDateYyyyMmDd)
+                    .apply()
+            }
+        }
+    }
 }

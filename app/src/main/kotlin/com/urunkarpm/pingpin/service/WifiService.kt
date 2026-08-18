@@ -14,6 +14,8 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 import com.urunkarpm.pingpin.data.local.AppDatabase
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 data class ScannedWifiNetwork(
@@ -244,4 +246,55 @@ open class WifiService(private val context: Context) {
         val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork) ?: return false
         return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
     }
+
+    /**
+     * Observes Wi-Fi connection changes reactively using ConnectivityManager.NetworkCallback.
+     */
+    fun observeWifiState(): kotlinx.coroutines.flow.Flow<String?> = kotlinx.coroutines.flow.callbackFlow {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val request = android.net.NetworkRequest.Builder()
+            .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+            .build()
+
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: android.net.Network) {
+                launch {
+                    trySend(getWifiSSID())
+                }
+            }
+
+            override fun onLost(network: android.net.Network) {
+                trySend(null)
+            }
+
+            override fun onCapabilitiesChanged(
+                network: android.net.Network,
+                networkCapabilities: NetworkCapabilities
+            ) {
+                launch {
+                    trySend(getWifiSSID())
+                }
+            }
+        }
+
+        // Send initial state immediately
+        launch {
+            trySend(getWifiSSID())
+        }
+
+        try {
+            connectivityManager.registerNetworkCallback(request, callback)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error registering network callback", e)
+        }
+
+        awaitClose {
+            try {
+                connectivityManager.unregisterNetworkCallback(callback)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error unregistering network callback", e)
+            }
+        }
+    }
 }
+

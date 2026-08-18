@@ -22,13 +22,5 @@ class PingPinApplication : Application() {
         val filter = IntentFilter(WifiManager.NETWORK_STATE_CHANGED_ACTION)
         registerReceiver(wifiConnectionReceiver, filter)
     }
-
-    override fun onTerminate() {
-        super.onTerminate()
-        try {
-            unregisterReceiver(wifiConnectionReceiver)
-        } catch (_: IllegalArgumentException) {
-            // Receiver wasn't registered — safe to ignore
-        }
-    }
 }
+

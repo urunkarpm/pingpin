@@ -37,7 +37,8 @@ private data class MonthDayCellData(
     val isBeforeInstall: Boolean,
     val isWorking: Boolean,
     val isWfo: Boolean,
-    val isAttended: Boolean
+    val isAttended: Boolean,
+    val isMakeupWfo: Boolean = false
 )
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -48,6 +49,7 @@ fun MonthlyCalendarView(
     records: List<AttendanceRecordEntity>,
     workingDaysMask: Int,
     wfoDaysMask: Int = 31,
+    acceptedMakeupDates: Set<String> = emptySet(),
     onPreviousMonth: () -> Unit,
     onNextMonth: () -> Unit,
     onMonthClick: () -> Unit,
@@ -68,7 +70,7 @@ fun MonthlyCalendarView(
         SimpleDateFormat("MMMM yyyy", Locale.US).format(cal.time)
     }
 
-    val monthCellsData = remember(year, month, records, workingDaysMask, wfoDaysMask, installCal) {
+    val monthCellsData = remember(year, month, records, workingDaysMask, wfoDaysMask, acceptedMakeupDates, installCal) {
         val cal = Calendar.getInstance().apply {
             set(Calendar.YEAR, year)
             set(Calendar.MONTH, month - 1)
@@ -122,11 +124,12 @@ fun MonthlyCalendarView(
             cellCal.set(parts[0].toInt(), parts[1].toInt() - 1, parts[2].toInt(), 0, 0, 0)
             cellCal.set(Calendar.MILLISECOND, 0)
 
-            val isBeforeInstall = cellCal.before(installCal)
+            val isAttended = attendedSet.contains(dateStr)
+            val isBeforeInstall = cellCal.before(installCal) && !isAttended
             val isToday = cellCal.timeInMillis == todayCal.timeInMillis
             val isWorking = WorkingDays.isWorkingDay(cellCal, workingDaysMask)
-            val isWfo = WorkingDays.isWfoDay(cellCal, wfoDaysMask)
-            val isAttended = attendedSet.contains(dateStr)
+            val isMakeupWfo = acceptedMakeupDates.contains(dateStr)
+            val isWfo = WorkingDays.isWfoDay(cellCal, wfoDaysMask) || isMakeupWfo
             val isFuture = cellCal.after(todayCal)
 
             list.add(
@@ -139,7 +142,8 @@ fun MonthlyCalendarView(
                     isBeforeInstall = isBeforeInstall,
                     isWorking = isWorking,
                     isWfo = isWfo,
-                    isAttended = isAttended
+                    isAttended = isAttended,
+                    isMakeupWfo = isMakeupWfo
                 )
             )
         }
@@ -245,32 +249,53 @@ fun MonthlyCalendarView(
         Spacer(modifier = Modifier.height(14.dp))
 
         // Calendar Legend Bar with Circle aesthetics
-        Row(
+        Column(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceAround,
-            verticalAlignment = Alignment.CenterVertically
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            LegendItem(
-                color = if (isDark) EmeraldGreenBgDark else EmeraldGreenBgLight,
-                dotColor = EmeraldGreen,
-                label = "Present"
-            )
-            LegendItem(
-                color = if (isDark) CrimsonRedBgDark else CrimsonRedBgLight,
-                dotColor = CrimsonRed,
-                label = "Missed"
-            )
-            LegendItem(
-                color = ElectricBlue,
-                dotColor = ElectricBlue,
-                label = "Today",
-                isBorderOnly = true
-            )
-            LegendItem(
-                color = Color.Transparent,
-                dotColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                label = "Off-Day"
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                LegendItem(
+                    color = if (isDark) EmeraldGreenBgDark else EmeraldGreenBgLight,
+                    dotColor = EmeraldGreen,
+                    label = "Present"
+                )
+                LegendItem(
+                    color = if (isDark) TealAccentBgDark else TealAccentBgLight,
+                    dotColor = TealAccent,
+                    label = "WFO Day"
+                )
+                LegendItem(
+                    color = if (isDark) AmberOrangeBgDark else AmberOrangeBgLight,
+                    dotColor = AmberOrange,
+                    label = "Makeup WFO"
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                LegendItem(
+                    color = if (isDark) CrimsonRedBgDark else CrimsonRedBgLight,
+                    dotColor = CrimsonRed,
+                    label = "Missed"
+                )
+                LegendItem(
+                    color = ElectricBlue,
+                    dotColor = ElectricBlue,
+                    label = "Today",
+                    isBorderOnly = true
+                )
+                LegendItem(
+                    color = Color.Transparent,
+                    dotColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                    label = "Off-Day"
+                )
+            }
         }
     }
 }
@@ -290,8 +315,9 @@ private fun MonthDayCellItem(
         cell.isAttended -> if (isDark) EmeraldGreenBgDark else EmeraldGreenBgLight
         cell.isBeforeInstall -> Color.Transparent
         !cell.isWorking -> Color.Transparent
-        !cell.isWfo -> MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.25f)
-        cell.isFuture -> MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.35f)
+        cell.isMakeupWfo -> if (isDark) AmberOrangeBgDark.copy(alpha = 0.5f) else AmberOrangeBgLight
+        !cell.isWfo -> MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.15f)
+        cell.isFuture -> if (isDark) TealAccentBgDark.copy(alpha = 0.45f) else TealAccentBgLight.copy(alpha = 0.7f)
         else -> if (isDark) CrimsonRedBgDark else CrimsonRedBgLight
     }
 
@@ -299,20 +325,22 @@ private fun MonthDayCellItem(
         !cell.isCurrentMonthDay -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
         cell.isToday -> ElectricBlue
         cell.isAttended -> if (isDark) Color(0xFF6EE7B7) else Color(0xFF047857)
+        cell.isMakeupWfo && !cell.isAttended -> if (isDark) Color(0xFFFDE68A) else Color(0xFFB45309)
         cell.isBeforeInstall -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
         !cell.isWorking -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
-        !cell.isWfo -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-        cell.isFuture -> MaterialTheme.colorScheme.onSurfaceVariant
+        !cell.isWfo -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+        cell.isFuture -> if (isDark) Color(0xFF5EEAD4) else Color(0xFF0F766E)
         else -> if (isDark) Color(0xFFFCA5A5) else Color(0xFFB91C1C)
     }
 
     val statusDotColor = when {
         !cell.isCurrentMonthDay -> Color.Transparent
         cell.isAttended -> EmeraldGreen
+        cell.isMakeupWfo && !cell.isAttended -> AmberOrange
         cell.isBeforeInstall -> Color.Transparent
         !cell.isWorking -> Color.Transparent
         !cell.isWfo -> Color.Transparent
-        cell.isFuture -> Color.Transparent
+        cell.isFuture -> TealAccent
         else -> CrimsonRed
     }
 
@@ -331,6 +359,18 @@ private fun MonthDayCellItem(
             circleModifier = circleModifier.border(
                 width = 2.dp,
                 color = ElectricBlue,
+                shape = CircleShape
+            )
+        } else if (cell.isCurrentMonthDay && cell.isMakeupWfo && !cell.isAttended) {
+            circleModifier = circleModifier.border(
+                width = 1.5.dp,
+                color = AmberOrange,
+                shape = CircleShape
+            )
+        } else if (cell.isCurrentMonthDay && cell.isWfo && cell.isWorking && !cell.isAttended && cell.isFuture && !cell.isBeforeInstall) {
+            circleModifier = circleModifier.border(
+                width = 1.2.dp,
+                color = TealAccent.copy(alpha = 0.6f),
                 shape = CircleShape
             )
         } else if (cell.isCurrentMonthDay && cell.isWfo && cell.isWorking && !cell.isAttended && !cell.isFuture && !cell.isBeforeInstall) {
@@ -359,11 +399,11 @@ private fun MonthDayCellItem(
                 Text(
                     text = "${cell.dayNum}",
                     fontSize = 12.sp,
-                    fontWeight = if (cell.isToday || cell.isAttended) FontWeight.ExtraBold else FontWeight.SemiBold,
+                    fontWeight = if (cell.isToday || cell.isAttended || cell.isMakeupWfo || cell.isWfo) FontWeight.ExtraBold else FontWeight.SemiBold,
                     color = textColor
                 )
 
-                if (cell.isCurrentMonthDay && cell.isWorking && !cell.isBeforeInstall && (cell.isAttended || (!cell.isFuture && !cell.isToday))) {
+                if (cell.isCurrentMonthDay && (cell.isAttended || (cell.isWorking && !cell.isBeforeInstall && (cell.isMakeupWfo || cell.isWfo || (!cell.isFuture && !cell.isToday))))) {
                     Spacer(modifier = Modifier.height(1.dp))
                     Box(
                         modifier = Modifier

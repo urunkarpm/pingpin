@@ -25,13 +25,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.urunkarpm.pingpin.data.local.AppDatabase
-import com.urunkarpm.pingpin.data.local.entity.UserProfileEntity
-import com.urunkarpm.pingpin.data.repository.AttendanceRepository
-import com.urunkarpm.pingpin.data.repository.OfficeConfigRepository
-import com.urunkarpm.pingpin.data.repository.UserProfileRepository
+import com.urunkarpm.pingpin.data.local.entity.AttendanceRecordEntity
 import com.urunkarpm.pingpin.service.AppInstallManager
-import com.urunkarpm.pingpin.service.PdfExportService
 import com.urunkarpm.pingpin.service.WorkingDays
 import com.urunkarpm.pingpin.ui.components.GlassCard
 import com.urunkarpm.pingpin.ui.components.ProgressRadialRing
@@ -44,22 +39,17 @@ import java.util.Locale
 
 @Composable
 fun InsightsScreen(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: InsightsViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    val db = remember { AppDatabase.getInstance(context) }
-    val officeConfigRepo = remember { OfficeConfigRepository(db.officeConfigDao()) }
-    val attendanceRepo = remember { AttendanceRepository(db.attendanceRecordDao()) }
-    val profileRepo = remember { UserProfileRepository(db.userProfileDao()) }
+    val selectedYear by viewModel.selectedYear.collectAsState()
+    val selectedMonth by viewModel.selectedMonth.collectAsState()
 
-    var selectedYear by remember { mutableStateOf(Calendar.getInstance().get(Calendar.YEAR)) }
-    var selectedMonth by remember { mutableStateOf(Calendar.getInstance().get(Calendar.MONTH) + 1) }
-
-    val configState by officeConfigRepo.configFlow.collectAsState(initial = null)
-    val profileState by profileRepo.profileFlow.collectAsState(initial = null)
-    val monthlyRecords by attendanceRepo.watchForMonth(selectedYear, selectedMonth).collectAsState(initial = emptyList())
+    val configState by viewModel.configState.collectAsState()
+    val monthlyRecords by viewModel.monthlyRecords.collectAsState()
 
     val workingDaysMask = configState?.workingDaysMask ?: 31
     val wfoDaysMask = configState?.wfoDaysMask ?: 31
@@ -103,18 +93,17 @@ fun InsightsScreen(
         val currentMonth = todayCal.get(Calendar.MONTH) + 1
         val currentDay = todayCal.get(Calendar.DAY_OF_MONTH)
 
-        val recordsMap = monthlyRecords
-            .filter { it.dateYyyyMmDd >= installDateStr }
-            .associateBy { it.dateYyyyMmDd }
+        val recordsMap = monthlyRecords.associateBy { it.dateYyyyMmDd }
 
         var attendedWfoCount = 0
 
         for (day in 1..maxDays) {
+            val dateStr = String.format(Locale.US, "%04d-%02d-%02d", selectedYear, selectedMonth, day)
             val c = Calendar.getInstance().apply {
                 set(selectedYear, selectedMonth - 1, day, 0, 0, 0)
                 set(Calendar.MILLISECOND, 0)
             }
-            if (c.before(installCal)) {
+            if (c.before(installCal) && !recordsMap.containsKey(dateStr)) {
                 continue
             }
 
@@ -139,7 +128,6 @@ fun InsightsScreen(
                 if (isPastOrToday) {
                     wfoElapsed++
                 }
-                val dateStr = String.format(Locale.US, "%04d-%02d-%02d", selectedYear, selectedMonth, day)
                 if (recordsMap.containsKey(dateStr)) {
                     attendedWfoCount++
                 }
@@ -170,10 +158,7 @@ fun InsightsScreen(
         upcomingWfoDays
     ) = metrics
 
-    val validRecords = remember(monthlyRecords, installDateStr) {
-        monthlyRecords.filter { it.dateYyyyMmDd >= installDateStr }
-    }
-    val attendedTotalDays = validRecords.size
+    val attendedTotalDays = monthlyRecords.size
 
     val wfoCompliancePct = if (wfoTargetDaysElapsed > 0) {
         (attendedWfoDays.toFloat() / wfoTargetDaysElapsed * 100f).coerceAtMost(100f)
@@ -183,25 +168,25 @@ fun InsightsScreen(
         (attendedTotalDays.toFloat() / workingDaysElapsed * 100f).coerceAtMost(100f)
     } else 0f
 
-    val (onTimeCount, lateCount, punctualityPct) = remember(validRecords) {
+    val (onTimeCount, lateCount, punctualityPct) = remember(monthlyRecords) {
         var onTime = 0
         var late = 0
-        for (r in validRecords) {
+        for (r in monthlyRecords) {
             if (r.status.equals("late", ignoreCase = true)) {
                 late++
             } else {
                 onTime++
             }
         }
-        val pct = if (validRecords.isNotEmpty()) (onTime.toFloat() / validRecords.size * 100f) else 100f
+        val pct = if (monthlyRecords.isNotEmpty()) (onTime.toFloat() / monthlyRecords.size * 100f) else 100f
         Triple(onTime, late, pct)
     }
 
-    val avgCheckInTimeStr = remember(validRecords) {
-        if (validRecords.isEmpty()) {
+    val avgCheckInTimeStr = remember(monthlyRecords) {
+        if (monthlyRecords.isEmpty()) {
             "--:--"
         } else {
-            val totalMinutes = validRecords.map { record ->
+            val totalMinutes = monthlyRecords.map { record ->
                 val cal = Calendar.getInstance().apply { timeInMillis = record.markedAt }
                 cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
             }.average().toInt()
@@ -220,6 +205,9 @@ fun InsightsScreen(
         }
         monthEnd.before(installCal)
     }
+
+    val windowSizeInfo = com.urunkarpm.pingpin.ui.theme.rememberWindowSizeInfo()
+    val isWideOrLandscape = windowSizeInfo.useNavRail || windowSizeInfo.isMediumWidth || windowSizeInfo.isExpandedWidth
 
     Column(
         modifier = modifier
@@ -261,14 +249,7 @@ fun InsightsScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 IconButton(
-                    onClick = {
-                        if (selectedMonth == 1) {
-                            selectedMonth = 12
-                            selectedYear -= 1
-                        } else {
-                            selectedMonth -= 1
-                        }
-                    }
+                    onClick = { viewModel.previousMonth() }
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
@@ -294,14 +275,7 @@ fun InsightsScreen(
                 }
 
                 IconButton(
-                    onClick = {
-                        if (selectedMonth == 12) {
-                            selectedMonth = 1
-                            selectedYear += 1
-                        } else {
-                            selectedMonth += 1
-                        }
-                    }
+                    onClick = { viewModel.nextMonth() }
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
@@ -332,7 +306,246 @@ fun InsightsScreen(
                     )
                 }
             }
+        } else if (isWideOrLandscape) {
+            // 2-Column Responsive Layout for Wide/Landscape Screens
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(18.dp)
+            ) {
+                // Left Column: WFO Compliance & Core Metrics
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(18.dp)
+                ) {
+                    // WFO Compliance Hero Gauge Card
+                    GlassCard(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = "WFO TARGET COMPLIANCE",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            letterSpacing = 0.8.sp
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "${String.format(Locale.US, "%.1f", wfoCompliancePct)}%",
+                                        fontSize = 36.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        letterSpacing = (-1.2).sp
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "$attendedWfoDays of $wfoTargetDaysElapsed required WFO days attended ($wfoTargetDaysTotal target of $workingDaysTotal working days)",
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+
+                                ProgressRadialRing(
+                                    percentage = wfoCompliancePct,
+                                    size = 88.dp,
+                                    color = if (wfoCompliancePct >= 90f) EmeraldGreen else MaterialTheme.colorScheme.primary
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            // Linear Target Progress Bar
+                            val targetRatio = if (wfoTargetDaysTotal > 0) (attendedWfoDays.toFloat() / wfoTargetDaysTotal).coerceIn(0f, 1f) else 0f
+                            Column {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = "Monthly Goal Progress",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        text = "$attendedWfoDays / $wfoTargetDaysTotal Target Days",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                LinearProgressIndicator(
+                                    progress = { targetRatio },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(8.dp)
+                                        .clip(RoundedCornerShape(4.dp)),
+                                    color = EmeraldGreen,
+                                    trackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                                )
+                            }
+                        }
+                    }
+
+                    // 4-Grid Core Metrics
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        MetricCard(
+                            modifier = Modifier.weight(1f),
+                            title = "WFO Attended",
+                            value = "$attendedWfoDays / $wfoTargetDaysTotal",
+                            subtitle = if (wfoTargetDaysElapsed > 0) "$attendedWfoDays of $wfoTargetDaysElapsed required (${String.format(Locale.US, "%.0f", overallAttendancePct)}% overall)" else "No WFO elapsed",
+                            icon = Icons.Default.Business,
+                            iconColor = EmeraldGreen
+                        )
+
+                        MetricCard(
+                            modifier = Modifier.weight(1f),
+                            title = "Punctuality",
+                            value = "${String.format(Locale.US, "%.0f", punctualityPct)}%",
+                            subtitle = "$onTimeCount on-time • $lateCount late",
+                            icon = Icons.Default.AccessTime,
+                            iconColor = if (punctualityPct >= 80f) EmeraldGreen else Color(0xFFF59E0B)
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        MetricCard(
+                            modifier = Modifier.weight(1f),
+                            title = "Avg Check-In",
+                            value = avgCheckInTimeStr,
+                            subtitle = if (attendedTotalDays > 0) "Across $attendedTotalDays days" else "No check-ins logged",
+                            icon = Icons.Default.Schedule,
+                            iconColor = MaterialTheme.colorScheme.primary
+                        )
+
+                        MetricCard(
+                            modifier = Modifier.weight(1f),
+                            title = "Missed WFO",
+                            value = "$missedWfoDays Days",
+                            subtitle = if (upcomingWfoDays > 0) "$upcomingWfoDays upcoming targets" else "Month targets complete",
+                            icon = Icons.Default.Warning,
+                            iconColor = if (missedWfoDays == 0) EmeraldGreen else Color(0xFFEF4444)
+                        )
+                    }
+
+                    // Smart Insights Recommendation Banner
+                    GlassCard(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Lightbulb,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "SMART INSIGHT",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    letterSpacing = 0.6.sp
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = when {
+                                        wfoTargetDaysElapsed == 0 && wfoTargetDaysTotal > 0 -> "Upcoming month with $wfoTargetDaysTotal WFO target days scheduled."
+                                        wfoCompliancePct >= 100f -> "Outstanding performance! You have met 100% of your required WFO days so far."
+                                        wfoCompliancePct >= 75f -> "Good work! You are on track with ${String.format(Locale.US, "%.0f", wfoCompliancePct)}% WFO compliance."
+                                        missedWfoDays > 0 -> "Attention: You have $missedWfoDays missed WFO day(s). Make sure to visit office on upcoming WFO days."
+                                        else -> "Keep logged in to maintain accurate attendance records!"
+                                    },
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Right Column: Weekday Distribution, Attendance Log & PDF Export
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(18.dp)
+                ) {
+                    WeekdayDistributionCard(
+                        year = selectedYear,
+                        month = selectedMonth,
+                        maxDays = maxDays,
+                        workingDaysMask = workingDaysMask,
+                        wfoDaysMask = wfoDaysMask,
+                        records = monthlyRecords,
+                        installCal = installCal
+                    )
+
+                    AttendanceLogSummaryCard(records = monthlyRecords)
+
+                    Button(
+                        onClick = {
+                            scope.launch {
+                                try {
+                                    val file = viewModel.generatePdfStatement()
+                                    val uri: Uri = FileProvider.getUriForFile(
+                                        context,
+                                        "${context.packageName}.fileprovider",
+                                        file
+                                    )
+
+                                    val intent = Intent(Intent.ACTION_VIEW).apply {
+                                        setDataAndType(uri, "application/pdf")
+                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                    context.startActivity(Intent.createChooser(intent, "Open Attendance Statement PDF"))
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "PDF Export error: ${e.message}", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Icon(imageVector = Icons.Default.PictureAsPdf, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Export Monthly PDF Statement",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
         } else {
+            // Single Column Stack for Compact Portrait
             // WFO Compliance Hero Gauge Card
             GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.fillMaxWidth()) {
@@ -510,61 +723,51 @@ fun InsightsScreen(
                 maxDays = maxDays,
                 workingDaysMask = workingDaysMask,
                 wfoDaysMask = wfoDaysMask,
-                records = validRecords,
+                records = monthlyRecords,
                 installCal = installCal
             )
 
             // Monthly Attendance Log Summary Card
-            AttendanceLogSummaryCard(records = validRecords)
-        }
+            AttendanceLogSummaryCard(records = monthlyRecords)
 
-        // Export PDF Button
-        Button(
-            onClick = {
-                scope.launch {
-                    try {
-                        val pdfService = PdfExportService(context)
-                        val profile = profileState ?: UserProfileEntity(fullName = "PingPin User", designation = "Team Member")
-                        val file = pdfService.generateAttendancePdf(
-                            year = selectedYear,
-                            month = selectedMonth,
-                            profile = profile,
-                            records = monthlyRecords,
-                            workingDaysMask = workingDaysMask,
-                            wfoDaysMask = wfoDaysMask
-                        )
+            // Export PDF Button
+            Button(
+                onClick = {
+                    scope.launch {
+                        try {
+                            val file = viewModel.generatePdfStatement()
+                            val uri: Uri = FileProvider.getUriForFile(
+                                context,
+                                "${context.packageName}.fileprovider",
+                                file
+                            )
 
-                        val uri: Uri = FileProvider.getUriForFile(
-                            context,
-                            "${context.packageName}.fileprovider",
-                            file
-                        )
-
-                        val intent = Intent(Intent.ACTION_VIEW).apply {
-                            setDataAndType(uri, "application/pdf")
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+                            val intent = Intent(Intent.ACTION_VIEW).apply {
+                                setDataAndType(uri, "application/pdf")
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            context.startActivity(Intent.createChooser(intent, "Open Attendance Statement PDF"))
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "PDF Export error: ${e.message}", Toast.LENGTH_SHORT).show()
                         }
-                        context.startActivity(Intent.createChooser(intent, "Open Attendance Statement PDF"))
-                    } catch (e: Exception) {
-                        Toast.makeText(context, "PDF Export error: ${e.message}", Toast.LENGTH_SHORT).show()
                     }
-                }
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp),
-            shape = RoundedCornerShape(14.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary
-            )
-        ) {
-            Icon(imageVector = Icons.Default.PictureAsPdf, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "Export Monthly PDF Statement",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold
-            )
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                )
+            ) {
+                Icon(imageVector = Icons.Default.PictureAsPdf, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Export Monthly PDF Statement",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
     }
 }
@@ -634,7 +837,7 @@ private fun WeekdayDistributionCard(
     maxDays: Int,
     workingDaysMask: Int,
     wfoDaysMask: Int,
-    records: List<com.urunkarpm.pingpin.data.local.entity.AttendanceRecordEntity>,
+    records: List<AttendanceRecordEntity>,
     installCal: Calendar
 ) {
     val dayNames = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
@@ -740,7 +943,7 @@ private fun WeekdayDistributionCard(
 
 @Composable
 private fun AttendanceLogSummaryCard(
-    records: List<com.urunkarpm.pingpin.data.local.entity.AttendanceRecordEntity>
+    records: List<AttendanceRecordEntity>
 ) {
     val sortedRecords = remember(records) {
         records.sortedByDescending { it.dateYyyyMmDd }

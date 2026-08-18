@@ -77,9 +77,15 @@
             android:theme="@style/Theme.PingPin.Alarm"
             android:turnScreenOn="true" />
 
+        <activity
+            android:name=".ui.portal.PortalActivity"
+            android:exported="false"
+            android:theme="@style/Theme.PingPin"
+            android:windowSoftInputMode="adjustResize" />
+
         <receiver
             android:name=".receiver.AlarmReceiver"
-            android:exported="true" />
+            android:exported="false" />
 
         <receiver
             android:name=".receiver.NotificationActionReceiver"

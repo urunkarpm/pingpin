@@ -45,7 +45,6 @@ class PdfExportService(private val context: Context) {
         val softRed = Color.parseColor("#DC2626")
 
         val installCal = AppInstallManager.getInstallDateCalendar(context)
-        val installDateStr = AppInstallManager.getInstallDateYyyyMmDd(context)
 
         // Calculations
         val calendar = Calendar.getInstance()
@@ -53,17 +52,19 @@ class PdfExportService(private val context: Context) {
         calendar.set(Calendar.MONTH, month - 1)
         val maxDays = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
 
+        val recordsMap = records.associateBy { it.dateYyyyMmDd }
+
         val wfoDays = mutableListOf<Calendar>()
         for (day in 1..maxDays) {
             val cal = Calendar.getInstance()
             cal.set(year, month - 1, day, 0, 0, 0)
             cal.set(Calendar.MILLISECOND, 0)
-            if (!cal.before(installCal) && WorkingDays.isWorkingDay(cal, workingDaysMask) && WorkingDays.isWfoDay(cal, wfoDaysMask)) {
+            val isoDate = String.format(Locale.US, "%04d-%02d-%02d", year, month, day)
+            if ((!cal.before(installCal) || recordsMap.containsKey(isoDate)) && WorkingDays.isWorkingDay(cal, workingDaysMask) && WorkingDays.isWfoDay(cal, wfoDaysMask)) {
                 wfoDays.add(cal)
             }
         }
 
-        val recordsMap = records.filter { it.dateYyyyMmDd >= installDateStr }.associateBy { it.dateYyyyMmDd }
         val totalOfficeDays = recordsMap.size
 
         val todayCal = Calendar.getInstance()
@@ -72,7 +73,7 @@ class PdfExportService(private val context: Context) {
         todayCal.set(Calendar.SECOND, 0)
         todayCal.set(Calendar.MILLISECOND, 0)
 
-        val evaluatedWfoDays = wfoDays.filter { !it.after(todayCal) && !it.before(installCal) }
+        val evaluatedWfoDays = wfoDays.filter { !it.after(todayCal) }
         val evaluatedCount = evaluatedWfoDays.size
         val pct = if (evaluatedCount > 0) (totalOfficeDays.toDouble() / evaluatedCount * 100) else 0.0
         val attendancePctStr = String.format(Locale.US, "%.1f", pct)

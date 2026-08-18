@@ -44,11 +44,10 @@ fun WfoDaysSelector(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "WFO DAYS (WORK FROM OFFICE)",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = EmeraldGreen,
-                letterSpacing = 0.8.sp
+                text = "WFO Days (Work from Office)",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             Surface(

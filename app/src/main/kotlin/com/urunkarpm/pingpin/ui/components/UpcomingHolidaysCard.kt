@@ -351,14 +351,23 @@ fun FullHolidayCalendarBottomSheet(
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val todayYyyyMmDd = remember {
+        SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+    }
+    var showUpcomingOnly by remember { mutableStateOf(true) }
     var selectedCategoryFilter by remember { mutableStateOf<HolidayCategory?>(null) }
     var onlyLongWeekendsFilter by remember { mutableStateOf(false) }
 
-    val filteredHolidays = remember(allHolidays, selectedCategoryFilter, onlyLongWeekendsFilter) {
+    val upcomingCount = remember(allHolidays, todayYyyyMmDd) {
+        allHolidays.count { it.dateYyyyMmDd >= todayYyyyMmDd }
+    }
+
+    val filteredHolidays = remember(allHolidays, selectedCategoryFilter, onlyLongWeekendsFilter, showUpcomingOnly, todayYyyyMmDd) {
         allHolidays.filter { holiday ->
+            val matchesDate = !showUpcomingOnly || holiday.dateYyyyMmDd >= todayYyyyMmDd
             val matchesCategory = selectedCategoryFilter == null || holiday.category == selectedCategoryFilter
             val matchesLongWeekend = !onlyLongWeekendsFilter || holiday.isLongWeekend
-            matchesCategory && matchesLongWeekend
+            matchesDate && matchesCategory && matchesLongWeekend
         }
     }
 
@@ -407,7 +416,7 @@ fun FullHolidayCalendarBottomSheet(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "Official Gazetted, National & Regional Holidays",
+                            text = if (showUpcomingOnly) "Showing holidays from present day onwards" else "Official Gazetted, National & Regional Holidays",
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -429,12 +438,21 @@ fun FullHolidayCalendarBottomSheet(
             ) {
                 item {
                     FilterChip(
-                        selected = selectedCategoryFilter == null && !onlyLongWeekendsFilter,
-                        onClick = {
-                            selectedCategoryFilter = null
-                            onlyLongWeekendsFilter = false
-                        },
-                        label = { Text("All (${allHolidays.size})", fontSize = 12.sp) }
+                        selected = showUpcomingOnly,
+                        onClick = { showUpcomingOnly = true },
+                        label = { Text("Upcoming ($upcomingCount)", fontSize = 12.sp) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = EmeraldGreen.copy(alpha = 0.2f),
+                            selectedLabelColor = EmeraldGreen
+                        )
+                    )
+                }
+
+                item {
+                    FilterChip(
+                        selected = !showUpcomingOnly,
+                        onClick = { showUpcomingOnly = false },
+                        label = { Text("All 2026 (${allHolidays.size})", fontSize = 12.sp) }
                     )
                 }
 
@@ -444,7 +462,12 @@ fun FullHolidayCalendarBottomSheet(
                         onClick = {
                             onlyLongWeekendsFilter = !onlyLongWeekendsFilter
                         },
-                        label = { Text("Long Weekends (${allHolidays.count { it.isLongWeekend }})", fontSize = 12.sp) },
+                        label = {
+                            val longWeekendCount = allHolidays.count {
+                                (if (showUpcomingOnly) it.dateYyyyMmDd >= todayYyyyMmDd else true) && it.isLongWeekend
+                            }
+                            Text("Long Weekends ($longWeekendCount)", fontSize = 12.sp)
+                        },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = AmberOrange.copy(alpha = 0.2f),
                             selectedLabelColor = AmberOrange
@@ -466,13 +489,42 @@ fun FullHolidayCalendarBottomSheet(
             Spacer(modifier = Modifier.height(12.dp))
 
             // Holidays List
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-                contentPadding = PaddingValues(bottom = 24.dp)
-            ) {
-                items(filteredHolidays) { holiday ->
-                    FullHolidayCardItem(holiday = holiday)
+            if (filteredHolidays.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 24.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        .padding(20.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = if (showUpcomingOnly) "No remaining upcoming holidays for 2026." else "No holidays found matching filters.",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (showUpcomingOnly) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            TextButton(onClick = { showUpcomingOnly = false }) {
+                                Text("View All 2026 Holidays", fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
+                            }
+                        }
+                    }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(bottom = 24.dp)
+                ) {
+                    items(filteredHolidays) { holiday ->
+                        FullHolidayCardItem(holiday = holiday, todayYyyyMmDd = todayYyyyMmDd)
+                    }
                 }
             }
         }
@@ -480,8 +532,14 @@ fun FullHolidayCalendarBottomSheet(
 }
 
 @Composable
-private fun FullHolidayCardItem(holiday: IndianHoliday) {
+private fun FullHolidayCardItem(
+    holiday: IndianHoliday,
+    todayYyyyMmDd: String
+) {
     val isDark = MaterialTheme.colorScheme.background.red < 0.5f
+    val daysRemaining = remember(holiday.dateYyyyMmDd, todayYyyyMmDd) {
+        parseDaysDifference(todayYyyyMmDd, holiday.dateYyyyMmDd)
+    }
 
     Surface(
         shape = RoundedCornerShape(14.dp),
@@ -533,17 +591,47 @@ private fun FullHolidayCardItem(holiday: IndianHoliday) {
                     }
                 }
 
-                Surface(
-                    shape = RoundedCornerShape(6.dp),
-                    color = holiday.category.badgeBgColorLight
-                ) {
-                    Text(
-                        text = holiday.category.label,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = holiday.category.badgeColor,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
-                    )
+                Column(horizontalAlignment = Alignment.End) {
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = holiday.category.badgeBgColorLight
+                    ) {
+                        Text(
+                            text = holiday.category.label,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = holiday.category.badgeColor,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = when {
+                            daysRemaining < 0 -> MaterialTheme.colorScheme.surfaceVariant
+                            daysRemaining in 0..1 -> CrimsonRed.copy(alpha = 0.15f)
+                            else -> ElectricBlue.copy(alpha = 0.12f)
+                        }
+                    ) {
+                        Text(
+                            text = when {
+                                daysRemaining == 0 -> "Today!"
+                                daysRemaining == 1 -> "Tomorrow!"
+                                daysRemaining > 1 -> "In $daysRemaining days"
+                                else -> "Past"
+                            },
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = when {
+                                daysRemaining < 0 -> MaterialTheme.colorScheme.onSurfaceVariant
+                                daysRemaining in 0..1 -> CrimsonRed
+                                else -> ElectricBlue
+                            },
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                        )
+                    }
                 }
             }
 
@@ -575,3 +663,13 @@ private fun FullHolidayCardItem(holiday: IndianHoliday) {
         }
     }
 }
+
+private fun parseDaysDifference(fromDateStr: String, toDateStr: String): Int {
+    return try {
+        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+        val fromDate = sdf.parse(fromDateStr) ?: return 0
+        val toDate = sdf.parse(toDateStr) ?: return 0
+        ((toDate.time - fromDate.time) / (1000 * 60 * 60 * 24)).toInt()
+    } catch (_: Exception) { 0 }
+}
+

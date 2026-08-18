@@ -42,6 +42,7 @@ fun ExpandableWeeklyCalendarCard(
     records: List<AttendanceRecordEntity>,
     workingDaysMask: Int,
     wfoDaysMask: Int = 31,
+    acceptedMakeupDates: Set<String> = emptySet(),
     onDayClick: ((dayNum: Int, dateYyyyMmDd: String) -> Unit)? = null,
     onDayLongClick: ((dayNum: Int, dateYyyyMmDd: String) -> Unit)? = null,
     modifier: Modifier = Modifier
@@ -96,7 +97,7 @@ fun ExpandableWeeklyCalendarCard(
         }
     }
 
-    val weekDays = remember(records, workingDaysMask, wfoDaysMask, currentWeekStartCal) {
+    val weekDays = remember(records, workingDaysMask, wfoDaysMask, acceptedMakeupDates, currentWeekStartCal) {
         val list = mutableListOf<WeekDayData>()
         val tempCal = currentWeekStartCal.clone() as Calendar
         val attendedSet = records.map { it.dateYyyyMmDd }.toSet()
@@ -119,12 +120,13 @@ fun ExpandableWeeklyCalendarCard(
                 else -> "Sun"
             }
             val dayNum = tempCal.get(Calendar.DAY_OF_MONTH)
+            val isAttended = attendedSet.contains(dateStr)
+            val isBeforeInstall = tempCal.before(installCal) && !isAttended
             val isToday = tempCal.timeInMillis == todayCal.timeInMillis
             val isFuture = tempCal.after(todayCal)
-            val isBeforeInstall = tempCal.before(installCal)
             val isWorking = WorkingDays.isWorkingDay(tempCal, workingDaysMask)
-            val isWfo = WorkingDays.isWfoDay(tempCal, wfoDaysMask)
-            val isAttended = attendedSet.contains(dateStr)
+            val isMakeupWfo = acceptedMakeupDates.contains(dateStr)
+            val isWfo = WorkingDays.isWfoDay(tempCal, wfoDaysMask) || isMakeupWfo
 
             list.add(
                 WeekDayData(
@@ -136,7 +138,8 @@ fun ExpandableWeeklyCalendarCard(
                     isBeforeInstall = isBeforeInstall,
                     isWorking = isWorking,
                     isWfo = isWfo,
-                    isAttended = isAttended
+                    isAttended = isAttended,
+                    isMakeupWfo = isMakeupWfo
                 )
             )
             tempCal.add(Calendar.DAY_OF_YEAR, 1)
@@ -382,6 +385,7 @@ fun ExpandableWeeklyCalendarCard(
                             records = records,
                             workingDaysMask = workingDaysMask,
                             wfoDaysMask = wfoDaysMask,
+                            acceptedMakeupDates = acceptedMakeupDates,
                             onPreviousMonth = {
                                 if (selectedMonth == 1) {
                                     selectedMonth = 12
@@ -449,7 +453,8 @@ private data class WeekDayData(
     val isBeforeInstall: Boolean,
     val isWorking: Boolean,
     val isWfo: Boolean,
-    val isAttended: Boolean
+    val isAttended: Boolean,
+    val isMakeupWfo: Boolean = false
 )
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -466,27 +471,30 @@ private fun WeeklyDayItem(
         data.isAttended -> if (isDark) EmeraldGreenBgDark else EmeraldGreenBgLight
         data.isBeforeInstall -> Color.Transparent
         !data.isWorking -> Color.Transparent
-        !data.isWfo -> MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.25f)
-        data.isFuture -> MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.35f)
+        data.isMakeupWfo -> if (isDark) AmberOrangeBgDark.copy(alpha = 0.5f) else AmberOrangeBgLight
+        !data.isWfo -> MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.15f)
+        data.isFuture -> if (isDark) TealAccentBgDark.copy(alpha = 0.45f) else TealAccentBgLight.copy(alpha = 0.7f)
         else -> if (isDark) CrimsonRedBgDark else CrimsonRedBgLight
     }
 
     val textColor = when {
         data.isToday -> ElectricBlue
         data.isAttended -> if (isDark) Color(0xFF6EE7B7) else Color(0xFF047857)
+        data.isMakeupWfo && !data.isAttended -> if (isDark) Color(0xFFFDE68A) else Color(0xFFB45309)
         data.isBeforeInstall -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
         !data.isWorking -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
-        !data.isWfo -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-        data.isFuture -> MaterialTheme.colorScheme.onSurfaceVariant
+        !data.isWfo -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+        data.isFuture -> if (isDark) Color(0xFF5EEAD4) else Color(0xFF0F766E)
         else -> if (isDark) Color(0xFFFCA5A5) else Color(0xFFB91C1C)
     }
 
     val statusDotColor = when {
         data.isAttended -> EmeraldGreen
+        data.isMakeupWfo && !data.isAttended -> AmberOrange
         data.isBeforeInstall -> Color.Transparent
         !data.isWorking -> Color.Transparent
         !data.isWfo -> Color.Transparent
-        data.isFuture -> Color.Transparent
+        data.isFuture -> TealAccent
         else -> CrimsonRed
     }
 
@@ -521,6 +529,18 @@ private fun WeeklyDayItem(
                     color = ElectricBlue,
                     shape = CircleShape
                 )
+            } else if (data.isMakeupWfo && !data.isAttended) {
+                circleModifier = circleModifier.border(
+                    width = 1.5.dp,
+                    color = AmberOrange,
+                    shape = CircleShape
+                )
+            } else if (data.isWfo && data.isWorking && !data.isAttended && data.isFuture && !data.isBeforeInstall) {
+                circleModifier = circleModifier.border(
+                    width = 1.2.dp,
+                    color = TealAccent.copy(alpha = 0.6f),
+                    shape = CircleShape
+                )
             } else if (data.isWfo && data.isWorking && !data.isAttended && !data.isFuture && !data.isBeforeInstall) {
                 circleModifier = circleModifier.border(
                     width = 1.dp,
@@ -547,11 +567,11 @@ private fun WeeklyDayItem(
                     Text(
                         text = "${data.dayNum}",
                         fontSize = 13.sp,
-                        fontWeight = if (data.isToday || data.isAttended) FontWeight.ExtraBold else FontWeight.SemiBold,
+                        fontWeight = if (data.isToday || data.isAttended || data.isMakeupWfo || data.isWfo) FontWeight.ExtraBold else FontWeight.SemiBold,
                         color = textColor
                     )
 
-                    if (data.isWorking && !data.isBeforeInstall && (data.isAttended || (!data.isFuture && !data.isToday))) {
+                    if (data.isAttended || (data.isWorking && !data.isBeforeInstall && (data.isMakeupWfo || data.isWfo || (!data.isFuture && !data.isToday)))) {
                         Spacer(modifier = Modifier.height(1.dp))
                         Box(
                             modifier = Modifier

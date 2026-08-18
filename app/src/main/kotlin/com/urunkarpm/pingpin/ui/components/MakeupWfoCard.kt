@@ -85,19 +85,12 @@ fun MakeupWfoCard(
 
                     Spacer(modifier = Modifier.width(10.dp))
 
-                    Column {
-                        Text(
-                            text = if (suggestion.status == "ACCEPTED") "Makeup WFO Scheduled" else "Missed WFO Suggestion",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = if (suggestion.status == "ACCEPTED") "7:00 AM Alarm Active" else "Post 2:00 PM Recommendation",
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                    Text(
+                        text = "Missed WFO Suggestion",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
                 }
 
                 Surface(

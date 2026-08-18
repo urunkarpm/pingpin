@@ -71,7 +71,7 @@ class MakeupWfoManager(
         if (isTodayWfo && currentHour >= 14) {
             // Pre-Alert Check: Try to mark attendance if connected to Office Wi-Fi
             if (officeConfig.ssid.isNotEmpty() && wifiService.isConnectedToSSID(officeConfig.ssid)) {
-                Log.d(TAG, "User connected to office Wi-Fi after 2 PM. Marking attendance...")
+                try { Log.d(TAG, "User connected to office Wi-Fi after 2 PM. Marking attendance...") } catch (_: Throwable) {}
                 val result = attendanceService.checkAndMarkAttendance(
                     officeConfig = officeConfig,
                     attendanceRepo = attendanceRepo,
@@ -80,7 +80,7 @@ class MakeupWfoManager(
                     }
                 )
                 if (result == AttendanceCheckResult.SUCCESS) {
-                    Log.d(TAG, "Attendance marked successfully at 2 PM. Suppressing alert.")
+                    try { Log.d(TAG, "Attendance marked successfully at 2 PM. Suppressing alert.") } catch (_: Throwable) {}
                     return null
                 }
             }

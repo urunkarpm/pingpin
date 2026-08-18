@@ -44,11 +44,10 @@ fun WorkingDaysSelector(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "WORKING DAYS",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = ElectricBlue,
-                letterSpacing = 0.8.sp
+                text = "Working Days",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             Surface(

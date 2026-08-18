@@ -4,6 +4,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
@@ -110,6 +112,7 @@ fun AdvancedTimePickerDialog(
         Surface(
             modifier = Modifier
                 .fillMaxWidth(0.92f)
+                .widthIn(max = 520.dp)
                 .wrapContentHeight()
                 .clip(RoundedCornerShape(28.dp))
                 .border(
@@ -123,6 +126,7 @@ fun AdvancedTimePickerDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)

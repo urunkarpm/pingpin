@@ -37,12 +37,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.urunkarpm.pingpin.data.local.AppDatabase
 import com.urunkarpm.pingpin.data.local.entity.AttendanceRecordEntity
 import com.urunkarpm.pingpin.data.model.WeatherState
-import com.urunkarpm.pingpin.data.repository.AttendanceRepository
-import com.urunkarpm.pingpin.data.repository.MakeupWfoRepository
-import com.urunkarpm.pingpin.data.repository.OfficeConfigRepository
 import com.urunkarpm.pingpin.service.*
 import com.urunkarpm.pingpin.ui.components.ExpandableWeeklyCalendarCard
 import com.urunkarpm.pingpin.ui.components.GlassCard
@@ -59,65 +55,41 @@ import java.util.Locale
 
 @Composable
 fun HomeScreen(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: HomeViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
 
-    val db = remember { AppDatabase.getInstance(context) }
-    val officeConfigRepo = remember { OfficeConfigRepository(db.officeConfigDao()) }
-    val attendanceRepo = remember { AttendanceRepository(db.attendanceRecordDao()) }
-    val makeupRepo = remember { MakeupWfoRepository(db.makeupWfoSuggestionDao()) }
+    val configState by viewModel.configState.collectAsState()
+    val recordsState by viewModel.recordsState.collectAsState()
+    val activeSuggestionState by viewModel.activeSuggestionState.collectAsState()
+    val weatherState by viewModel.weatherState.collectAsState()
+    val isRefreshingWeather by viewModel.isRefreshingWeather.collectAsState()
 
-    val configState by officeConfigRepo.configFlow.collectAsState(initial = null)
-    val recordsState by attendanceRepo.watchAll().collectAsState(initial = emptyList())
-    val activeSuggestionState by makeupRepo.activeSuggestionFlow.collectAsState(initial = null)
+    val acceptedMakeupDates by viewModel.acceptedMakeupDatesState.collectAsState()
 
-    val wifiService = remember { WifiService(context) }
-    val attendanceService = remember { AttendanceService(context, wifiService) }
-    val bleScanner = remember { BleLaptopScannerService(context) }
-    val weatherService = remember { WeatherService(context) }
-    val holidayService = remember { IndianHolidayService() }
-    val upcomingHolidays = remember { holidayService.getUpcomingHolidays() }
-    val allIndianHolidays = remember { holidayService.getAllHolidays() }
-    val notifService = remember { NotificationService(context) }
-    val makeupManager = remember { MakeupWfoManager(context, makeupRepo, attendanceRepo, wifiService, attendanceService, holidayService) }
-    var hasExactAlarmPerm by remember { mutableStateOf(notifService.canScheduleExactAlarms()) }
+    val bleResult by viewModel.bleResult.collectAsState()
+    val isBleScanning by viewModel.isBleScanning.collectAsState()
+    val scanErrorMessage by viewModel.scanErrorMessage.collectAsState()
 
-    var weatherState by remember { mutableStateOf(WeatherState()) }
-    var isRefreshingWeather by remember { mutableStateOf(false) }
-
-    LaunchedEffect(Unit) {
-        try {
-            isRefreshingWeather = true
-            weatherState = weatherService.fetchWeatherAndTravelInsights()
-        } catch (e: Exception) {
-            android.util.Log.e("HomeScreen", "Error fetching weather", e)
-        } finally {
-            isRefreshingWeather = false
+    LaunchedEffect(scanErrorMessage) {
+        scanErrorMessage?.let { msg ->
+            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+            viewModel.clearScanError()
         }
     }
 
-    LaunchedEffect(configState, recordsState) {
-        val config = configState ?: return@LaunchedEffect
-        try {
-            makeupManager.evaluateAndSuggestMakeup(
-                officeConfig = config,
-                onAttendanceAutoMarked = {
-                    notifService.showAttendanceSuccessNotification()
-                }
-            )
-        } catch (e: Exception) {
-            android.util.Log.e("HomeScreen", "Error evaluating makeup WFO", e)
-        }
-    }
+    val upcomingHolidays = viewModel.upcomingHolidays
+    val allIndianHolidays = viewModel.allIndianHolidays
+
+    var hasExactAlarmPerm by remember { mutableStateOf(viewModel.notifService.canScheduleExactAlarms()) }
 
     val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
-                hasExactAlarmPerm = notifService.canScheduleExactAlarms()
-                notifService.verifyAndRescheduleAlarmsIfNeeded()
+                hasExactAlarmPerm = viewModel.notifService.canScheduleExactAlarms()
+                viewModel.notifService.verifyAndRescheduleAlarmsIfNeeded()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -125,12 +97,6 @@ fun HomeScreen(
             lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
-
-    var currentSsid by remember { mutableStateOf<String?>(null) }
-    var isConnectedToOffice by remember { mutableStateOf(false) }
-    var isAutoChecking by remember { mutableStateOf(false) }
-    var bleResult by remember { mutableStateOf<BleLaptopScanResult?>(null) }
-    var isBleScanning by remember { mutableStateOf(false) }
 
     val todayStr = remember { AttendanceService.getCurrentDateYyyyMmDd() }
     val todayRecord = recordsState.find { it.dateYyyyMmDd == todayStr }
@@ -154,175 +120,401 @@ fun HomeScreen(
     var selectedTabIndex by remember { mutableIntStateOf(0) }
 
 
-
-    // Dynamic Wi-Fi Status Check Loop
-    LaunchedEffect(configState) {
-        while (true) {
-            currentSsid = wifiService.getWifiSSID()
-            val officeSSID = configState?.ssid ?: ""
-            isConnectedToOffice = if (officeSSID.isNotEmpty()) {
-                wifiService.isConnectedToSSID(officeSSID)
-            } else {
-                false
-            }
-            kotlinx.coroutines.delay(2000L)
-        }
-    }
-
-    // Automatic Attendance Marking Effect when connected to Office Wi-Fi
-    LaunchedEffect(isConnectedToOffice, todayRecord, configState) {
-        val config = configState ?: return@LaunchedEffect
-        if (isConnectedToOffice && todayRecord == null && !isAutoChecking && config.ssid.isNotEmpty()) {
-            isAutoChecking = true
-            try {
-                val result = attendanceService.checkAndMarkAttendance(
-                    officeConfig = config,
-                    attendanceRepo = attendanceRepo,
-                    onAttendanceMarked = {
-                        NotificationService(context).showAttendanceSuccessNotification()
-                    }
-                )
-                if (result == AttendanceCheckResult.SUCCESS) {
-                    Toast.makeText(context, "Attendance Marked Automatically!", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("HomeScreen", "Auto-marking attendance failed", e)
-            } finally {
-                isAutoChecking = false
-            }
-        }
-    }
-
     val isDark = MaterialTheme.colorScheme.background.red < 0.5f
     var selectedDayForDialog by remember { mutableStateOf<Pair<Int, String>?>(null) }
-    var longPressDateForNote by remember { mutableStateOf<String?>(null) }
-    var noteInputText by remember { mutableStateOf("") }
+
+    val windowSizeInfo = com.urunkarpm.pingpin.ui.theme.rememberWindowSizeInfo()
+    val isWideOrLandscape = windowSizeInfo.useNavRail || windowSizeInfo.isMediumWidth || windowSizeInfo.isExpandedWidth
 
     Box(modifier = modifier.fillMaxSize()) {
-        // Main Scrollable Body Content
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 140.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Expressive App Header
+        if (isWideOrLandscape) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(20.dp),
+                horizontalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                val pinColor = when {
-                    isTodayWfo && isTodayAttended -> EmeraldGreen
-                    isTodayWfo && !isTodayAttended -> CrimsonRed
-                    else -> MaterialTheme.colorScheme.onSurface
-                }
-
-                Text(
-                    text = buildAnnotatedString {
-                        append("Ping")
-                        withStyle(style = SpanStyle(color = pinColor)) {
-                            append("Pin")
-                        }
-                    },
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.Black,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    letterSpacing = (-0.8).sp
-                )
-
-                // Streak Badge
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = if (isDark) AmberOrangeBgDark else AmberOrangeBgLight,
-                    border = androidx.compose.foundation.BorderStroke(
-                        1.dp,
-                        AmberOrange.copy(alpha = 0.3f)
-                    )
+                // Left Column: Header & Feature Hub
+                Column(
+                    modifier = Modifier
+                        .weight(1.1f)
+                        .fillMaxHeight()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    // Expressive App Header
                     Row(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.LocalFireDepartment,
-                            contentDescription = "Streak",
-                            tint = AmberOrange,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
+                        val pinColor = when {
+                            isTodayWfo && isTodayAttended -> EmeraldGreen
+                            isTodayWfo && !isTodayAttended -> CrimsonRed
+                            else -> MaterialTheme.colorScheme.onSurface
+                        }
+
                         Text(
-                            text = "$currentStreak Days",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = AmberOrange
+                            text = buildAnnotatedString {
+                                append("Ping")
+                                withStyle(style = SpanStyle(color = pinColor)) {
+                                    append("Pin")
+                                }
+                            },
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.Black,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            letterSpacing = (-0.8).sp
                         )
+
+                        // Streak Badge
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = if (isDark) AmberOrangeBgDark else AmberOrangeBgLight,
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                AmberOrange.copy(alpha = 0.3f)
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.LocalFireDepartment,
+                                    contentDescription = "Streak",
+                                    tint = AmberOrange,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "$currentStreak Days",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AmberOrange
+                                )
+                            }
+                        }
+                    }
+
+                    // Exact Alarm Permission Alert Banner (Android 12+)
+                    if (!hasExactAlarmPerm && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = AmberOrange.copy(alpha = 0.15f),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, AmberOrange.copy(alpha = 0.4f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Exact Alarm Permission Missing",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = AmberOrange
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = "Clock alarms may be delayed by Android battery optimization. Tap to grant permission.",
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Button(
+                                    onClick = {
+                                        try {
+                                            val intent = android.content.Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+                                                data = android.net.Uri.parse("package:${context.packageName}")
+                                            }
+                                            context.startActivity(intent)
+                                        } catch (e: Exception) {
+                                            e.printStackTrace()
+                                        }
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = AmberOrange),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text("Enable", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                }
+                            }
+                        }
+                    }
+
+                    // Makeup WFO Suggestion Card
+                    activeSuggestionState?.let { suggestion ->
+                        if (suggestion.status == "PENDING") {
+                            MakeupWfoCard(
+                                suggestion = suggestion,
+                                onAccept = {
+                                    viewModel.acceptSuggestion(
+                                        suggestionId = suggestion.id,
+                                        dateStr = suggestion.suggestedDateYyyyMmDd,
+                                        alarmId = suggestion.alarmId,
+                                        portalUrl = configState?.portalUrl ?: ""
+                                    )
+                                    Toast.makeText(
+                                        context,
+                                        "7:00 AM Alarm set for ${MakeupWfoManager.formatReadableDate(suggestion.suggestedDateYyyyMmDd)}",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                },
+                                onDecline = {
+                                    viewModel.declineSuggestion(suggestion.id)
+                                    Toast.makeText(context, "Suggestion dismissed", Toast.LENGTH_SHORT).show()
+                                },
+                                onCancelAlarm = {
+                                    viewModel.cancelSuggestionAlarm(suggestion.id, suggestion.alarmId)
+                                    Toast.makeText(context, "Alarm cancelled", Toast.LENGTH_SHORT).show()
+                                }
+                            )
+                        }
+                    }
+
+                    // Segmented Control Hub Header & Glass Tab Bar
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        color = if (isDark) MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f) else MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.8f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            val tabs = listOf(
+                                Triple("Weather", Icons.Default.WbSunny, 0),
+                                Triple("Holidays", Icons.Default.BeachAccess, 1),
+                                Triple("Radar", Icons.Default.Radar, 2)
+                            )
+
+                            tabs.forEach { (label, icon, index) ->
+                                val isSelected = selectedTabIndex == index
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(
+                                            if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
+                                        )
+                                        .clickable { selectedTabIndex = index }
+                                        .padding(vertical = 10.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = icon,
+                                            contentDescription = label,
+                                            tint = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = label,
+                                            fontSize = 13.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Animated Hub Content Displaying Selected Feature Card
+                    AnimatedContent(
+                        targetState = selectedTabIndex,
+                        transitionSpec = {
+                            fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(180))
+                        },
+                        label = "HubCardTransition"
+                    ) { targetIndex ->
+                        when (targetIndex) {
+                            0 -> {
+                                WeatherTravelCard(
+                                    weatherState = weatherState,
+                                    isRefreshing = isRefreshingWeather,
+                                    onRefresh = {
+                                        viewModel.refreshWeather()
+                                    }
+                                )
+                            }
+                            1 -> {
+                                UpcomingHolidaysCard(
+                                    upcomingHolidays = upcomingHolidays,
+                                    allHolidays = allIndianHolidays
+                                )
+                            }
+                            2 -> {
+                                OfficeOccupancyCard(
+                                    scanResult = bleResult,
+                                    isScanning = isBleScanning,
+                                    onStartScan = {
+                                        viewModel.startBleScan()
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
-            }
 
-            // Exact Alarm Permission Alert Banner (Android 12+)
-            if (!hasExactAlarmPerm && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = AmberOrange.copy(alpha = 0.15f),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, AmberOrange.copy(alpha = 0.4f)),
-                    modifier = Modifier.fillMaxWidth()
+                // Right Column: Calendar Dashboard Card
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                    ExpandableWeeklyCalendarCard(
+                        records = recordsState,
+                        workingDaysMask = configState?.workingDaysMask ?: 31,
+                        wfoDaysMask = configState?.wfoDaysMask ?: 31,
+                        acceptedMakeupDates = acceptedMakeupDates,
+                        onDayClick = { dayNum, dateStr ->
+                            if (dateStr <= todayStr) {
+                                selectedDayForDialog = Pair(dayNum, dateStr)
+                            }
+                        }
+                    )
+                }
+            }
+        } else {
+            // Main Scrollable Body Content for Compact Portrait
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 140.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Expressive App Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val pinColor = when {
+                        isTodayWfo && isTodayAttended -> EmeraldGreen
+                        isTodayWfo && !isTodayAttended -> CrimsonRed
+                        else -> MaterialTheme.colorScheme.onSurface
+                    }
+
+                    Text(
+                        text = buildAnnotatedString {
+                            append("Ping")
+                            withStyle(style = SpanStyle(color = pinColor)) {
+                                append("Pin")
+                            }
+                        },
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        letterSpacing = (-0.8).sp
+                    )
+
+                    // Streak Badge
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = if (isDark) AmberOrangeBgDark else AmberOrangeBgLight,
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            AmberOrange.copy(alpha = 0.3f)
+                        )
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.LocalFireDepartment,
+                                contentDescription = "Streak",
+                                tint = AmberOrange,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Exact Alarm Permission Missing",
-                                fontSize = 14.sp,
+                                text = "$currentStreak Days",
+                                fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = AmberOrange
                             )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "Clock alarms may be delayed by Android battery optimization. Tap to grant permission.",
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Button(
-                            onClick = {
-                                try {
-                                    val intent = android.content.Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
-                                        data = android.net.Uri.parse("package:${context.packageName}")
-                                    }
-                                    context.startActivity(intent)
-                                } catch (e: Exception) {
-                                    e.printStackTrace()
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = AmberOrange),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text("Enable", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
                         }
                     }
                 }
-            }
 
-            // Makeup WFO Suggestion Card (Shows after 2 PM if WFO missed & not on office Wi-Fi)
-            activeSuggestionState?.let { suggestion ->
-                if (suggestion.status == "PENDING" || suggestion.status == "ACCEPTED") {
-                    MakeupWfoCard(
-                        suggestion = suggestion,
-                        onAccept = {
-                            scope.launch {
-                                makeupRepo.updateStatus(suggestion.id, "ACCEPTED")
-                                notifService.scheduleMakeupAlarm(
-                                    targetDateYyyyMmDd = suggestion.suggestedDateYyyyMmDd,
+                // Exact Alarm Permission Alert Banner (Android 12+)
+                if (!hasExactAlarmPerm && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = AmberOrange.copy(alpha = 0.15f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, AmberOrange.copy(alpha = 0.4f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Exact Alarm Permission Missing",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AmberOrange
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Clock alarms may be delayed by Android battery optimization. Tap to grant permission.",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Button(
+                                onClick = {
+                                    try {
+                                        val intent = android.content.Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+                                            data = android.net.Uri.parse("package:${context.packageName}")
+                                        }
+                                        context.startActivity(intent)
+                                    } catch (e: Exception) {
+                                        e.printStackTrace()
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = AmberOrange),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("Enable", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            }
+                        }
+                    }
+                }
+
+                // Makeup WFO Suggestion Card
+                activeSuggestionState?.let { suggestion ->
+                    if (suggestion.status == "PENDING") {
+                        MakeupWfoCard(
+                            suggestion = suggestion,
+                            onAccept = {
+                                viewModel.acceptSuggestion(
+                                    suggestionId = suggestion.id,
+                                    dateStr = suggestion.suggestedDateYyyyMmDd,
                                     alarmId = suggestion.alarmId,
                                     portalUrl = configState?.portalUrl ?: ""
                                 )
@@ -331,165 +523,132 @@ fun HomeScreen(
                                     "7:00 AM Alarm set for ${MakeupWfoManager.formatReadableDate(suggestion.suggestedDateYyyyMmDd)}",
                                     Toast.LENGTH_LONG
                                 ).show()
-                            }
-                        },
-                        onDecline = {
-                            scope.launch {
-                                makeupRepo.updateStatus(suggestion.id, "DECLINED")
+                            },
+                            onDecline = {
+                                viewModel.declineSuggestion(suggestion.id)
                                 Toast.makeText(context, "Suggestion dismissed", Toast.LENGTH_SHORT).show()
-                            }
-                        },
-                        onCancelAlarm = {
-                            scope.launch {
-                                notifService.cancelAlarm(suggestion.alarmId)
-                                makeupRepo.updateStatus(suggestion.id, "DECLINED")
+                            },
+                            onCancelAlarm = {
+                                viewModel.cancelSuggestionAlarm(suggestion.id, suggestion.alarmId)
                                 Toast.makeText(context, "Alarm cancelled", Toast.LENGTH_SHORT).show()
                             }
-                        }
-                    )
+                        )
+                    }
                 }
-            }
 
-            // Segmented Control Hub Header & Glass Tab Bar
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                color = if (isDark) MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f) else MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.8f),
-                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                // Segmented Control Hub Header & Glass Tab Bar
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    color = if (isDark) MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f) else MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.8f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                 ) {
-                    val tabs = listOf(
-                        Triple("Weather", Icons.Default.WbSunny, 0),
-                        Triple("Holidays", Icons.Default.BeachAccess, 1),
-                        Triple("Radar", Icons.Default.Radar, 2)
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        val tabs = listOf(
+                            Triple("Weather", Icons.Default.WbSunny, 0),
+                            Triple("Holidays", Icons.Default.BeachAccess, 1),
+                            Triple("Radar", Icons.Default.Radar, 2)
+                        )
 
-                    tabs.forEach { (label, icon, index) ->
-                        val isSelected = selectedTabIndex == index
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(
-                                    if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
-                                )
-                                .clickable { selectedTabIndex = index }
-                                .padding(vertical = 10.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
+                        tabs.forEach { (label, icon, index) ->
+                            val isSelected = selectedTabIndex == index
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(
+                                        if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
+                                    )
+                                    .clickable { selectedTabIndex = index }
+                                    .padding(vertical = 10.dp),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    imageVector = icon,
-                                    contentDescription = label,
-                                    tint = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = label,
-                                    fontSize = 13.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = icon,
+                                        contentDescription = label,
+                                        tint = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = label,
+                                        fontSize = 13.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
+                        }
+                    }
+                }
+
+                // Animated Hub Content Displaying Selected Feature Card
+                AnimatedContent(
+                    targetState = selectedTabIndex,
+                    transitionSpec = {
+                        fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(180))
+                    },
+                    label = "HubCardTransition"
+                ) { targetIndex ->
+                    when (targetIndex) {
+                        0 -> {
+                            WeatherTravelCard(
+                                weatherState = weatherState,
+                                isRefreshing = isRefreshingWeather,
+                                onRefresh = {
+                                    viewModel.refreshWeather()
+                                }
+                            )
+                        }
+                        1 -> {
+                            UpcomingHolidaysCard(
+                                upcomingHolidays = upcomingHolidays,
+                                allHolidays = allIndianHolidays
+                            )
+                        }
+                        2 -> {
+                            OfficeOccupancyCard(
+                                scanResult = bleResult,
+                                isScanning = isBleScanning,
+                                onStartScan = {
+                                    viewModel.startBleScan()
+                                }
+                            )
                         }
                     }
                 }
             }
 
-            // Animated Hub Content Displaying Selected Feature Card
-            AnimatedContent(
-                targetState = selectedTabIndex,
-                transitionSpec = {
-                    fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(180))
-                },
-                label = "HubCardTransition"
-            ) { targetIndex ->
-                when (targetIndex) {
-                    0 -> {
-                        // Weather & Travel Insights Radar Card
-                        WeatherTravelCard(
-                            weatherState = weatherState,
-                            isRefreshing = isRefreshingWeather,
-                            onRefresh = {
-                                scope.launch {
-                                    try {
-                                        isRefreshingWeather = true
-                                        weatherState = weatherService.fetchWeatherAndTravelInsights()
-                                        Toast.makeText(context, "Weather Insights Updated", Toast.LENGTH_SHORT).show()
-                                    } catch (e: Exception) {
-                                        Toast.makeText(context, "Failed to refresh weather", Toast.LENGTH_SHORT).show()
-                                    } finally {
-                                        isRefreshingWeather = false
-                                    }
-                                }
-                            }
-                        )
+            // Pinned Bottom Expandable Calendar Card for Compact Portrait
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
+            ) {
+                ExpandableWeeklyCalendarCard(
+                    records = recordsState,
+                    workingDaysMask = configState?.workingDaysMask ?: 31,
+                    wfoDaysMask = configState?.wfoDaysMask ?: 31,
+                    acceptedMakeupDates = acceptedMakeupDates,
+                    onDayClick = { dayNum, dateStr ->
+                        if (dateStr <= todayStr) {
+                            selectedDayForDialog = Pair(dayNum, dateStr)
+                        }
                     }
-                    1 -> {
-                        // Indian Holiday Radar Card (Next 3 Weeks)
-                        UpcomingHolidaysCard(
-                            upcomingHolidays = upcomingHolidays,
-                            allHolidays = allIndianHolidays
-                        )
-                    }
-                    2 -> {
-                        // BLE Office Occupancy Scanner Card
-                        OfficeOccupancyCard(
-                            scanResult = bleResult,
-                            isScanning = isBleScanning,
-                            onStartScan = {
-                                scope.launch {
-                                    try {
-                                        isBleScanning = true
-                                        bleResult = bleScanner.scanForLaptops(5000L)
-                                    } catch (e: Exception) {
-                                        Toast.makeText(context, e.message ?: "BLE Scan error", Toast.LENGTH_SHORT).show()
-                                    } finally {
-                                        isBleScanning = false
-                                    }
-                                }
-                            }
-                        )
-                    }
-                }
+                )
             }
-        }
-
-        // Pinned Bottom Expandable Calendar Card (Week View -> Month View on Swipe Up)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.BottomCenter)
-                .padding(horizontal = 16.dp, vertical = 6.dp)
-        ) {
-            ExpandableWeeklyCalendarCard(
-                records = recordsState,
-                workingDaysMask = configState?.workingDaysMask ?: 31,
-                wfoDaysMask = configState?.wfoDaysMask ?: 31,
-                onDayClick = { dayNum, dateStr ->
-                    if (dateStr <= todayStr) {
-                        selectedDayForDialog = Pair(dayNum, dateStr)
-                    }
-                },
-                onDayLongClick = { _, dateStr ->
-                    longPressDateForNote = dateStr
-                    noteInputText = ""
-                }
-            )
         }
     }
-
-
-
 
     // Interactive WFO Marking Dialog
     selectedDayForDialog?.let { (_, dateStr) ->
@@ -500,6 +659,7 @@ fun HomeScreen(
         val isCurrentlyAttended = recordsState.any { it.dateYyyyMmDd == dateStr }
 
         AlertDialog(
+            modifier = Modifier.widthIn(max = 500.dp),
             onDismissRequest = { selectedDayForDialog = null },
             title = {
                 Text(
@@ -509,7 +669,10 @@ fun HomeScreen(
                 )
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     Text(
                         text = "Date: $dateStr",
                         fontSize = 14.sp,
@@ -532,14 +695,9 @@ fun HomeScreen(
                 TextButton(
                     onClick = {
                         if (dateStr <= todayStr) {
-                            scope.launch {
-                                attendanceRepo.insertRecord(
-                                    dateYyyyMmDd = dateStr,
-                                    status = "present"
-                                )
-                                Toast.makeText(context, "Marked WFO for $dateStr", Toast.LENGTH_SHORT).show()
-                                selectedDayForDialog = null
-                            }
+                            viewModel.markAttendancePresent(dateStr)
+                            Toast.makeText(context, "Marked WFO for $dateStr", Toast.LENGTH_SHORT).show()
+                            selectedDayForDialog = null
                         }
                     }
                 ) {
@@ -551,11 +709,9 @@ fun HomeScreen(
                     if (isCurrentlyAttended) {
                         TextButton(
                             onClick = {
-                                scope.launch {
-                                    attendanceRepo.deleteByDate(dateStr)
-                                    Toast.makeText(context, "Cleared attendance for $dateStr", Toast.LENGTH_SHORT).show()
-                                    selectedDayForDialog = null
-                                }
+                                viewModel.deleteAttendance(dateStr)
+                                Toast.makeText(context, "Cleared attendance for $dateStr", Toast.LENGTH_SHORT).show()
+                                selectedDayForDialog = null
                             }
                         ) {
                             Text("MARK WFH / OFF", color = CrimsonRed)

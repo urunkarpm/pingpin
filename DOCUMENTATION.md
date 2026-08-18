@@ -54,18 +54,18 @@ Managed in [`MakeupWfoManager.kt`](file:///c:/Users/uprasenjeet/Documents/pingpi
 
 ---
 
-## 3. BLE Office Presence & Laptop Occupancy Scanner
+## 3. Tactical Office Radar & Mobile BLE Signal Scanner
 
 ### Overview
-Located in [`BleLaptopScannerService.kt`](file:///c:/Users/uprasenjeet/Documents/pingpin/app/src/main/kotlin/com/urunkarpm/pingpin/service/BleLaptopScannerService.kt), this service non-intrusively measures office bay occupancy by scanning Bluetooth Low Energy (BLE) signals from nearby laptops without installing software on company laptops.
+Located in [`BleMobileScannerService.kt`](file:///c:/Users/uprasenjeet/Documents/pingpin/app/src/main/kotlin/com/urunkarpm/pingpin/service/BleMobileScannerService.kt), this service non-intrusively measures office bay occupancy by scanning Bluetooth Low Energy (BLE) signals from nearby mobile phones (Android and iOS).
 
 ### Key Capabilities
-- **Cross-Platform OS Identification**:
-  - **Microsoft Windows**: Parses Manufacturer Specific Data for Vendor ID `0x0006` and beacon sub-types (`0x03`, `0x08`, `0x01`).
-  - **Apple macOS**: Parses Manufacturer Specific Data for Vendor ID `0x004C` (AirDrop / Handoff signatures `0x05`, `0x0C`).
-- **RSSI Proximity Thresholding**: Ignores signals below $-82\text{ dBm}$ to isolate nearby desks and bays.
-- **Signal Deduplication**: Deduplicates randomized MAC address rotation by comparing OS signatures and RSSI proximity ($\le 4\text{ dBm}$).
-- **Occupancy UI Display**: [`OfficeOccupancyCard.kt`](file:///c:/Users/uprasenjeet/Documents/pingpin/app/src/main/kotlin/com/urunkarpm/pingpin/ui/components/OfficeOccupancyCard.kt) shows total detected laptops, Windows vs macOS breakdown, and bay density status.
+- **Cross-Platform Mobile Device Detection**:
+  - **Android Devices**: Parses Manufacturer Specific Data for Google Vendor ID `0x00E0` and Samsung Vendor ID `0x0075`.
+  - **Apple iPhones / iOS Devices**: Parses Manufacturer Specific Data for Apple Vendor ID `0x004C`.
+- **RSSI Proximity Distance Calculation**: Converts RSSI signal strength into estimated distance meters ($\text{Range } 0.8\text{m} - 8\text{m}$).
+- **Proximity Zone Categorization**: Classifies devices into Immediate Bay ($< 2\text{m}$), Adjacent Wing ($2-5\text{m}$), and Outer Zone ($> 5\text{m}$).
+- **Military Radar HUD Display**: [`OfficeOccupancyCard.kt`](file:///c:/Users/uprasenjeet/Documents/pingpin/app/src/main/kotlin/com/urunkarpm/pingpin/ui/components/OfficeOccupancyCard.kt) renders a high-tech tactical military radar with electric neon green/cyan glow, 360° rotating sweep beam, range reticles, target blips, and sector density status.
 
 ---
 

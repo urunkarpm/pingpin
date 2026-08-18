@@ -59,7 +59,7 @@ app/src/main/kotlin/com/urunkarpm/pingpin/
 │   ├── AppInstallManager.kt      # App installation date tracking & streak baselines
 │   ├── AttendanceAutoService.kt  # Auto-attendance background service
 │   ├── AttendanceService.kt      # Core attendance rules (Present / Late logic)
-│   ├── BleLaptopScannerService.kt# BLE scanner for nearby macOS/Windows laptops
+│   ├── BleMobileScannerService.kt# BLE scanner for nearby mobile phones (Android / iOS)
 │   ├── IndianHolidayService.kt   # 2026 Indian holiday directory & long weekend logic
 │   ├── MakeupWfoManager.kt       # WFO missed day detection & compensation algorithm
 │   ├── NotificationService.kt    # AlarmManager exact scheduling & notifications
@@ -153,14 +153,14 @@ Evaluates missed WFO days daily after 2:00 PM (14:00) or retroactively for yeste
 4. Must **NOT** be a public holiday (`IndianHolidayService`).
 5. Must **NOT** already have attendance logged in Room DB.
 
-### 3.3 BLE Office Occupancy Scanner (`BleLaptopScannerService.kt`)
+### 3.3 Tactical Office Radar & Mobile BLE Scanner (`BleMobileScannerService.kt`)
 
-Scans Bluetooth Low Energy (BLE) advertisements without agent software on laptops:
+Scans Bluetooth Low Energy (BLE) advertisements to detect nearby mobile phones (Android and iOS):
 
-- **Microsoft Windows**: Checks Manufacturer Specific Data for Vendor ID `0x0006` and beacon sub-types (`0x03`, `0x08`, `0x01`).
-- **Apple macOS**: Checks Manufacturer Specific Data for Vendor ID `0x004C` (AirDrop / Handoff signatures `0x05`, `0x0C`).
-- **RSSI Thresholding**: Filters signals below $-82\text{ dBm}$ to exclude distant devices in other office areas.
-- **Proximity Deduplication**: Groups signals by OS type and RSSI proximity ($\le 4\text{ dBm}$) to avoid double-counting MAC address rotators.
+- **Android Phones**: Checks Manufacturer Specific Data for Google Vendor ID `0x00E0` and Samsung Vendor ID `0x0075`.
+- **Apple iPhones / iOS Devices**: Checks Manufacturer Specific Data for Apple Vendor ID `0x004C`.
+- **RSSI Proximity Thresholding**: Filters out faint signals below $-85\text{ dBm}$ to focus on nearby bay & floor occupancy.
+- **Tactical Radar UI**: [`OfficeOccupancyCard.kt`](file:///c:/Users/uprasenjeet/Documents/pingpin/app/src/main/kotlin/com/urunkarpm/pingpin/ui/components/OfficeOccupancyCard.kt) renders a tactical military radar HUD with electric neon green/cyan glow, 360° rotating sweep beam, range reticles, target blips, and sector density status.
 
 ### 3.4 Commute Weather & Travel Insights (`WeatherService.kt`)
 

@@ -6,17 +6,17 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface MakeupWfoSuggestionDao {
-    @Query("SELECT * FROM makeup_wfo_suggestions WHERE status IN ('PENDING', 'ACCEPTED') ORDER BY createdAt DESC LIMIT 1")
+    @Query("SELECT * FROM makeup_wfo_suggestions WHERE status = 'PENDING' ORDER BY createdAt DESC LIMIT 1")
     fun watchActiveSuggestion(): Flow<MakeupWfoSuggestionEntity?>
 
-    @Query("SELECT * FROM makeup_wfo_suggestions WHERE status IN ('PENDING', 'ACCEPTED') ORDER BY createdAt DESC LIMIT 1")
+    @Query("SELECT * FROM makeup_wfo_suggestions WHERE status = 'PENDING' ORDER BY createdAt DESC LIMIT 1")
     suspend fun getActiveSuggestion(): MakeupWfoSuggestionEntity?
+
+    @Query("SELECT suggestedDateYyyyMmDd FROM makeup_wfo_suggestions WHERE status = 'ACCEPTED'")
+    fun watchAcceptedDates(): Flow<List<String>>
 
     @Query("SELECT * FROM makeup_wfo_suggestions WHERE missedDateYyyyMmDd = :missedDate LIMIT 1")
     suspend fun getByMissedDate(missedDate: String): MakeupWfoSuggestionEntity?
-
-    @Query("SELECT * FROM makeup_wfo_suggestions WHERE suggestedDateYyyyMmDd = :suggestedDate AND status = 'ACCEPTED' LIMIT 1")
-    suspend fun getAcceptedForDate(suggestedDate: String): MakeupWfoSuggestionEntity?
 
     @Query("SELECT * FROM makeup_wfo_suggestions ORDER BY createdAt DESC")
     suspend fun getAll(): List<MakeupWfoSuggestionEntity>

@@ -14,8 +14,12 @@ data class OfficeConfigEntity(
     val checkInTime: String = "09:30",
     val checkOutTime: String = "17:30",
     val portalUrl: String = "",
-    val workingDaysMask: Int = 31, // Mon-Fri default (1|2|4|8|16)
-    val wfoDaysMask: Int = 31,     // Mon-Fri default WFO
+    val workingDaysMask: Int = 31,     // Mon-Fri default (1|2|4|8|16)
+    val wfoDaysMask: Int = 31,         // Mon-Fri default WFO
+    val portalMode: String = "EXTERNAL_BROWSER", // "IN_APP_AUTO" vs "EXTERNAL_BROWSER"
+    val autoLoginEnabled: Boolean = false,
+    val autoCheckInEnabled: Boolean = false,
+    val portalPreset: String = "GENERIC",
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 )
