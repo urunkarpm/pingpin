@@ -14,7 +14,9 @@ import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import com.urunkarpm.pingpin.data.local.AppDatabase
+import com.urunkarpm.pingpin.data.local.OnboardingPreferences
 import com.urunkarpm.pingpin.data.repository.OfficeConfigRepository
+import com.urunkarpm.pingpin.data.repository.UserProfileRepository
 import com.urunkarpm.pingpin.ui.MainShell
 import com.urunkarpm.pingpin.ui.onboarding.OnboardingScreen
 import com.urunkarpm.pingpin.ui.theme.PingPinTheme
@@ -40,16 +42,22 @@ class MainActivity : ComponentActivity() {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     val db = remember { AppDatabase.getInstance(applicationContext) }
                     val configRepo = remember { OfficeConfigRepository(db.officeConfigDao()) }
-                    val configState by configRepo.configFlow.collectAsState(initial = null)
+                    val profileRepo = remember { UserProfileRepository(db.userProfileDao()) }
 
                     var isOnboardingComplete by remember { mutableStateOf<Boolean?>(null) }
 
-                    LaunchedEffect(configState) {
-                        if (configState != null) {
+                    LaunchedEffect(Unit) {
+                        val isPrefComplete = OnboardingPreferences.isOnboardingComplete(applicationContext)
+                        if (isPrefComplete) {
                             isOnboardingComplete = true
                         } else {
                             val cfg = configRepo.getConfig()
-                            isOnboardingComplete = (cfg != null && cfg.ssid.isNotEmpty())
+                            val profile = profileRepo.getProfile()
+                            val isComplete = (cfg != null && cfg.ssid.isNotEmpty() && profile != null)
+                            if (isComplete) {
+                                OnboardingPreferences.setOnboardingComplete(applicationContext, true)
+                            }
+                            isOnboardingComplete = isComplete
                         }
                     }
 

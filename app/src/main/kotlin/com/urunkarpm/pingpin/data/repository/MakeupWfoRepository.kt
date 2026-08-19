@@ -24,4 +24,8 @@ class MakeupWfoRepository(private val dao: MakeupWfoSuggestionDao) {
     suspend fun updateStatus(id: Int, status: String) {
         dao.updateStatus(id, status)
     }
+
+    suspend fun getAll(): List<MakeupWfoSuggestionEntity> {
+        return dao.getAll()
+    }
 }

@@ -467,24 +467,23 @@ private fun WeeklyDayItem(
     modifier: Modifier = Modifier
 ) {
     val circleBg = when {
-        data.isToday -> if (isDark) ElectricBlueBgDark else ElectricBlueBgLight
         data.isAttended -> if (isDark) EmeraldGreenBgDark else EmeraldGreenBgLight
         data.isBeforeInstall -> Color.Transparent
         !data.isWorking -> Color.Transparent
         data.isMakeupWfo -> if (isDark) AmberOrangeBgDark.copy(alpha = 0.5f) else AmberOrangeBgLight
         !data.isWfo -> MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.15f)
-        data.isFuture -> if (isDark) TealAccentBgDark.copy(alpha = 0.45f) else TealAccentBgLight.copy(alpha = 0.7f)
+        data.isFuture || data.isToday -> if (isDark) WfoDayPurpleBgDark.copy(alpha = 0.55f) else WfoDayPurpleBgLight.copy(alpha = 0.85f)
         else -> if (isDark) CrimsonRedBgDark else CrimsonRedBgLight
     }
 
     val textColor = when {
-        data.isToday -> ElectricBlue
         data.isAttended -> if (isDark) Color(0xFF6EE7B7) else Color(0xFF047857)
         data.isMakeupWfo && !data.isAttended -> if (isDark) Color(0xFFFDE68A) else Color(0xFFB45309)
         data.isBeforeInstall -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
         !data.isWorking -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
         !data.isWfo -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
-        data.isFuture -> if (isDark) Color(0xFF5EEAD4) else Color(0xFF0F766E)
+        data.isFuture || (data.isToday && data.isWfo) -> if (isDark) Color(0xFFC4B5FD) else Color(0xFF6D28D9)
+        data.isToday -> ElectricBlue
         else -> if (isDark) Color(0xFFFCA5A5) else Color(0xFFB91C1C)
     }
 
@@ -494,7 +493,7 @@ private fun WeeklyDayItem(
         data.isBeforeInstall -> Color.Transparent
         !data.isWorking -> Color.Transparent
         !data.isWfo -> Color.Transparent
-        data.isFuture -> TealAccent
+        data.isFuture || data.isToday -> WfoDayPurple
         else -> CrimsonRed
     }
 
@@ -525,7 +524,7 @@ private fun WeeklyDayItem(
 
             if (data.isToday) {
                 circleModifier = circleModifier.border(
-                    width = 2.dp,
+                    width = 2.5.dp,
                     color = ElectricBlue,
                     shape = CircleShape
                 )
@@ -538,7 +537,7 @@ private fun WeeklyDayItem(
             } else if (data.isWfo && data.isWorking && !data.isAttended && data.isFuture && !data.isBeforeInstall) {
                 circleModifier = circleModifier.border(
                     width = 1.2.dp,
-                    color = TealAccent.copy(alpha = 0.6f),
+                    color = WfoDayPurple.copy(alpha = 0.6f),
                     shape = CircleShape
                 )
             } else if (data.isWfo && data.isWorking && !data.isAttended && !data.isFuture && !data.isBeforeInstall) {

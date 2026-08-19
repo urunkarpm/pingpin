@@ -49,8 +49,16 @@ val AccentOrange = Color(0xFFEA580C)
 val AccentAmber = AmberOrange
 val AccentRed = CrimsonRed
 
-// Teal Accent for Calendar
-val TealAccent = Color(0xFF00BFA5)
-val TealAccentBgLight = Color(0xFFE0F2F1)
-val TealAccentBgDark = Color(0xFF004D40)
+// WFO Day Accent for Calendar (Distinct Royal Purple)
+val WfoDayPurple = Color(0xFF8B5CF6)
+val WfoDayPurpleBgLight = Color(0xFFF3E8FF)
+val WfoDayPurpleBgDark = Color(0xFF4C1D95)
+
+// Legacy aliases for compatibility
+val WfoDayBlue = WfoDayPurple
+val WfoDayBlueBgLight = WfoDayPurpleBgLight
+val WfoDayBlueBgDark = WfoDayPurpleBgDark
+val TealAccent = WfoDayPurple
+val TealAccentBgLight = WfoDayPurpleBgLight
+val TealAccentBgDark = WfoDayPurpleBgDark
 

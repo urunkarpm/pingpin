@@ -16,6 +16,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.mockito.ArgumentMatchers.anyInt
@@ -189,7 +190,8 @@ class MakeupWfoManagerTest {
             attendanceRepo = attendanceRepo,
             wifiService = wifiService,
             attendanceService = attendanceService,
-            holidayService = holidayService
+            holidayService = holidayService,
+            notifService = null
         )
     }
 
@@ -300,5 +302,62 @@ class MakeupWfoManagerTest {
         assertNotNull(active)
         assertEquals(id.toInt(), active?.id)
         assertEquals("PENDING", active?.status)
+    }
+
+    @Test
+    fun testMakeupCancelledWhenAllThisWeekWfoCompleted() = runTest {
+        // Insert a pending makeup suggestion
+        val suggestionId = makeupRepo.insertSuggestion(
+            MakeupWfoSuggestionEntity(
+                missedDateYyyyMmDd = "2026-08-10",
+                suggestedDateYyyyMmDd = "2026-08-20",
+                status = "PENDING"
+            )
+        )
+
+        // Get all required WFO dates for this week
+        val weekWfoDates = makeupManager.getThisWeekWfoDates(defaultConfig)
+        assertTrue(weekWfoDates.isNotEmpty())
+
+        // Mark all WFO dates of this week as present
+        for (d in weekWfoDates) {
+            attendanceRepo.insertRecord(d, "present")
+        }
+
+        // Evaluate makeup
+        val result = makeupManager.evaluateAndSuggestMakeup(defaultConfig)
+
+        // Suggestion should be null (cancelled)
+        assertNull(result)
+
+        // Verify status in DB was updated to DECLINED
+        val all = makeupDao.getAll()
+        val item = all.find { it.id == suggestionId.toInt() }
+        assertNotNull(item)
+        assertEquals("DECLINED", item?.status)
+    }
+
+    @Test
+    fun testMakeupCancelledWhenMissedDateMarkedPresent() = runTest {
+        val missedDate = "2026-08-10"
+        val suggestionId = makeupRepo.insertSuggestion(
+            MakeupWfoSuggestionEntity(
+                missedDateYyyyMmDd = missedDate,
+                suggestedDateYyyyMmDd = "2026-08-20",
+                status = "ACCEPTED"
+            )
+        )
+
+        // Mark the missed date as present
+        attendanceRepo.insertRecord(missedDate, "present")
+
+        // Cancel suggestions if fulfilled
+        makeupManager.cancelMakeupSuggestionsIfFulfilled(defaultConfig)
+
+        // Verify status in DB was updated to DECLINED
+        val all = makeupDao.getAll()
+        val item = all.find { it.id == suggestionId.toInt() }
+        assertNotNull(item)
+        assertEquals("DECLINED", item?.status)
     }
 }

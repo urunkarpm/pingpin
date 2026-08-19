@@ -272,8 +272,8 @@ fun MonthlyCalendarView(
                     contentAlignment = Alignment.Center
                 ) {
                     LegendItem(
-                        color = if (isDark) TealAccentBgDark else TealAccentBgLight,
-                        dotColor = TealAccent,
+                        color = if (isDark) WfoDayPurpleBgDark else WfoDayPurpleBgLight,
+                        dotColor = WfoDayPurple,
                         label = "WFO Day"
                     )
                 }
@@ -339,25 +339,24 @@ private fun MonthDayCellItem(
 ) {
     val circleBg = when {
         !cell.isCurrentMonthDay -> Color.Transparent
-        cell.isToday -> if (isDark) ElectricBlueBgDark else ElectricBlueBgLight
         cell.isAttended -> if (isDark) EmeraldGreenBgDark else EmeraldGreenBgLight
         cell.isBeforeInstall -> Color.Transparent
         !cell.isWorking -> Color.Transparent
         cell.isMakeupWfo -> if (isDark) AmberOrangeBgDark.copy(alpha = 0.5f) else AmberOrangeBgLight
         !cell.isWfo -> MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.15f)
-        cell.isFuture -> if (isDark) TealAccentBgDark.copy(alpha = 0.45f) else TealAccentBgLight.copy(alpha = 0.7f)
+        cell.isFuture || cell.isToday -> if (isDark) WfoDayPurpleBgDark.copy(alpha = 0.55f) else WfoDayPurpleBgLight.copy(alpha = 0.85f)
         else -> if (isDark) CrimsonRedBgDark else CrimsonRedBgLight
     }
 
     val textColor = when {
         !cell.isCurrentMonthDay -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
-        cell.isToday -> ElectricBlue
         cell.isAttended -> if (isDark) Color(0xFF6EE7B7) else Color(0xFF047857)
         cell.isMakeupWfo && !cell.isAttended -> if (isDark) Color(0xFFFDE68A) else Color(0xFFB45309)
         cell.isBeforeInstall -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
         !cell.isWorking -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
         !cell.isWfo -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
-        cell.isFuture -> if (isDark) Color(0xFF5EEAD4) else Color(0xFF0F766E)
+        cell.isFuture || (cell.isToday && cell.isWfo) -> if (isDark) Color(0xFFC4B5FD) else Color(0xFF6D28D9)
+        cell.isToday -> ElectricBlue
         else -> if (isDark) Color(0xFFFCA5A5) else Color(0xFFB91C1C)
     }
 
@@ -368,7 +367,7 @@ private fun MonthDayCellItem(
         cell.isBeforeInstall -> Color.Transparent
         !cell.isWorking -> Color.Transparent
         !cell.isWfo -> Color.Transparent
-        cell.isFuture -> TealAccent
+        cell.isFuture || cell.isToday -> WfoDayPurple
         else -> CrimsonRed
     }
 
@@ -385,7 +384,7 @@ private fun MonthDayCellItem(
 
         if (cell.isToday) {
             circleModifier = circleModifier.border(
-                width = 2.dp,
+                width = 2.5.dp,
                 color = ElectricBlue,
                 shape = CircleShape
             )
@@ -398,7 +397,7 @@ private fun MonthDayCellItem(
         } else if (cell.isCurrentMonthDay && cell.isWfo && cell.isWorking && !cell.isAttended && cell.isFuture && !cell.isBeforeInstall) {
             circleModifier = circleModifier.border(
                 width = 1.2.dp,
-                color = TealAccent.copy(alpha = 0.6f),
+                color = WfoDayPurple.copy(alpha = 0.6f),
                 shape = CircleShape
             )
         } else if (cell.isCurrentMonthDay && cell.isWfo && cell.isWorking && !cell.isAttended && !cell.isFuture && !cell.isBeforeInstall) {

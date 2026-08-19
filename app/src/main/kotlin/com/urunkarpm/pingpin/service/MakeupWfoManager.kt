@@ -18,7 +18,8 @@ class MakeupWfoManager(
     private val attendanceRepo: AttendanceRepository,
     private val wifiService: WifiService = WifiService(context),
     private val attendanceService: AttendanceService = AttendanceService(context, wifiService),
-    private val holidayService: IndianHolidayService = IndianHolidayService()
+    private val holidayService: IndianHolidayService = IndianHolidayService(),
+    private val notifService: NotificationService? = NotificationService(context)
 ) {
     companion object {
         private const val TAG = "MakeupWfoManager"
@@ -41,6 +42,71 @@ class MakeupWfoManager(
     }
 
     /**
+     * Calculates all scheduled WFO dates for the current week (Monday through Sunday).
+     */
+    fun getThisWeekWfoDates(config: OfficeConfigEntity): List<String> {
+        val result = mutableListOf<String>()
+        val cal = Calendar.getInstance().apply {
+            firstDayOfWeek = Calendar.MONDAY
+            set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+
+        val holidays = holidayService.getAllHolidays()
+
+        for (i in 0..6) {
+            val dateStr = formatDateToYyyyMmDd(cal)
+            val isWorking = WorkingDays.isWorkingDay(cal, config.workingDaysMask)
+            val isWfo = WorkingDays.isWfoDay(cal, config.wfoDaysMask)
+            val isHoliday = holidays.any { it.dateYyyyMmDd == dateStr }
+
+            if (isWorking && isWfo && !isHoliday) {
+                result.add(dateStr)
+            }
+            cal.add(Calendar.DAY_OF_YEAR, 1)
+        }
+        return result
+    }
+
+    /**
+     * Checks if all required WFO days for the current week have attendance marked as completed/present.
+     */
+    suspend fun areAllThisWeekWfoCompleted(config: OfficeConfigEntity): Boolean {
+        val weekWfoDates = getThisWeekWfoDates(config)
+        if (weekWfoDates.isEmpty()) return false
+
+        for (dateStr in weekWfoDates) {
+            val record = attendanceRepo.getByDate(dateStr)
+            if (record == null) {
+                return false
+            }
+        }
+        return true
+    }
+
+    /**
+     * Cancels any pending or accepted makeup WFO suggestions if all WFO days for this week are completed
+     * or if the missed date itself was marked completed.
+     */
+    suspend fun cancelMakeupSuggestionsIfFulfilled(config: OfficeConfigEntity) {
+        val isWeekComplete = areAllThisWeekWfoCompleted(config)
+        val allSuggestions = makeupRepo.getAll()
+
+        for (suggestion in allSuggestions) {
+            if (suggestion.status == "PENDING" || suggestion.status == "ACCEPTED") {
+                val missedRecord = attendanceRepo.getByDate(suggestion.missedDateYyyyMmDd)
+                if (isWeekComplete || missedRecord != null) {
+                    makeupRepo.updateStatus(suggestion.id, "DECLINED")
+                    notifService?.cancelAlarm(suggestion.alarmId)
+                }
+            }
+        }
+    }
+
+    /**
      * Evaluates missed WFO day conditions after 2:00 PM and attempts automatic attendance check
      * before suggesting a WFH day for compensation.
      */
@@ -51,6 +117,12 @@ class MakeupWfoManager(
         val now = Calendar.getInstance()
         val currentHour = now.get(Calendar.HOUR_OF_DAY)
         val todayStr = formatDateToYyyyMmDd(now)
+
+        // 0. Cancel makeup suggestions if all WFO days for this week are completed or missed date is marked
+        cancelMakeupSuggestionsIfFulfilled(officeConfig)
+        if (areAllThisWeekWfoCompleted(officeConfig)) {
+            return null
+        }
 
         // 1. Check if today is a scheduled WFO day
         val isTodayWfo = WorkingDays.isWorkingDay(now, officeConfig.workingDaysMask) &&

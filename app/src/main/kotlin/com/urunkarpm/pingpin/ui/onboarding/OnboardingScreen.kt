@@ -29,7 +29,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.activity.compose.BackHandler
 import com.urunkarpm.pingpin.data.local.AppDatabase
+import com.urunkarpm.pingpin.data.local.OnboardingPreferences
 import com.urunkarpm.pingpin.data.local.entity.OfficeConfigEntity
 import com.urunkarpm.pingpin.data.local.entity.UserProfileEntity
 import com.urunkarpm.pingpin.data.repository.OfficeConfigRepository
@@ -71,6 +73,10 @@ fun OnboardingScreen(
     // Progressive 7-step wizard state
     var currentStep by remember { mutableIntStateOf(1) }
     val totalSteps = 7
+
+    BackHandler(enabled = currentStep > 1) {
+        currentStep--
+    }
 
     // Form state
     var fullName by remember { mutableStateOf("") }
@@ -607,6 +613,8 @@ fun OnboardingScreen(
 
                                     // Schedule Alarms
                                     NotificationService(context).scheduleAlarmsFromConfig(config)
+
+                                    OnboardingPreferences.setOnboardingComplete(context, true)
 
                                     onOnboardingComplete()
                                 }
