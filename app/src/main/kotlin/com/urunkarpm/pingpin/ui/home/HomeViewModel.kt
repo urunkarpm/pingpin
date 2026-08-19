@@ -76,12 +76,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
         // Observe network state reactively via NetworkCallback Flow combined with office config
         viewModelScope.launch(Dispatchers.IO) {
-            combine(wifiService.observeWifiState(), configState) { ssid, config ->
-                Pair(ssid, config)
-            }.collect { (ssid, config) ->
+            combine(wifiService.observeWifiState(), configState) { _, config ->
+                config
+            }.collect { config ->
                 val officeSSID = config?.ssid ?: ""
-                isConnectedToOffice.value = if (officeSSID.isNotEmpty() && ssid != null) {
-                    ssid.equals(officeSSID.trim(), ignoreCase = true)
+                isConnectedToOffice.value = if (officeSSID.isNotEmpty()) {
+                    wifiService.isConnectedToSSID(officeSSID)
                 } else false
             }
         }

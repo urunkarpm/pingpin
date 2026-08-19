@@ -48,11 +48,35 @@ class PortalAutoCheckInEngine {
             username: String,
             password: String,
             autoLogin: Boolean,
-            autoPunch: Boolean
+            autoPunch: Boolean,
+            customCheckInKeywords: String = "",
+            customCheckOutKeywords: String = ""
         ): String {
             val escapedUser = username.replace("'", "\\'").replace("\n", "")
             val escapedPass = password.replace("'", "\\'").replace("\n", "")
             val isCheckIn = actionType.equals("CHECK_IN", ignoreCase = true)
+
+            val parsedCustomKeywords = if (isCheckIn) {
+                customCheckInKeywords.split(",").map { it.trim().lowercase() }.filter { it.isNotEmpty() }
+            } else {
+                customCheckOutKeywords.split(",").map { it.trim().lowercase() }.filter { it.isNotEmpty() }
+            }
+
+            val defaultKeywords = if (isCheckIn) {
+                listOf(
+                    "check in", "check-in", "clock in", "clock-in", "punch in", "punch-in",
+                    "web punch", "web-punch", "checkin", "punchin", "clockin",
+                    "mark attendance", "mark present"
+                )
+            } else {
+                listOf(
+                    "check out", "check-out", "clock out", "clock-out", "punch out", "punch-out",
+                    "web-punch out", "web punch out", "checkout", "punchout", "clockout", "mark checkout"
+                )
+            }
+
+            val activeKeywords = if (parsedCustomKeywords.isNotEmpty()) parsedCustomKeywords else defaultKeywords
+            val keywordsJsArray = activeKeywords.joinToString(prefix = "[", postfix = "]") { "'${it.replace("'", "\\'")}'" }
 
             return """
             (function() {
@@ -77,6 +101,14 @@ class PortalAutoCheckInEngine {
                     } catch(e){}
                 }
 
+                function isVisible(el) {
+                    return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+                }
+
+                function getElementText(el) {
+                    return (el.innerText || el.textContent || el.value || el.getAttribute('aria-label') || el.getAttribute('title') || '').toLowerCase().trim();
+                }
+
                 function tryAutoLogin() {
                     if (!${autoLogin}) return false;
                     
@@ -91,9 +123,9 @@ class PortalAutoCheckInEngine {
                             triggerInputChange(passInput, '$escapedPass');
                         }
 
-                        notifyStatus("Auto-filling credentials...");
+                        notifyStatus("Auto-filling login credentials...");
 
-                        var submitBtn = document.querySelector('button[type="submit"], input[type="submit"], button[class*="login"], button[id*="login"], .btn-primary, #loginBtn, #submit');
+                        var submitBtn = document.querySelector('button[type="submit"], input[type="submit"], button[class*="login"], button[id*="login"], #loginBtn, #submit');
                         if (submitBtn) {
                             setTimeout(function() {
                                 notifyStatus("Submitting login...");
@@ -111,37 +143,37 @@ class PortalAutoCheckInEngine {
                 function tryAutoPunch() {
                     if (!${autoPunch}) return false;
 
-                    var targetKeywords = ${if (isCheckIn) 
-                        "['check in', 'check-in', 'clock in', 'clock-in', 'punch in', 'punch-in', 'web punch', 'web-punch', 'checkin', 'punchin', 'clockin', 'mark attendance', 'sign in', 'present', 'in']" 
-                    else 
-                        "['check out', 'check-out', 'clock out', 'clock-out', 'punch out', 'punch-out', 'web-punch out', 'checkout', 'punchout', 'clockout', 'sign out', 'out']"};
+                    var targetKeywords = $keywordsJsArray;
+                    var blacklist = ['log in', 'login', 'sign in', 'signin', 'log out', 'logout', 'sign out', 'signout', 'register', 'forgot password', 'user', 'email', 'password'];
 
                     var candidateElements = Array.from(document.querySelectorAll('button, a, input[type="button"], input[type="submit"], div[role="button"], span[role="button"], .btn, .button, [class*="punch"], [class*="checkin"], [class*="checkout"]'));
                     
                     for (var i = 0; i < candidateElements.length; i++) {
                         var el = candidateElements[i];
-                        var text = (
-                            (el.innerText || '') + ' ' + 
-                            (el.value || '') + ' ' + 
-                            (el.getAttribute('aria-label') || '') + ' ' + 
-                            (el.getAttribute('title') || '') + ' ' + 
-                            (el.getAttribute('id') || '') + ' ' + 
-                            (el.getAttribute('class') || '')
-                        ).toLowerCase().trim();
+                        if (!isVisible(el)) continue;
+
+                        var text = getElementText(el);
+                        if (!text) continue;
+
+                        var isBlacklisted = false;
+                        for (var b = 0; b < blacklist.length; b++) {
+                            if (text === blacklist[b] || text.startsWith(blacklist[b] + ' ')) {
+                                isBlacklisted = true;
+                                break;
+                            }
+                        }
+                        if (isBlacklisted) continue;
                         
                         for (var k = 0; k < targetKeywords.length; k++) {
                             var kw = targetKeywords[k];
                             if (text.includes(kw)) {
+                                var initialBodyText = (document.body ? document.body.innerText : '').toLowerCase();
                                 notifyStatus("Found target button (" + kw + "). Clicking...");
                                 if (window.PingPinBridge && window.PingPinBridge.punchAttempted) {
                                     window.PingPinBridge.punchAttempted('$actionType');
                                 }
                                 el.click();
-                                setTimeout(function() {
-                                    if (window.PingPinBridge && window.PingPinBridge.punchSuccess) {
-                                        window.PingPinBridge.punchSuccess('$actionType');
-                                    }
-                                }, 1500);
+                                verifyPunchSuccess(initialBodyText);
                                 return true;
                             }
                         }
@@ -149,14 +181,115 @@ class PortalAutoCheckInEngine {
                     return false;
                 }
 
+                function verifyPunchSuccess(initialBodyText) {
+                    var isCheckIn = ${isCheckIn};
+                    var actionLabel = isCheckIn ? "check-in" : "check-out";
+                    notifyStatus("Punch clicked. Checking for location/modal confirmation...");
+
+                    var confirmKeywords = isCheckIn ? [
+                        'confirm', 'confirm check-in', 'confirm check in', 'confirm punch',
+                        'yes', 'yes, check in', 'yes, check-in', 'submit', 'proceed', 'save',
+                        'mark attendance', 'mark present', 'punch now', 'clock in now', 'confirm location', 'ok'
+                    ] : [
+                        'confirm', 'confirm check-out', 'confirm check out', 'confirm punch',
+                        'yes', 'yes, check out', 'yes, check-out', 'submit', 'proceed', 'save',
+                        'mark checkout', 'mark check-out', 'punch out now', 'clock out now', 'confirm location', 'ok'
+                    ];
+
+                    var successKeywords = isCheckIn ?
+                        ['already checked in', 'already punched', 'checked in at', 'punched in at', 'already clocked in', 'shift in progress', 'clocked in', 'attendance marked', 'punch recorded', 'check in successful', 'checked in successfully'] :
+                        ['already checked out', 'already punched out', 'checked out at', 'punched out at', 'clocked out', 'shift ended', 'punched out successfully', 'check out successful'];
+
+                    var modalClicked = false;
+                    var vAttempts = 0;
+                    var maxVAttempts = 24; // Poll every 500ms for 12 seconds
+
+                    var vTimer = setInterval(function() {
+                        vAttempts++;
+
+                        if (!modalClicked) {
+                            var modalCandidates = Array.from(document.querySelectorAll(
+                                '[role="dialog"] button, .modal button, .dialog button, [class*="modal"] button, [class*="popup"] button, [class*="confirm"] button, [class*="dialog"] button, button[class*="confirm"], button[id*="confirm"], .btn-primary, .button-primary, button[type="submit"]'
+                            ));
+
+                            for (var m = 0; m < modalCandidates.length; m++) {
+                                var mEl = modalCandidates[m];
+                                if (!isVisible(mEl)) continue;
+                                var mText = getElementText(mEl);
+                                if (!mText) continue;
+
+                                for (var c = 0; c < confirmKeywords.length; c++) {
+                                    if (mText === confirmKeywords[c] || (mText.length < 35 && mText.includes(confirmKeywords[c]))) {
+                                        notifyStatus("Found confirmation popup (" + mText + "). Clicking to confirm...");
+                                        mEl.click();
+                                        modalClicked = true;
+                                        break;
+                                    }
+                                }
+                                if (modalClicked) break;
+                            }
+                        }
+
+                        var currentBodyText = (document.body ? document.body.innerText : '').toLowerCase();
+
+                        for (var s = 0; s < successKeywords.length; s++) {
+                            var sk = successKeywords[s];
+                            if (currentBodyText.includes(sk)) {
+                                if (initialBodyText.includes(sk) && !modalClicked && vAttempts < 5) {
+                                    continue;
+                                }
+                                clearInterval(vTimer);
+                                notifyStatus("🎉 Punch verified and confirmed on portal!");
+                                if (window.PingPinBridge && window.PingPinBridge.punchSuccess) {
+                                    window.PingPinBridge.punchSuccess('$actionType');
+                                }
+                                window.__pingpin_automation_active = false;
+                                return;
+                            }
+                        }
+
+                        if (vAttempts >= maxVAttempts) {
+                            clearInterval(vTimer);
+                            window.__pingpin_automation_active = false;
+                            notifyStatus("Clicked " + actionLabel + " button. Waiting for server confirmation...");
+                            if (window.PingPinBridge && window.PingPinBridge.punchSuccess) {
+                                window.PingPinBridge.punchSuccess('$actionType');
+                            }
+                        }
+                    }, 500);
+                }
+
                 function checkSpecialStates() {
                     var bodyText = (document.body ? document.body.innerText : '').toLowerCase();
                     
-                    var alreadyInKeywords = ['already checked in', 'already punched', 'checked in at', 'punched in at', 'already clocked in', 'shift in progress'];
-                    for (var a = 0; a < alreadyInKeywords.length; a++) {
-                        if (bodyText.includes(alreadyInKeywords[a])) {
-                            notifyStatus("✅ Already checked in today on portal!");
+                    var locationKeywords = [
+                        'location permission', 'enable location', 'allow location', 'location disabled',
+                        'location access', 'location required', 'geolocation error', 'location denied',
+                        'turn on location', 'gps required', 'fetch location', 'getting location'
+                    ];
+                    for (var loc = 0; loc < locationKeywords.length; loc++) {
+                        if (bodyText.includes(locationKeywords[loc])) {
+                            notifyStatus("📍 Portal requires Location Access. Please allow location permission.");
                             return true;
+                        }
+                    }
+
+                    var isCheckIn = ${isCheckIn};
+                    if (isCheckIn) {
+                        var alreadyInKeywords = ['already checked in', 'already punched', 'checked in at', 'punched in at', 'already clocked in', 'shift in progress'];
+                        for (var a = 0; a < alreadyInKeywords.length; a++) {
+                            if (bodyText.includes(alreadyInKeywords[a])) {
+                                notifyStatus("✅ Already checked in today on portal!");
+                                return true;
+                            }
+                        }
+                    } else {
+                        var alreadyOutKeywords = ['already checked out', 'already punched out', 'checked out at', 'punched out at', 'clocked out', 'shift ended', 'punched out successfully'];
+                        for (var o = 0; o < alreadyOutKeywords.length; o++) {
+                            if (bodyText.includes(alreadyOutKeywords[o])) {
+                                notifyStatus("✅ Already checked out today on portal!");
+                                return true;
+                            }
                         }
                     }
 
@@ -194,7 +327,6 @@ class PortalAutoCheckInEngine {
                     var punchSuccess = tryAutoPunch();
                     if (punchSuccess) {
                         clearInterval(intervalTimer);
-                        window.__pingpin_automation_active = false;
                         return;
                     }
 

@@ -61,6 +61,13 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
     }
 }
 
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `office_configs` ADD COLUMN `customCheckInKeywords` TEXT NOT NULL DEFAULT ''")
+        db.execSQL("ALTER TABLE `office_configs` ADD COLUMN `customCheckOutKeywords` TEXT NOT NULL DEFAULT ''")
+    }
+}
+
 @Database(
     entities = [
         OfficeConfigEntity::class,
@@ -70,7 +77,7 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
         WfoScheduleHistoryEntity::class,
         MakeupWfoSuggestionEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -93,7 +100,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "pingpin.db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                     .fallbackToDestructiveMigrationOnDowngrade()
                     .build()
                 INSTANCE = instance

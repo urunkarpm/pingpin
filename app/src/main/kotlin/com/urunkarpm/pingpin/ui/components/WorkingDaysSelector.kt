@@ -1,12 +1,14 @@
 package com.urunkarpm.pingpin.ui.components
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -14,6 +16,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -101,13 +104,23 @@ fun WorkingDaysSelector(
                     label = "day_border"
                 )
 
+                val scaleAnim by animateFloatAsState(
+                    targetValue = if (isSelected) 1.06f else 1.0f,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessMediumLow
+                    ),
+                    label = "day_scale"
+                )
+
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .height(44.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .aspectRatio(1f)
+                        .scale(scaleAnim)
+                        .clip(CircleShape)
                         .background(bgAnim)
-                        .border(1.dp, borderAnim, RoundedCornerShape(12.dp))
+                        .border(1.dp, borderAnim, CircleShape)
                         .clickable {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             val newMask = workingDaysMask xor (1 shl index)
@@ -118,8 +131,9 @@ fun WorkingDaysSelector(
                     Text(
                         text = label,
                         color = textAnim,
-                        fontSize = 12.sp,
-                        fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium
+                        fontSize = 11.sp,
+                        fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
+                        maxLines = 1
                     )
                 }
             }

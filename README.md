@@ -6,11 +6,17 @@
 
 ## 🌟 Key Features
 
-### 📡 Automatic Wi-Fi Attendance Detection
-- **Zero-Touch Verification**: Automatically checks in when connected to your configured office Wi-Fi network.
-- **On-Time vs. Late Tracking**: Automatically categorizes check-ins as `PRESENT` (before late cutoff time) or `LATE` (after late cutoff time).
-- **Background Auto-Check Worker**: Powered by Android WorkManager (`WifiCheckWorker`) for reliable background checks without draining battery.
-- **Pre-Alert Auto-Check**: Triggers an automatic check-in evaluation at 2:00 PM if connected to office Wi-Fi later in the day to prevent false missed alerts.
+### 📡 Automatic Wi-Fi Calendar Attendance (Local Only)
+- **Local Calendar Logging**: Automatically marks local attendance on your in-app calendar when connected to your configured office Wi-Fi network.
+- **On-Time vs. Late Tracking**: Categorizes local check-ins as `PRESENT` (before check-in cutoff time) or `LATE` (after cutoff time) in Room SQLite.
+- **Background Auto-Check Worker**: Powered by Android WorkManager (`WifiCheckWorker`) for reliable local background verification without draining battery.
+- **Pre-Alert Auto-Check**: Triggers a local check-in evaluation at 2:00 PM if connected to office Wi-Fi later in the day.
+- **⚠️ Important**: Wi-Fi detection **only** marks attendance on your local in-app calendar & database. It **never** logs into or marks attendance on your company HR portal.
+
+### 🌐 Official Company HR Portal Check-In
+- **Alarm Alert Trigger**: Portal attendance is **only** performed when you explicitly click **"Check In"** on the alarm alert screen (`AlarmActivity`).
+- **In-App Auto Engine & Browser Options**: Supports embedded auto-fill WebView (`PortalActivity`) or external browser launch to log official company attendance.
+- **Zero Ambiguity**: Clear separation ensures local calendar tracking remains automated while official company portal check-in requires user confirmation on alarm alerts.
 
 ### 🔄 Intelligent WFO Rescheduling & Compensation ("Makeup WFO")
 - **Automated Missed Day Detection**: Detects missed WFO days daily after 2:00 PM or retroactively for yesterday.
@@ -36,7 +42,7 @@
 
 ### ⏰ Exact Alarms & OEM Battery Optimization
 - **Reliable Reminders**: Uses `AlarmManager.setExactAndAllowWhileIdle()` to guarantee check-in alarms fire even during deep sleep.
-- **Full-Screen Alarm Activity**: Custom alarm screen (`AlarmActivity`) with alarm chimes, vibration, and quick check-in actions.
+- **Full-Screen Alarm Activity**: Custom alarm screen (`AlarmActivity`) with alarm chimes, vibration, and direct HR Portal Check-In action button.
 - **Boot Persistence**: Automatically reschedules active alarms after device restart.
 - **OEM Battery Optimization Guides**: Built-in, step-by-step background battery setup instructions tailored for Xiaomi/POCO (MIUI/HyperOS), Samsung, OnePlus, Vivo, Oppo, and RealMe devices.
 

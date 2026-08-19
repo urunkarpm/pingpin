@@ -229,11 +229,22 @@ open class WifiService(private val context: Context) {
     }
 
     /**
-     * Checks if current connection matches target SSID.
+     * Checks if current connection matches target SSID (supports multi-SSID lists separated by comma, semicolon, or pipe).
      */
     open suspend fun isConnectedToSSID(targetSSID: String): Boolean {
+        val cleanTarget = targetSSID.replace("\"", "").trim()
+        if (cleanTarget.isEmpty() || cleanTarget.equals("<unknown ssid>", ignoreCase = true) || cleanTarget == "0x") {
+            return false
+        }
+
         val currentSSID = getWifiSSID() ?: return false
-        return currentSSID.equals(targetSSID.trim(), ignoreCase = true)
+        val cleanCurrent = currentSSID.replace("\"", "").trim()
+        if (cleanCurrent.isEmpty() || cleanCurrent.equals("<unknown ssid>", ignoreCase = true) || cleanCurrent == "0x") {
+            return false
+        }
+
+        val targetList = cleanTarget.split(',', ';', '|').map { it.replace("\"", "").trim() }.filter { it.isNotEmpty() }
+        return targetList.any { ssid -> cleanCurrent.equals(ssid, ignoreCase = true) }
     }
 
     /**

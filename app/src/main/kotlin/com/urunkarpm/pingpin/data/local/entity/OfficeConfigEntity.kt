@@ -20,6 +20,8 @@ data class OfficeConfigEntity(
     val autoLoginEnabled: Boolean = false,
     val autoCheckInEnabled: Boolean = false,
     val portalPreset: String = "GENERIC",
+    val customCheckInKeywords: String = "",
+    val customCheckOutKeywords: String = "",
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 )

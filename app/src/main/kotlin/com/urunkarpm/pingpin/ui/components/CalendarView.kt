@@ -255,46 +255,74 @@ fun MonthlyCalendarView(
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                LegendItem(
-                    color = if (isDark) EmeraldGreenBgDark else EmeraldGreenBgLight,
-                    dotColor = EmeraldGreen,
-                    label = "Present"
-                )
-                LegendItem(
-                    color = if (isDark) TealAccentBgDark else TealAccentBgLight,
-                    dotColor = TealAccent,
-                    label = "WFO Day"
-                )
-                LegendItem(
-                    color = if (isDark) AmberOrangeBgDark else AmberOrangeBgLight,
-                    dotColor = AmberOrange,
-                    label = "Makeup WFO"
-                )
+                Box(
+                    modifier = Modifier.weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    LegendItem(
+                        color = if (isDark) EmeraldGreenBgDark else EmeraldGreenBgLight,
+                        dotColor = EmeraldGreen,
+                        label = "Present"
+                    )
+                }
+                Box(
+                    modifier = Modifier.weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    LegendItem(
+                        color = if (isDark) TealAccentBgDark else TealAccentBgLight,
+                        dotColor = TealAccent,
+                        label = "WFO Day"
+                    )
+                }
+                Box(
+                    modifier = Modifier.weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    LegendItem(
+                        color = if (isDark) AmberOrangeBgDark else AmberOrangeBgLight,
+                        dotColor = AmberOrange,
+                        label = "Makeup WFO"
+                    )
+                }
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                LegendItem(
-                    color = if (isDark) CrimsonRedBgDark else CrimsonRedBgLight,
-                    dotColor = CrimsonRed,
-                    label = "Missed"
-                )
-                LegendItem(
-                    color = ElectricBlue,
-                    dotColor = ElectricBlue,
-                    label = "Today",
-                    isBorderOnly = true
-                )
-                LegendItem(
-                    color = Color.Transparent,
-                    dotColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                    label = "Off-Day"
-                )
+                Box(
+                    modifier = Modifier.weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    LegendItem(
+                        color = if (isDark) CrimsonRedBgDark else CrimsonRedBgLight,
+                        dotColor = CrimsonRed,
+                        label = "Missed"
+                    )
+                }
+                Box(
+                    modifier = Modifier.weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    LegendItem(
+                        color = ElectricBlue,
+                        dotColor = ElectricBlue,
+                        label = "Today",
+                        isBorderOnly = true
+                    )
+                }
+                Box(
+                    modifier = Modifier.weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    LegendItem(
+                        color = Color.Transparent,
+                        dotColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                        label = "Off-Day"
+                    )
+                }
             }
         }
     }

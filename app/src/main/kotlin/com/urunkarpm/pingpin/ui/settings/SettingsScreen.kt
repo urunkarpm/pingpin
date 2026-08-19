@@ -88,6 +88,8 @@ fun SettingsScreen(
     var portalMode by remember { mutableStateOf("EXTERNAL_BROWSER") }
     var autoLoginEnabled by remember { mutableStateOf(false) }
     var autoCheckInEnabled by remember { mutableStateOf(false) }
+    var customCheckInKeywords by remember { mutableStateOf("") }
+    var customCheckOutKeywords by remember { mutableStateOf("") }
     var portalUsername by remember { mutableStateOf("") }
     var portalPassword by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
@@ -117,6 +119,8 @@ fun SettingsScreen(
             portalMode = cfg.portalMode
             autoLoginEnabled = cfg.autoLoginEnabled
             autoCheckInEnabled = cfg.autoCheckInEnabled
+            customCheckInKeywords = cfg.customCheckInKeywords
+            customCheckOutKeywords = cfg.customCheckOutKeywords
         }
         profileState?.let { prof ->
             fullName = prof.fullName
@@ -145,6 +149,7 @@ fun SettingsScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
+            .imePadding()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 18.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)
@@ -586,6 +591,32 @@ fun SettingsScreen(
                                 Switch(
                                     checked = autoCheckInEnabled,
                                     onCheckedChange = { autoCheckInEnabled = it }
+                                )
+                            }
+
+                            if (autoCheckInEnabled) {
+                                OutlinedTextField(
+                                    value = customCheckInKeywords,
+                                    onValueChange = { customCheckInKeywords = it },
+                                    label = { Text("Custom Check-In Keywords (Comma separated)") },
+                                    placeholder = { Text("Check In, Clock In, Web Punch") },
+                                    leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, tint = Color(0xFF8B5CF6)) },
+                                    supportingText = { Text("Leave blank to use smart default keywords", fontSize = 10.sp) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = fieldShape,
+                                    singleLine = true
+                                )
+
+                                OutlinedTextField(
+                                    value = customCheckOutKeywords,
+                                    onValueChange = { customCheckOutKeywords = it },
+                                    label = { Text("Custom Check-Out Keywords (Comma separated)") },
+                                    placeholder = { Text("Check Out, Clock Out, Punch Out") },
+                                    leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, tint = Color(0xFF8B5CF6)) },
+                                    supportingText = { Text("Leave blank to use smart default keywords", fontSize = 10.sp) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = fieldShape,
+                                    singleLine = true
                                 )
                             }
 
@@ -1084,7 +1115,8 @@ fun SettingsScreen(
         LaunchedEffect(
             fullName, ssid, checkInTime, checkOutTime, portalUrl,
             workingDaysMask, wfoDaysMask, portalMode, autoLoginEnabled,
-            autoCheckInEnabled, portalUsername, portalPassword
+            autoCheckInEnabled, customCheckInKeywords, customCheckOutKeywords,
+            portalUsername, portalPassword
         ) {
             if (isFirstLoad.value) {
                 isFirstLoad.value = false
@@ -1102,7 +1134,9 @@ fun SettingsScreen(
                 wfoDaysMask = wfoDaysMask,
                 portalMode = portalMode,
                 autoLoginEnabled = autoLoginEnabled,
-                autoCheckInEnabled = autoCheckInEnabled
+                autoCheckInEnabled = autoCheckInEnabled,
+                customCheckInKeywords = customCheckInKeywords.trim(),
+                customCheckOutKeywords = customCheckOutKeywords.trim()
             )
             officeConfigRepo.saveConfig(newConfig)
 

@@ -42,7 +42,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         autoCheckInEnabled: Boolean = false,
         portalPreset: String = "GENERIC",
         portalUsername: String = "",
-        portalPassword: String = ""
+        portalPassword: String = "",
+        customCheckInKeywords: String = "",
+        customCheckOutKeywords: String = ""
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             val currentConfig = configState.value
@@ -58,7 +60,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 portalMode = portalMode,
                 autoLoginEnabled = autoLoginEnabled,
                 autoCheckInEnabled = autoCheckInEnabled,
-                portalPreset = portalPreset
+                portalPreset = portalPreset,
+                customCheckInKeywords = customCheckInKeywords.trim(),
+                customCheckOutKeywords = customCheckOutKeywords.trim()
             )
             officeConfigRepo.saveConfig(newConfig)
 

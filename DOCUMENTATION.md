@@ -17,19 +17,21 @@ This document provides a comprehensive, feature-by-feature breakdown of all capa
 
 ---
 
-## 1. Automatic Wi-Fi Attendance Tracking
+## 1. Local Wi-Fi Calendar Attendance Tracking
 
 ### Overview
-PingPin provides zero-touch office attendance detection powered by Wi-Fi network verification and customizable late arrival rules.
+PingPin provides zero-touch office attendance detection on your local in-app calendar powered by Wi-Fi network verification and customizable late arrival rules.
+
+> ⚠️ **Important Clarification**: Connecting to office Wi-Fi **only** marks local attendance in PingPin's on-device SQLite database (`attendance_records`) to populate the in-app calendar, streak statistics, and compliance radial gauge. It **never** logs into or marks attendance on your company HR portal.
 
 ### Key Capabilities
 - **Office SSID Verification**: Automatically compares connected Wi-Fi network SSID against the configured office SSID in [`WifiService.kt`](file:///c:/Users/uprasenjeet/Documents/pingpin/app/src/main/kotlin/com/urunkarpm/pingpin/service/WifiService.kt).
 - **Status Classification**:
-  - `PRESENT`: Marked when checked in prior to configured check-in time (e.g. 09:30 AM).
-  - `LATE`: Marked when checked in after late cutoff time.
-- **Background Periodic Worker**: [`WifiCheckWorker.kt`](file:///c:/Users/uprasenjeet/Documents/pingpin/app/src/main/kotlin/com/urunkarpm/pingpin/service/WifiCheckWorker.kt) runs via Android WorkManager to auto-mark attendance in the background.
-- **Pre-Alert Auto Check**: At 2:00 PM (14:00), PingPin executes an automated Wi-Fi check. If the user arrived at the office later in the day, attendance is marked immediately, suppressing false missed alert notifications.
-- **Manual Check-In Action**: Single-tap check-in button on the Home Screen card for immediate attendance recording.
+  - `PRESENT`: Marked locally when checked in prior to configured check-in time (e.g. 09:30 AM).
+  - `LATE`: Marked locally when checked in after late cutoff time.
+- **Background Periodic Worker**: [`WifiCheckWorker.kt`](file:///c:/Users/uprasenjeet/Documents/pingpin/app/src/main/kotlin/com/urunkarpm/pingpin/service/WifiCheckWorker.kt) runs via Android WorkManager to auto-mark local calendar attendance in the background.
+- **Pre-Alert Auto Check**: At 2:00 PM (14:00), PingPin executes an automated Wi-Fi check. If the user arrived at the office later in the day, local attendance is marked immediately, suppressing false missed day alerts.
+- **Manual Local Check-In Action**: Single-tap check-in button on the Home Screen card for immediate local attendance recording.
 
 ---
 
@@ -99,15 +101,18 @@ Located in [`WeatherService.kt`](file:///c:/Users/uprasenjeet/Documents/pingpin/
 
 ---
 
-## 6. Notifications, Alarms & OEM Battery Optimization
+## 6. Notifications, Alarms & Company HR Portal Check-In
 
 ### Overview
-Implemented in [`NotificationService.kt`](file:///c:/Users/uprasenjeet/Documents/pingpin/app/src/main/kotlin/com/urunkarpm/pingpin/service/NotificationService.kt) and [`OemBatteryHelper.kt`](file:///c:/Users/uprasenjeet/Documents/pingpin/app/src/main/kotlin/com/urunkarpm/pingpin/service/OemBatteryHelper.kt).
+Implemented in [`NotificationService.kt`](file:///c:/Users/uprasenjeet/Documents/pingpin/app/src/main/kotlin/com/urunkarpm/pingpin/service/NotificationService.kt), [`AlarmActivity.kt`](file:///c:/Users/uprasenjeet/Documents/pingpin/app/src/main/kotlin/com/urunkarpm/pingpin/AlarmActivity.kt), [`PortalActivity.kt`](file:///c:/Users/uprasenjeet/Documents/pingpin/app/src/main/kotlin/com/urunkarpm/pingpin/ui/portal/PortalActivity.kt), and [`OemBatteryHelper.kt`](file:///c:/Users/uprasenjeet/Documents/pingpin/app/src/main/kotlin/com/urunkarpm/pingpin/service/OemBatteryHelper.kt).
 
 ### Key Capabilities
-- **Exact Alarms**: Uses `AlarmManager.setExactAndAllowWhileIdle()` to ensure check-in reminders fire reliably during device deep sleep.
-- **Full-Screen Alarm Activity**: Custom alarm screen ([`AlarmActivity.kt`](file:///c:/Users/uprasenjeet/Documents/pingpin/app/src/main/kotlin/com/urunkarpm/pingpin/AlarmActivity.kt)) with alarm chime sound (`beep.mp3`), vibration, and quick action buttons.
-- **Boot Persistence**: [`BootReceiver.kt`](file:///c:/Users/uprasenjeet/Documents/pingpin/app/src/main/kotlin/com/urunkarpm/pingpin/receiver/BootReceiver.kt) reschedules alarms after device reboot.
+- **Exact Alarm Reminders**: Uses `AlarmManager.setExactAndAllowWhileIdle()` to guarantee check-in reminders fire reliably during device deep sleep.
+- **Full-Screen Alarm Activity**: Custom alarm screen ([`AlarmActivity.kt`](file:///c:/Users/uprasenjeet/Documents/pingpin/app/src/main/kotlin/com/urunkarpm/pingpin/AlarmActivity.kt)) with alarm chime sound (`beep.mp3`), vibration, sonar pulse animations, and dedicated action buttons.
+- **Company HR Portal Attendance Trigger**: Official portal check-in is **only** performed when the user explicitly clicks **"CHECK-IN (OPEN PORTAL)"** on the alarm alert screen:
+  - **In-App Auto Mode (`IN_APP_AUTO`)**: Opens embedded [`PortalActivity.kt`](file:///c:/Users/uprasenjeet/Documents/pingpin/app/src/main/kotlin/com/urunkarpm/pingpin/ui/portal/PortalActivity.kt) with [`PortalAutoCheckInEngine.kt`](file:///c:/Users/uprasenjeet/Documents/pingpin/app/src/main/kotlin/com/urunkarpm/pingpin/service/portal/PortalAutoCheckInEngine.kt) to automatically log in and click the portal check-in button via JS injection.
+  - **External Browser Mode (`EXTERNAL_BROWSER`)**: Opens the system default browser directly to the configured portal URL.
+- **Boot Persistence**: [`BootReceiver.kt`](file:///c:/Users/uprasenjeet/Documents/pingpin/app/src/main/kotlin/com/urunkarpm/pingpin/receiver/BootReceiver.kt) reschedules exact alarms after device reboot.
 - **OEM Battery Setup Guides**: Built-in instructions for Xiaomi/POCO (MIUI/HyperOS), Samsung, OnePlus, Vivo, Oppo, and RealMe to prevent OS background task killing.
 
 ---

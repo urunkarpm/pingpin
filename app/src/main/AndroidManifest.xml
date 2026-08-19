@@ -80,7 +80,10 @@
         <activity
             android:name=".ui.portal.PortalActivity"
             android:exported="false"
+            android:showOnLockScreen="true"
+            android:showWhenLocked="true"
             android:theme="@style/Theme.PingPin"
+            android:turnScreenOn="true"
             android:windowSoftInputMode="adjustResize" />
 
         <receiver

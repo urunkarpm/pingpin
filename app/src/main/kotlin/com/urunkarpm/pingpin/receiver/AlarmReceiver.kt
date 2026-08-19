@@ -73,29 +73,16 @@ class AlarmReceiver : BroadcastReceiver() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val rawPortalUrl = portalUrl.ifBlank {
-            context.getSharedPreferences(NotificationService.PREFS_NAME, Context.MODE_PRIVATE)
-                .getString("portalUrl", "") ?: ""
-        }.trim()
-
-        val urlToOpen = if (rawPortalUrl.isNotBlank()) {
-            if (!rawPortalUrl.startsWith("http://") && !rawPortalUrl.startsWith("https://")) {
-                "https://$rawPortalUrl"
-            } else {
-                rawPortalUrl
-            }
-        } else {
-            "https://google.com"
+        val openPortalIntent = Intent(context, NotificationActionReceiver::class.java).apply {
+            action = NotificationActionReceiver.ACTION_OPEN_PORTAL
+            putExtra(NotificationActionReceiver.EXTRA_ALARM_ID, alarmId)
+            putExtra(NotificationActionReceiver.EXTRA_PORTAL_URL, portalUrl)
         }
 
-        val browserViewIntent = Intent(Intent.ACTION_VIEW, Uri.parse(urlToOpen)).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-        }
-
-        val openPortalPendingIntent = PendingIntent.getActivity(
+        val openPortalPendingIntent = PendingIntent.getBroadcast(
             context,
             alarmId * 10 + 2,
-            browserViewIntent,
+            openPortalIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 

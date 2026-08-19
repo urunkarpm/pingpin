@@ -31,6 +31,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.lifecycleScope
+import android.app.KeyguardManager
+import android.os.Build
+import android.view.WindowManager
 import com.urunkarpm.pingpin.data.local.AppDatabase
 import com.urunkarpm.pingpin.service.AttendanceService
 import com.urunkarpm.pingpin.service.NotificationService
@@ -39,6 +42,12 @@ import com.urunkarpm.pingpin.service.portal.PortalCredentialManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+import android.Manifest
+import android.content.pm.PackageManager
+import android.webkit.GeolocationPermissions
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 
 class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallback {
 
@@ -50,8 +59,22 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
     private val statusMessageState = mutableStateOf("Initializing Portal...")
     private val isLoadingState = mutableStateOf(true)
 
+    private var pendingGeoOrigin: String? = null
+    private var pendingGeoCallback: GeolocationPermissions.Callback? = null
+
+    private val locationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val granted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        pendingGeoCallback?.invoke(pendingGeoOrigin, granted, true)
+        pendingGeoOrigin = null
+        pendingGeoCallback = null
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        turnScreenOnAndKeyguard()
 
         actionType = intent.getStringExtra(EXTRA_ACTION_TYPE) ?: ACTION_CHECK_IN
         targetPortalUrl = intent.getStringExtra(EXTRA_PORTAL_URL) ?: ""
@@ -62,6 +85,22 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
         }
 
         loadConfigAndInit()
+    }
+
+    private fun turnScreenOnAndKeyguard() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+            val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+            keyguardManager?.requestDismissKeyguard(this, null)
+        }
+        @Suppress("DEPRECATION")
+        window.addFlags(
+            WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                    WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                    WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+        )
     }
 
     private fun loadConfigAndInit() {
@@ -82,16 +121,40 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
 
             targetPortalUrl = url
             val autoLogin = config?.autoLoginEnabled ?: false
-            val autoCheckIn = config?.autoCheckInEnabled ?: false
+            val autoCheckInConfigured = config?.autoCheckInEnabled ?: false
+            val officeSsid = config?.ssid ?: ""
+            val wifiService = com.urunkarpm.pingpin.service.WifiService(applicationContext)
+            val isConnectedToOffice = if (officeSsid.isNotBlank()) wifiService.isConnectedToSSID(officeSsid) else false
+
+            val isTestMode = intent.getBooleanExtra(EXTRA_IS_TEST_MODE, false)
+            val safeAutoPunch = (autoCheckInConfigured && isConnectedToOffice) || isTestMode
+            val customCheckInKeywords = config?.customCheckInKeywords ?: ""
+            val customCheckOutKeywords = config?.customCheckOutKeywords ?: ""
 
             withContext(Dispatchers.Main) {
-                initWebView(autoLogin, autoCheckIn)
+                initWebView(
+                    autoLogin = autoLogin,
+                    autoCheckIn = safeAutoPunch,
+                    customCheckInKeywords = customCheckInKeywords,
+                    customCheckOutKeywords = customCheckOutKeywords,
+                    isConnectedToOffice = isConnectedToOffice || isTestMode,
+                    officeSsid = officeSsid,
+                    autoCheckInConfigured = autoCheckInConfigured
+                )
             }
         }
     }
 
     @SuppressLint("SetJavaScriptEnabled")
-    private fun initWebView(autoLogin: Boolean, autoCheckIn: Boolean) {
+    private fun initWebView(
+        autoLogin: Boolean,
+        autoCheckIn: Boolean,
+        customCheckInKeywords: String,
+        customCheckOutKeywords: String,
+        isConnectedToOffice: Boolean,
+        officeSsid: String,
+        autoCheckInConfigured: Boolean
+    ) {
         val webView = webViewRef ?: return
         val credManager = PortalCredentialManager(this)
         val username = credManager.getUsername()
@@ -101,6 +164,8 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
             javaScriptEnabled = true
             domStorageEnabled = true
             databaseEnabled = true
+            setGeolocationEnabled(true)
+            setGeolocationDatabasePath(filesDir.path)
             useWideViewPort = true
             loadWithOverviewMode = true
             mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
@@ -121,14 +186,20 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
                 isLoadingState.value = false
-                statusMessageState.value = "Page loaded. Running check-in engine..."
+                if (autoCheckInConfigured && !isConnectedToOffice) {
+                    statusMessageState.value = "⚠️ Not connected to Office Wi-Fi ($officeSsid). Auto-punch paused for safety."
+                } else {
+                    statusMessageState.value = "Page loaded. Running check-in engine..."
+                }
 
                 val script = PortalAutoCheckInEngine.generateAutomationScript(
                     actionType = actionType,
                     username = username,
                     password = password,
                     autoLogin = autoLogin,
-                    autoPunch = autoCheckIn
+                    autoPunch = autoCheckIn,
+                    customCheckInKeywords = customCheckInKeywords,
+                    customCheckOutKeywords = customCheckOutKeywords
                 )
                 view?.evaluateJavascript(script, null)
             }
@@ -152,6 +223,34 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
                     statusMessageState.value = "Loading portal... $newProgress%"
                 }
             }
+
+            override fun onGeolocationPermissionsShowPrompt(
+                origin: String?,
+                callback: GeolocationPermissions.Callback?
+            ) {
+                if (origin == null || callback == null) return
+                val hasFine = ContextCompat.checkSelfPermission(
+                    this@PortalActivity,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                ) == PackageManager.PERMISSION_GRANTED
+                val hasCoarse = ContextCompat.checkSelfPermission(
+                    this@PortalActivity,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                ) == PackageManager.PERMISSION_GRANTED
+
+                if (hasFine || hasCoarse) {
+                    callback.invoke(origin, true, true)
+                } else {
+                    pendingGeoOrigin = origin
+                    pendingGeoCallback = callback
+                    locationPermissionLauncher.launch(
+                        arrayOf(
+                            Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.ACCESS_COARSE_LOCATION
+                        )
+                    )
+                }
+            }
         }
 
         webView.loadUrl(targetPortalUrl)
@@ -162,17 +261,26 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
             val db = AppDatabase.getInstance(applicationContext)
             val config = db.officeConfigDao().getConfig()
             val credManager = PortalCredentialManager(this@PortalActivity)
-            
+            val wifiService = com.urunkarpm.pingpin.service.WifiService(applicationContext)
+            val officeSsid = config?.ssid ?: ""
+            val isConnectedToOffice = if (officeSsid.isNotBlank()) wifiService.isConnectedToSSID(officeSsid) else false
+
             val script = PortalAutoCheckInEngine.generateAutomationScript(
                 actionType = actionType,
                 username = credManager.getUsername(),
                 password = credManager.getPassword(),
                 autoLogin = config?.autoLoginEnabled ?: false,
-                autoPunch = true
+                autoPunch = true,
+                customCheckInKeywords = config?.customCheckInKeywords ?: "",
+                customCheckOutKeywords = config?.customCheckOutKeywords ?: ""
             )
 
             withContext(Dispatchers.Main) {
-                statusMessageState.value = "Retrying automation script..."
+                if (!isConnectedToOffice && officeSsid.isNotBlank()) {
+                    statusMessageState.value = "⚠️ Device is not on Office Wi-Fi ($officeSsid). Running manual punch trigger..."
+                } else {
+                    statusMessageState.value = "Retrying automation script..."
+                }
                 webViewRef?.evaluateJavascript(script, null)
             }
         }
@@ -211,7 +319,7 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
     override fun onPunchSuccess(actionType: String) {
         runOnUiThread {
             val displayAction = if (actionType.equals("CHECK_IN", ignoreCase = true)) "Check In" else "Check Out"
-            statusMessageState.value = "🎉 $displayAction recorded successfully!"
+            statusMessageState.value = "🎉 $displayAction recorded! Syncing session with portal (closing in 6s)..."
             Toast.makeText(this@PortalActivity, "$displayAction recorded!", Toast.LENGTH_LONG).show()
 
             // Record attendance in PingPin database
@@ -232,8 +340,8 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
                     e.printStackTrace()
                 }
 
-                // Auto finish after short delay
-                kotlinx.coroutines.delay(2000)
+                // Auto finish after 6s delay to allow pending background location/API network calls to finish on portal server
+                kotlinx.coroutines.delay(6000)
                 withContext(Dispatchers.Main) {
                     finish()
                 }
@@ -373,6 +481,7 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
         const val EXTRA_ACTION_TYPE = "extra_action_type"
         const val EXTRA_PORTAL_URL = "extra_portal_url"
         const val EXTRA_ALARM_ID = "extra_alarm_id"
+        const val EXTRA_IS_TEST_MODE = "extra_is_test_mode"
 
         const val ACTION_CHECK_IN = "CHECK_IN"
         const val ACTION_CHECK_OUT = "CHECK_OUT"
@@ -381,12 +490,14 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
             context: Context,
             actionType: String = ACTION_CHECK_IN,
             portalUrl: String = "",
-            alarmId: Int = -1
+            alarmId: Int = -1,
+            isTestMode: Boolean = false
         ): Intent {
             return Intent(context, PortalActivity::class.java).apply {
                 putExtra(EXTRA_ACTION_TYPE, actionType)
                 putExtra(EXTRA_PORTAL_URL, portalUrl)
                 putExtra(EXTRA_ALARM_ID, alarmId)
+                putExtra(EXTRA_IS_TEST_MODE, isTestMode)
             }
         }
     }

@@ -100,7 +100,11 @@ app/src/main/kotlin/com/urunkarpm/pingpin/
 
 ## 3. Detailed Component Architecture
 
-### 3.1 Attendance & Schedule Engine
+### 3.1 Attendance & Schedule Engine (Local Calendar Tracking)
+
+PingPin maintains a strict operational boundary between **Local Calendar Attendance** and **Company HR Portal Attendance**:
+
+> ⚠️ **Key Architectural Principle**: Connecting to office Wi-Fi **only** logs attendance locally in the on-device SQLite database (`attendance_records`) to populate the in-app calendar, streak metrics, and compliance gauge. It **never** interacts with or logs into any external company HR portal.
 
 #### Working Days Bitmask (`WorkingDays.kt`)
 Efficiently stores working day configurations using a 7-bit bitmask integer:
@@ -113,8 +117,8 @@ Efficiently stores working day configurations using a 7-bit bitmask integer:
 - Sunday = 64 ($2^6$)
 - **Default Weekdays Mask**: $1 + 2 + 4 + 8 + 16 = 31$.
 
-#### Attendance Check Rules (`AttendanceService.kt`)
-When connected to the designated office Wi-Fi SSID:
+#### Local Calendar Attendance Rules (`AttendanceService.kt`)
+When connected to the designated office Wi-Fi SSID, `AttendanceService` evaluates local state:
 ```kotlin
 if (wifiService.isConnectedToSSID(officeConfig.ssid)) {
     val status = if (currentTime <= officeConfig.checkInTime) {
@@ -122,11 +126,37 @@ if (wifiService.isConnectedToSSID(officeConfig.ssid)) {
     } else {
         AttendanceStatus.LATE
     }
-    saveRecord(todayDate, status, officeConfig.ssid)
+    // Saved ONLY to local Room SQLite DB (attendance_records table)
+    attendanceRepo.insertRecord(todayDate, status, currentSsid)
 }
 ```
 
-### 3.2 WFO Rescheduling & Compensation Engine (`MakeupWfoManager.kt`)
+### 3.2 Company HR Portal Check-In Engine (`AlarmActivity.kt`, `PortalActivity.kt`, `PortalAutoCheckInEngine.kt`)
+
+Official HR portal check-in is strictly decoupled from Wi-Fi background scans and is **only** executed upon explicit user interaction with the Alarm Alert:
+
+```
+[AlarmManager Exact Trigger] ──► [AlarmActivity (Full Screen)]
+                                        │
+                                        ▼
+                           User clicks "CHECK-IN (OPEN PORTAL)"
+                                        │
+                    ┌───────────────────┴───────────────────┐
+                    ▼                                       ▼
+         [IN_APP_AUTO Portal Mode]             [EXTERNAL_BROWSER Mode]
+                    │                                       │
+                    ▼                                       ▼
+  Launches PortalActivity (WebView)           Launches default browser
+  (PortalAutoCheckInEngine auto-fills         with configured HR portal URL
+   credentials & triggers check-in)
+```
+
+1. **Alarm Trigger**: `AlarmManager.setExactAndAllowWhileIdle()` fires at the configured check-in time, launching the full-screen `AlarmActivity`.
+2. **User Interaction**: Tapping **"CHECK-IN (OPEN PORTAL)"** triggers portal execution:
+   - **`IN_APP_AUTO` Mode**: Launches `PortalActivity`, which uses an embedded Android `WebView` (`PortalAutoCheckInEngine.kt`) to inject JS, auto-fill login credentials, and submit official portal check-in.
+   - **`EXTERNAL_BROWSER` Mode**: Launches the system default browser opening the target portal URL.
+
+### 3.3 WFO Rescheduling & Compensation Engine (`MakeupWfoManager.kt`)
 
 Evaluates missed WFO days daily after 2:00 PM (14:00) or retroactively for yesterday:
 
@@ -153,7 +183,7 @@ Evaluates missed WFO days daily after 2:00 PM (14:00) or retroactively for yeste
 4. Must **NOT** be a public holiday (`IndianHolidayService`).
 5. Must **NOT** already have attendance logged in Room DB.
 
-### 3.3 Tactical Office Radar & Mobile BLE Scanner (`BleMobileScannerService.kt`)
+### 3.4 Tactical Office Radar & Mobile BLE Scanner (`BleMobileScannerService.kt`)
 
 Scans Bluetooth Low Energy (BLE) advertisements to detect nearby mobile phones (Android and iOS):
 
@@ -162,7 +192,7 @@ Scans Bluetooth Low Energy (BLE) advertisements to detect nearby mobile phones (
 - **RSSI Proximity Thresholding**: Filters out faint signals below $-85\text{ dBm}$ to focus on nearby bay & floor occupancy.
 - **Tactical Radar UI**: [`OfficeOccupancyCard.kt`](file:///c:/Users/uprasenjeet/Documents/pingpin/app/src/main/kotlin/com/urunkarpm/pingpin/ui/components/OfficeOccupancyCard.kt) renders a tactical military radar HUD with electric neon green/cyan glow, 360° rotating sweep beam, range reticles, target blips, and sector density status.
 
-### 3.4 Commute Weather & Travel Insights (`WeatherService.kt`)
+### 3.5 Commute Weather & Travel Insights (`WeatherService.kt`)
 
 Fetches live weather data from Open-Meteo API:
 - Resolves location: **GPS Location** $\rightarrow$ **Office Config lat/lon** $\rightarrow$ **Default City (Bengaluru)**.
@@ -173,10 +203,10 @@ Fetches live weather data from Open-Meteo API:
   - `High Heat Warning` ($\ge 34^\circ\text{C}$) $\rightarrow$ AC transit advised.
 - Includes local time-based simulated weather fallback for offline operation.
 
-### 3.5 Exact Alarms & OEM Battery Optimization (`NotificationService.kt`, `OemBatteryHelper.kt`)
+### 3.6 Exact Alarms & OEM Battery Optimization (`NotificationService.kt`, `OemBatteryHelper.kt`)
 
 - Uses `AlarmManager.setExactAndAllowWhileIdle()` for guaranteed reminder delivery.
-- Launches full-screen `AlarmActivity` with chime (`beep.mp3`) and vibration.
+- Launches full-screen `AlarmActivity` with chime (`beep.mp3`), vibration, and quick action controls.
 - Provides custom step-by-step background battery optimization setup instructions for Xiaomi/POCO, Samsung, OnePlus, Vivo, Oppo, and RealMe devices.
 
 ---

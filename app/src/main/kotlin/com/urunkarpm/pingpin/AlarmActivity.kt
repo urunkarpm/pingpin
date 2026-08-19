@@ -100,7 +100,7 @@ class AlarmActivity : ComponentActivity() {
                         if (alarmId == NotificationService.CHECK_IN_SNOOZE_ID || alarmId == NotificationService.CHECK_OUT_SNOOZE_ID) {
                             notifService.cancelAlarm(alarmId)
                         }
-                        dismissKeyguardAndExecute { openPortalAction(com.urunkarpm.pingpin.ui.portal.PortalActivity.ACTION_CHECK_IN, alarmId, portalUrlState) }
+                        dismissKeyguardAndExecute(shouldFinish = false) { openPortalAction(com.urunkarpm.pingpin.ui.portal.PortalActivity.ACTION_CHECK_IN, alarmId, portalUrlState) }
                     },
                     onSnooze = {
                         stopAlarmSound()
@@ -124,7 +124,7 @@ class AlarmActivity : ComponentActivity() {
                         if (alarmId == NotificationService.CHECK_IN_SNOOZE_ID || alarmId == NotificationService.CHECK_OUT_SNOOZE_ID) {
                             notifService.cancelAlarm(alarmId)
                         }
-                        dismissKeyguardAndExecute { openPortalAction(com.urunkarpm.pingpin.ui.portal.PortalActivity.ACTION_CHECK_OUT, alarmId, portalUrlState) }
+                        dismissKeyguardAndExecute(shouldFinish = false) { openPortalAction(com.urunkarpm.pingpin.ui.portal.PortalActivity.ACTION_CHECK_OUT, alarmId, portalUrlState) }
                     }
                 )
             }
@@ -232,7 +232,7 @@ class AlarmActivity : ComponentActivity() {
         super.onDestroy()
     }
 
-    private fun dismissKeyguardAndExecute(action: () -> Unit) {
+    private fun dismissKeyguardAndExecute(shouldFinish: Boolean = true, action: () -> Unit) {
         val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
         val safeFinish = {
             window?.decorView?.post {
@@ -244,25 +244,25 @@ class AlarmActivity : ComponentActivity() {
             keyguardManager.requestDismissKeyguard(this, object : KeyguardManager.KeyguardDismissCallback() {
                 override fun onDismissSucceeded() {
                     action()
-                    safeFinish()
+                    if (shouldFinish) safeFinish()
                 }
                 override fun onDismissError() {
                     action()
-                    safeFinish()
+                    if (shouldFinish) safeFinish()
                 }
                 override fun onDismissCancelled() {
                     action()
-                    safeFinish()
+                    if (shouldFinish) safeFinish()
                 }
             })
         } else {
             action()
-            safeFinish()
+            if (shouldFinish) safeFinish()
         }
     }
 
     private fun openPortalAction(actionType: String, currentAlarmId: Int, currentPortalUrl: String) {
-        lifecycleScope.launch(Dispatchers.IO) {
+        kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
             val db = com.urunkarpm.pingpin.data.local.AppDatabase.getInstance(applicationContext)
             val config = db.officeConfigDao().getConfig()
             val portalMode = config?.portalMode ?: "EXTERNAL_BROWSER"
@@ -275,12 +275,16 @@ class AlarmActivity : ComponentActivity() {
                         actionType = actionType,
                         portalUrl = url,
                         alarmId = currentAlarmId
-                    )
+                    ).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    }
                     startActivity(intent)
-                    finish()
                 } else {
                     openBrowser(url)
                 }
+                window?.decorView?.post {
+                    finishAndRemoveTask()
+                } ?: finishAndRemoveTask()
             }
         }
     }
