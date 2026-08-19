@@ -1,11 +1,9 @@
 package com.urunkarpm.pingpin.ui
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import com.urunkarpm.pingpin.ui.components.LiquidGlassNavBar
 import com.urunkarpm.pingpin.ui.components.LiquidGlassNavRail
 import com.urunkarpm.pingpin.ui.home.HomeScreen
@@ -49,21 +47,15 @@ fun MainShell(
             }
         }
     } else {
-        Scaffold(
-            modifier = modifier.fillMaxSize(),
-            contentWindowInsets = WindowInsets(0, 0, 0, 0),
-            bottomBar = {
-                LiquidGlassNavBar(
-                    selectedTab = selectedTab,
-                    onTabSelected = { selectedTab = it }
-                )
-            }
-        ) { innerPadding ->
+        // Seamless Floating Overlap Architecture: Content flows full-screen underneath the floating navbar
+        Box(
+            modifier = modifier.fillMaxSize()
+        ) {
+            // 1. Full-screen Body Content Layer
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .statusBarsPadding()
-                    .padding(innerPadding)
             ) {
                 when (selectedTab) {
                     0 -> HomeScreen()
@@ -74,7 +66,13 @@ fun MainShell(
                     )
                 }
             }
+
+            // 2. Floating Liquid Glass Bottom Navbar (Seamless Overlap at Bottom Center)
+            LiquidGlassNavBar(
+                selectedTab = selectedTab,
+                onTabSelected = { selectedTab = it },
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
         }
     }
 }
-

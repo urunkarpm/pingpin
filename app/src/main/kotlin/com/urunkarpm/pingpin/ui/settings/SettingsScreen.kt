@@ -3,7 +3,6 @@ package com.urunkarpm.pingpin.ui.settings
 import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
-import androidx.compose.ui.draw.rotate
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -13,12 +12,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -39,15 +40,16 @@ import com.urunkarpm.pingpin.service.NotificationService
 import com.urunkarpm.pingpin.service.OemBatteryHelper
 import com.urunkarpm.pingpin.service.WorkingDays
 import com.urunkarpm.pingpin.ui.components.GlassCard
-import com.urunkarpm.pingpin.ui.components.TimePickerField
 import com.urunkarpm.pingpin.ui.components.TimeFormatUtils
+import com.urunkarpm.pingpin.ui.components.TimePickerField
+import com.urunkarpm.pingpin.ui.components.WfoDaysSelector
 import com.urunkarpm.pingpin.ui.components.WifiSsidPickerField
 import com.urunkarpm.pingpin.ui.components.WorkingDaysSelector
-import com.urunkarpm.pingpin.ui.components.WfoDaysSelector
 import com.urunkarpm.pingpin.ui.theme.AmberOrange
 import com.urunkarpm.pingpin.ui.theme.ElectricBlue
 import com.urunkarpm.pingpin.ui.theme.EmeraldGreen
-import kotlinx.coroutines.launch
+import com.urunkarpm.pingpin.ui.theme.WfoDayPurple
+import kotlinx.coroutines.delay
 
 private enum class SettingsSection {
     PROFILE,
@@ -57,7 +59,7 @@ private enum class SettingsSection {
     OEM
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun SettingsScreen(
     modifier: Modifier = Modifier,
@@ -96,8 +98,8 @@ fun SettingsScreen(
 
     var testAlarmFired by remember { mutableStateOf(false) }
 
-    // Accordion expansion state: only one section expanded at a time
-    var expandedSection by remember { mutableStateOf<SettingsSection?>(null) }
+    // Accordion expansion state: null means all collapsed by default or workspace open
+    var expandedSection by remember { mutableStateOf<SettingsSection?>(SettingsSection.WORKSPACE) }
     val profileExpanded = expandedSection == SettingsSection.PROFILE
     val workspaceExpanded = expandedSection == SettingsSection.WORKSPACE
     val portalAutomationExpanded = expandedSection == SettingsSection.PORTAL_AUTOMATION
@@ -105,7 +107,6 @@ fun SettingsScreen(
     val oemExpanded = expandedSection == SettingsSection.OEM
 
     val oemGuidance = remember { OemBatteryHelper.getGuidance() }
-
     val fieldShape = RoundedCornerShape(16.dp)
 
     LaunchedEffect(configState, profileState) {
@@ -151,10 +152,10 @@ fun SettingsScreen(
             .fillMaxSize()
             .imePadding()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 18.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+            .padding(start = 18.dp, end = 18.dp, top = 16.dp, bottom = 120.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Hero User Profile Card
+        // 1. Hero User Profile Card
         GlassCard(modifier = Modifier.fillMaxWidth()) {
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -164,10 +165,10 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Avatar Box with Gradient Rim & Pulse Glow
+                    // Avatar Box with Gradient Rim & Specular Glow
                     Box(
                         modifier = Modifier
-                            .size(64.dp)
+                            .size(60.dp)
                             .clip(CircleShape)
                             .background(
                                 brush = Brush.linearGradient(
@@ -180,7 +181,7 @@ fun SettingsScreen(
                         Text(
                             text = avatarInitials,
                             color = Color.White,
-                            fontSize = 24.sp,
+                            fontSize = 22.sp,
                             fontWeight = FontWeight.Black
                         )
                     }
@@ -188,25 +189,20 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.width(16.dp))
 
                     Column(modifier = Modifier.weight(1f)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = fullName.ifBlank { "Setup Profile" },
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
+                        Text(
+                            text = fullName.ifBlank { "Setup Profile" },
+                            fontSize = 19.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
 
-                        Spacer(modifier = Modifier.height(3.dp))
+                        Spacer(modifier = Modifier.height(2.dp))
 
                         Text(
-                            text = "Tap below to update your name",
-                            fontSize = 13.sp,
+                            text = if (fullName.isBlank()) "Tap profile card to configure" else "PingPin Attendance Profile",
+                            fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -214,7 +210,7 @@ fun SettingsScreen(
 
                         Spacer(modifier = Modifier.height(6.dp))
 
-                        // Status pill
+                        // Status pill with pulse dot
                         Surface(
                             shape = RoundedCornerShape(8.dp),
                             color = if (isProfileComplete) EmeraldGreen.copy(alpha = 0.15f) else AmberOrange.copy(alpha = 0.15f)
@@ -222,7 +218,7 @@ fun SettingsScreen(
                             Row(
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
                             ) {
                                 Box(
                                     modifier = Modifier
@@ -242,7 +238,7 @@ fun SettingsScreen(
                     }
                 }
 
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
 
                 // Stat Summary Chips Row
                 Row(
@@ -268,7 +264,7 @@ fun SettingsScreen(
             }
         }
 
-        // Theme Toggle Card
+        // 2. Modern Theme Switcher Bar Card
         GlassCard(modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -286,9 +282,9 @@ fun SettingsScreen(
                             .background(
                                 Brush.linearGradient(
                                     if (isDarkTheme)
-                                        listOf(Color(0xFF6366F1), Color(0xFF8B5CF6))
+                                        listOf(Color(0xFF6366F1), WfoDayPurple)
                                     else
-                                        listOf(Color(0xFFF59E0B), Color(0xFFEF4444))
+                                        listOf(AmberOrange, Color(0xFFEF4444))
                                 )
                             ),
                         contentAlignment = Alignment.Center
@@ -302,13 +298,13 @@ fun SettingsScreen(
                     }
                     Column {
                         Text(
-                            text = if (isDarkTheme) "Dark Mode" else "Light Mode",
+                            text = if (isDarkTheme) "Dark Theme Active" else "Light Theme Active",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = if (isDarkTheme) "Switch to light theme" else "Switch to dark theme",
+                            text = if (isDarkTheme) "Switch to clean e-ink light mode" else "Switch to amoled dark mode",
                             fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -324,20 +320,21 @@ fun SettingsScreen(
                         checkedThumbColor = Color.White,
                         checkedTrackColor = Color(0xFF6366F1),
                         uncheckedThumbColor = Color.White,
-                        uncheckedTrackColor = Color(0xFFF59E0B)
+                        uncheckedTrackColor = AmberOrange
                     )
                 )
             }
         }
 
-        // 1. Employee Profile Section Card
+        // 3. Employee Profile Card
         GlassCard(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 SectionHeader(
                     icon = Icons.Default.Badge,
                     title = "EMPLOYEE PROFILE",
-                    subtitle = "Personal identity & organizational profile",
+                    subtitle = "Personal identity & organization profile",
                     gradientColors = listOf(ElectricBlue, Color(0xFF06B6D4)),
+                    summaryBadge = if (!profileExpanded && fullName.isNotBlank()) fullName else null,
                     expanded = profileExpanded,
                     onToggle = { expandedSection = if (profileExpanded) null else SettingsSection.PROFILE }
                 )
@@ -371,14 +368,15 @@ fun SettingsScreen(
             }
         }
 
-        // 2. Office Workspace & Schedule Section Card
+        // 4. Workspace & Shift Timings Card
         GlassCard(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 SectionHeader(
                     icon = Icons.Default.Business,
                     title = "WORKSPACE & TIMINGS",
-                    subtitle = "Office Wi-Fi network & automated shift schedule",
+                    subtitle = "Office Wi-Fi network & shift schedule",
                     gradientColors = listOf(EmeraldGreen, Color(0xFF10B981)),
+                    summaryBadge = if (!workspaceExpanded && ssid.isNotBlank()) "$ssid • $shiftDurationText" else null,
                     expanded = workspaceExpanded,
                     onToggle = { expandedSection = if (workspaceExpanded) null else SettingsSection.WORKSPACE }
                 )
@@ -388,134 +386,135 @@ fun SettingsScreen(
                     enter = expandVertically(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) + fadeIn(),
                     exit = shrinkVertically(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) + fadeOut()
                 ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-
-                // SSID Picker
-                WifiSsidPickerField(
-                    value = ssid,
-                    onValueChange = { ssid = it },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                // Check-In & Check-Out Dual Pickers
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    TimePickerField(
-                        label = "Check-In Time",
-                        time24 = checkInTime,
-                        onTimeSelected = { checkInTime = it },
-                        modifier = Modifier.weight(1f)
-                    )
-                    TimePickerField(
-                        label = "Check-Out Time",
-                        time24 = checkOutTime,
-                        onTimeSelected = { checkOutTime = it },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                // Shift Duration Badge
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                            .padding(top = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Bolt,
-                                contentDescription = null,
-                                tint = EmeraldGreen,
-                                modifier = Modifier.size(18.dp)
+                        // Wi-Fi SSID Picker
+                        WifiSsidPickerField(
+                            value = ssid,
+                            onValueChange = { ssid = it },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        // Check-In & Check-Out Time Pickers
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            TimePickerField(
+                                label = "Check-In Time",
+                                time24 = checkInTime,
+                                onTimeSelected = { checkInTime = it },
+                                modifier = Modifier.weight(1f)
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Calculated Shift Duration",
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            TimePickerField(
+                                label = "Check-Out Time",
+                                time24 = checkOutTime,
+                                onTimeSelected = { checkOutTime = it },
+                                modifier = Modifier.weight(1f)
                             )
                         }
-                        Text(
-                            text = shiftDurationText,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = EmeraldGreen
+
+                        // Shift Duration Tint Badge
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = EmeraldGreen.copy(alpha = 0.12f),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, EmeraldGreen.copy(alpha = 0.25f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Bolt,
+                                        contentDescription = null,
+                                        tint = EmeraldGreen,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Calculated Shift Horizon",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                                Text(
+                                    text = shiftDurationText,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = EmeraldGreen
+                                )
+                            }
+                        }
+
+                        // Company Portal URL
+                        OutlinedTextField(
+                            value = portalUrl,
+                            onValueChange = { portalUrl = it },
+                            label = { Text("Company HR Portal URL (Optional)") },
+                            placeholder = { Text("e.g. hr.mycompany.com") },
+                            leadingIcon = { Icon(Icons.Default.Language, contentDescription = null, tint = EmeraldGreen) },
+                            trailingIcon = {
+                                if (portalUrl.isNotBlank()) {
+                                    IconButton(onClick = {
+                                        val target = if (portalUrl.startsWith("http://") || portalUrl.startsWith("https://")) {
+                                            portalUrl
+                                        } else {
+                                            "https://$portalUrl"
+                                        }
+                                        try {
+                                            uriHandler.openUri(target)
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, "Cannot open URL", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }) {
+                                        Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = "Open Portal URL", tint = EmeraldGreen)
+                                    }
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = fieldShape,
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = EmeraldGreen,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                            )
+                        )
+
+                        // Working Days Selector
+                        WorkingDaysSelector(
+                            workingDaysMask = workingDaysMask,
+                            onMaskChanged = { workingDaysMask = it }
+                        )
+
+                        // WFO Days Selector
+                        WfoDaysSelector(
+                            wfoDaysMask = wfoDaysMask,
+                            onMaskChanged = { wfoDaysMask = it }
                         )
                     }
                 }
-
-                // Portal URL Field
-                OutlinedTextField(
-                    value = portalUrl,
-                    onValueChange = { portalUrl = it },
-                    label = { Text("Company HR Portal URL (Optional)") },
-                    placeholder = { Text("e.g. hr.mycompany.com") },
-                    leadingIcon = { Icon(Icons.Default.Language, contentDescription = null, tint = EmeraldGreen) },
-                    trailingIcon = {
-                        if (portalUrl.isNotBlank()) {
-                            IconButton(onClick = {
-                                val target = if (portalUrl.startsWith("http://") || portalUrl.startsWith("https://")) {
-                                    portalUrl
-                                } else {
-                                    "https://$portalUrl"
-                                }
-                                try {
-                                    uriHandler.openUri(target)
-                                } catch (e: Exception) {
-                                    Toast.makeText(context, "Cannot open URL", Toast.LENGTH_SHORT).show()
-                                }
-                            }) {
-                                Icon(Icons.Default.OpenInNew, contentDescription = "Open Portal URL", tint = EmeraldGreen)
-                            }
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = fieldShape,
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = EmeraldGreen,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
-                    )
-                )
-
-                // Working Days Selector
-                WorkingDaysSelector(
-                    workingDaysMask = workingDaysMask,
-                    onMaskChanged = { workingDaysMask = it }
-                )
-
-                // WFO Days Selector
-                WfoDaysSelector(
-                    wfoDaysMask = wfoDaysMask,
-                    onMaskChanged = { wfoDaysMask = it }
-                )
-                } // end Column
-                } // end AnimatedVisibility
             }
         }
 
-        // HR Portal Automation Card (Separated Module)
+        // 5. HR Portal Automation Card
         GlassCard(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 SectionHeader(
                     icon = Icons.Default.VpnKey,
                     title = "HR PORTAL AUTOMATION",
-                    subtitle = "Automate login & check-in when alert triggers",
-                    gradientColors = listOf(Color(0xFF8B5CF6), Color(0xFFEC4899)),
+                    subtitle = "Auto-login & automated check-in execution",
+                    gradientColors = listOf(WfoDayPurple, Color(0xFFEC4899)),
+                    summaryBadge = if (!portalAutomationExpanded) if (autoLoginEnabled) "Auto-Login: ON" else "Auto-Login: OFF" else null,
                     expanded = portalAutomationExpanded,
                     onToggle = { expandedSection = if (portalAutomationExpanded) null else SettingsSection.PORTAL_AUTOMATION }
                 )
@@ -567,9 +566,9 @@ fun SettingsScreen(
                         }
 
                         if (portalMode == "IN_APP_AUTO") {
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
 
-                            // Auto Check-In Toggle
+                            // Auto Check-In Switch Row
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -577,13 +576,13 @@ fun SettingsScreen(
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = "Auto Check-In / Check-Out Button Click",
+                                        text = "Auto Check-In / Punch Action",
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
-                                        text = "Auto-clicks Punch button when portal loads",
+                                        text = "Auto-clicks Punch button on portal load",
                                         fontSize = 11.sp,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -595,32 +594,30 @@ fun SettingsScreen(
                             }
 
                             if (autoCheckInEnabled) {
-                                OutlinedTextField(
-                                    value = customCheckInKeywords,
-                                    onValueChange = { customCheckInKeywords = it },
-                                    label = { Text("Custom Check-In Keywords (Comma separated)") },
-                                    placeholder = { Text("Check In, Clock In, Web Punch") },
-                                    leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, tint = Color(0xFF8B5CF6)) },
-                                    supportingText = { Text("Leave blank to use smart default keywords", fontSize = 10.sp) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = fieldShape,
-                                    singleLine = true
+                                Text(
+                                    text = "Trigger Keywords (Removable Tags)",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
 
-                                OutlinedTextField(
-                                    value = customCheckOutKeywords,
-                                    onValueChange = { customCheckOutKeywords = it },
-                                    label = { Text("Custom Check-Out Keywords (Comma separated)") },
-                                    placeholder = { Text("Check Out, Clock Out, Punch Out") },
-                                    leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, tint = Color(0xFF8B5CF6)) },
-                                    supportingText = { Text("Leave blank to use smart default keywords", fontSize = 10.sp) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = fieldShape,
-                                    singleLine = true
+                                // Interactive Keyword Chips Display
+                                KeywordChipsGroup(
+                                    label = "Check-In Keywords:",
+                                    keywordsString = customCheckInKeywords,
+                                    onKeywordsChanged = { customCheckInKeywords = it }
+                                )
+
+                                KeywordChipsGroup(
+                                    label = "Check-Out Keywords:",
+                                    keywordsString = customCheckOutKeywords,
+                                    onKeywordsChanged = { customCheckOutKeywords = it }
                                 )
                             }
 
-                            // Auto Login Toggle
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+
+                            // Auto Login Switch Row
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -628,13 +625,13 @@ fun SettingsScreen(
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = "Auto-Fill & Submit Credentials",
+                                        text = "Auto-Fill Credentials",
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
-                                        text = "Fills username & password on login form",
+                                        text = "Fills username & password into portal form",
                                         fontSize = 11.sp,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -650,17 +647,21 @@ fun SettingsScreen(
                                     value = portalUsername,
                                     onValueChange = { portalUsername = it },
                                     label = { Text("Portal Username / Email / Emp ID") },
-                                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = Color(0xFF8B5CF6)) },
+                                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = WfoDayPurple) },
                                     modifier = Modifier.fillMaxWidth(),
                                     shape = fieldShape,
-                                    singleLine = true
+                                    singleLine = true,
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = WfoDayPurple,
+                                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                                    )
                                 )
 
                                 OutlinedTextField(
                                     value = portalPassword,
                                     onValueChange = { portalPassword = it },
                                     label = { Text("Portal Password") },
-                                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = Color(0xFF8B5CF6)) },
+                                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = WfoDayPurple) },
                                     trailingIcon = {
                                         IconButton(onClick = { passwordVisible = !passwordVisible }) {
                                             Icon(
@@ -672,12 +673,17 @@ fun SettingsScreen(
                                     visualTransformation = if (passwordVisible) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
                                     modifier = Modifier.fillMaxWidth(),
                                     shape = fieldShape,
-                                    singleLine = true
+                                    singleLine = true,
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = WfoDayPurple,
+                                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                                    )
                                 )
                             }
 
                             Button(
                                 onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                     val intent = com.urunkarpm.pingpin.ui.portal.PortalActivity.createIntent(
                                         context = context,
                                         actionType = com.urunkarpm.pingpin.ui.portal.PortalActivity.ACTION_CHECK_IN,
@@ -687,7 +693,7 @@ fun SettingsScreen(
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = fieldShape,
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8B5CF6))
+                                colors = ButtonDefaults.buttonColors(containerColor = WfoDayPurple)
                             ) {
                                 Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
@@ -699,7 +705,7 @@ fun SettingsScreen(
             }
         }
 
-        // 3. Alarm Reliability & Precision Diagnostics Card
+        // 6. Alarm Reliability & Precision Card
         val notifService = remember { NotificationService(context) }
         var hasExactAlarmPerm by remember { mutableStateOf(notifService.canScheduleExactAlarms()) }
         var isBatteryIgnored by remember { mutableStateOf(notifService.isIgnoringBatteryOptimizations()) }
@@ -727,8 +733,9 @@ fun SettingsScreen(
                 SectionHeader(
                     icon = Icons.Default.AlarmOn,
                     title = "ALARM PRECISION & RELIABILITY",
-                    subtitle = "System permissions for on-time clock alarms",
-                    gradientColors = listOf(Color(0xFF8B5CF6), Color(0xFF6366F1)),
+                    subtitle = "System permissions for punctual alert execution",
+                    gradientColors = listOf(WfoDayPurple, Color(0xFF6366F1)),
+                    summaryBadge = if (!alarmExpanded) if (hasExactAlarmPerm) "Exact Alarm: Ready" else "Exact Alarm: Action Req." else null,
                     expanded = alarmExpanded,
                     onToggle = { expandedSection = if (alarmExpanded) null else SettingsSection.ALARM }
                 )
@@ -738,232 +745,120 @@ fun SettingsScreen(
                     enter = expandVertically(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) + fadeIn(),
                     exit = shrinkVertically(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) + fadeOut()
                 ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 14.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-
-                // Exact Alarm Permission Status
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = if (hasExactAlarmPerm) EmeraldGreen.copy(alpha = 0.12f) else AmberOrange.copy(alpha = 0.15f),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, if (hasExactAlarmPerm) EmeraldGreen.copy(alpha = 0.3f) else AmberOrange.copy(alpha = 0.4f)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 14.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(
-                                imageVector = if (hasExactAlarmPerm) Icons.Default.CheckCircle else Icons.Default.Warning,
-                                contentDescription = null,
-                                tint = if (hasExactAlarmPerm) EmeraldGreen else AmberOrange,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Column {
-                                Text(
-                                    text = "Exact Alarm Execution",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = if (hasExactAlarmPerm) "Granted • Guaranteed precise second timing" else "Restricted by OS • Tap to enable exact alarm permission",
-                                    fontSize = 11.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                        if (!hasExactAlarmPerm) {
-                            TextButton(
-                                onClick = {
-                                    try {
-                                        val intent = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                                            android.content.Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, android.net.Uri.parse("package:${context.packageName}"))
-                                        } else {
-                                            android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${context.packageName}"))
-                                        }
-                                        context.startActivity(intent)
-                                    } catch (e: Exception) {
-                                        Toast.makeText(context, "Open Settings -> Permissions to grant exact alarm permission", Toast.LENGTH_SHORT).show()
+                        // Exact Alarm Status Tile
+                        StatusPermissionRow(
+                            icon = if (hasExactAlarmPerm) Icons.Default.CheckCircle else Icons.Default.Warning,
+                            title = "Exact Alarm Execution",
+                            subtitle = if (hasExactAlarmPerm) "Granted • Guaranteed precise second timing" else "Restricted by OS • Tap to enable exact alarm permission",
+                            isGranted = hasExactAlarmPerm,
+                            actionText = "ENABLE",
+                            onActionClick = {
+                                try {
+                                    val intent = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                                        android.content.Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, android.net.Uri.parse("package:${context.packageName}"))
+                                    } else {
+                                        android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${context.packageName}"))
                                     }
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "Open Settings -> Permissions to grant exact alarm permission", Toast.LENGTH_SHORT).show()
                                 }
-                            ) {
-                                Text("ENABLE", fontWeight = FontWeight.Bold, color = AmberOrange, fontSize = 12.sp)
                             }
-                        }
-                    }
-                }
-
-                // Battery Saver Exemption Status
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = if (isBatteryIgnored) EmeraldGreen.copy(alpha = 0.12f) else ElectricBlue.copy(alpha = 0.15f),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, if (isBatteryIgnored) EmeraldGreen.copy(alpha = 0.3f) else ElectricBlue.copy(alpha = 0.4f)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(
-                                imageVector = if (isBatteryIgnored) Icons.Default.BatteryFull else Icons.Default.BatterySaver,
-                                contentDescription = null,
-                                tint = if (isBatteryIgnored) EmeraldGreen else ElectricBlue,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Column {
-                                Text(
-                                    text = "Unrestricted Battery Mode",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = if (isBatteryIgnored) "Unrestricted • Immune to background app killer" else "Optimized • Tap to allow unrestricted background alarm execution",
-                                    fontSize = 11.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                        if (!isBatteryIgnored) {
-                            TextButton(
-                                onClick = {
-                                    try {
-                                        val intent = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-                                            android.content.Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, android.net.Uri.parse("package:${context.packageName}"))
-                                        } else {
-                                            android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${context.packageName}"))
-                                        }
-                                        context.startActivity(intent)
-                                    } catch (e: Exception) {
-                                        Toast.makeText(context, "Open Settings -> Battery to allow unrestricted execution", Toast.LENGTH_SHORT).show()
-                                    }
-                                }
-                            ) {
-                                Text("UNRESTRICT", fontWeight = FontWeight.Bold, color = ElectricBlue, fontSize = 12.sp)
-                            }
-                        }
-                    }
-                }
-
-                // Display Over Other Apps / Full Screen Intent Status
-                val hasFullScreenAccess = hasOverlayPerm && hasFullScreenIntentPerm
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = if (hasFullScreenAccess) EmeraldGreen.copy(alpha = 0.12f) else ElectricBlue.copy(alpha = 0.15f),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, if (hasFullScreenAccess) EmeraldGreen.copy(alpha = 0.3f) else ElectricBlue.copy(alpha = 0.4f)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(
-                                imageVector = if (hasFullScreenAccess) Icons.Default.Fullscreen else Icons.Default.Layers,
-                                contentDescription = null,
-                                tint = if (hasFullScreenAccess) EmeraldGreen else ElectricBlue,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Column {
-                                Text(
-                                    text = "Full-Screen Alert Display",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = if (hasFullScreenAccess) "Granted • Alarm pops up full-screen when screen is on" else "Restricted • Tap to allow full-screen alerts when screen is on",
-                                    fontSize = 11.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                        if (!hasFullScreenAccess) {
-                            TextButton(
-                                onClick = {
-                                    try {
-                                        val intent = if (!hasOverlayPerm && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-                                            android.content.Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:${context.packageName}"))
-                                        } else if (!hasFullScreenIntentPerm && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                                            android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, android.net.Uri.parse("package:${context.packageName}"))
-                                        } else {
-                                            android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${context.packageName}"))
-                                        }
-                                        context.startActivity(intent)
-                                    } catch (e: Exception) {
-                                        Toast.makeText(context, "Open Settings -> Permissions to grant display over apps", Toast.LENGTH_SHORT).show()
-                                    }
-                                }
-                            ) {
-                                Text("GRANT", fontWeight = FontWeight.Bold, color = ElectricBlue, fontSize = 12.sp)
-                            }
-                        }
-                    }
-                }
-
-                // Test Alarm Button
-                Button(
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        notifService.fireTestAlarm(delaySeconds = 5)
-                        testAlarmFired = true
-                        Toast.makeText(
-                            context,
-                            "\uD83D\uDD14 Test alarm will fire in 5 seconds!",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF8B5CF6),
-                        contentColor = Color.White
-                    )
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Alarm,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = if (testAlarmFired) "Test Alarm Scheduled (−5s)" else "Fire Test Alarm in 5 Seconds",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
+
+                        // Battery Exemption Status Tile
+                        StatusPermissionRow(
+                            icon = if (isBatteryIgnored) Icons.Default.BatteryFull else Icons.Default.BatterySaver,
+                            title = "Unrestricted Battery Mode",
+                            subtitle = if (isBatteryIgnored) "Unrestricted • Immune to background app killer" else "Optimized • Tap to allow unrestricted background alarm execution",
+                            isGranted = isBatteryIgnored,
+                            actionText = "UNRESTRICT",
+                            onActionClick = {
+                                try {
+                                    val intent = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                                        android.content.Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, android.net.Uri.parse("package:${context.packageName}"))
+                                    } else {
+                                        android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${context.packageName}"))
+                                    }
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "Open Settings -> Battery to allow unrestricted execution", Toast.LENGTH_SHORT).show()
+                                }
+                            }
                         )
+
+                        // Full Screen Intent Status Tile
+                        val hasFullScreenAccess = hasOverlayPerm && hasFullScreenIntentPerm
+                        StatusPermissionRow(
+                            icon = if (hasFullScreenAccess) Icons.Default.Fullscreen else Icons.Default.Layers,
+                            title = "Full-Screen Alert Display",
+                            subtitle = if (hasFullScreenAccess) "Granted • Alarm pops up full-screen when screen is on" else "Restricted • Tap to allow full-screen alerts when screen is on",
+                            isGranted = hasFullScreenAccess,
+                            actionText = "GRANT",
+                            onActionClick = {
+                                try {
+                                    val intent = if (!hasOverlayPerm && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                                        android.content.Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:${context.packageName}"))
+                                    } else if (!hasFullScreenIntentPerm && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                                        android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, android.net.Uri.parse("package:${context.packageName}"))
+                                    } else {
+                                        android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${context.packageName}"))
+                                    }
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "Open Settings -> Permissions to grant display over apps", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        )
+
+                        // Test Alarm Button
+                        Button(
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                notifService.fireTestAlarm(delaySeconds = 5)
+                                testAlarmFired = true
+                                Toast.makeText(
+                                    context,
+                                    "🔔 Test alarm will fire in 5 seconds!",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = fieldShape,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = WfoDayPurple,
+                                contentColor = Color.White
+                            )
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Alarm,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = if (testAlarmFired) "Test Alarm Scheduled (−5s)" else "Fire Test Alarm in 5 Seconds",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp
+                                )
+                            }
+                        }
                     }
                 }
-                } // end Column
-                } // end AnimatedVisibility
             }
         }
 
-        // 4. OEM Battery Optimization Section Card
+        // 7. OEM Battery Optimization Section Card
         if (oemGuidance != null) {
             GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.fillMaxWidth()) {
@@ -972,6 +867,7 @@ fun SettingsScreen(
                         title = "BATTERY & SYSTEM HEALTH",
                         subtitle = "Device specific optimization settings for ${oemGuidance.oemName}",
                         gradientColors = listOf(AmberOrange, Color(0xFFF59E0B)),
+                        summaryBadge = if (!oemExpanded) oemGuidance.oemName else null,
                         expanded = oemExpanded,
                         onToggle = { expandedSection = if (oemExpanded) null else SettingsSection.OEM }
                     )
@@ -981,79 +877,78 @@ fun SettingsScreen(
                         enter = expandVertically(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) + fadeIn(),
                         exit = shrinkVertically(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) + fadeOut()
                     ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 14.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-
-                    Surface(
-                        shape = RoundedCornerShape(14.dp),
-                        color = AmberOrange.copy(alpha = 0.1f),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, AmberOrange.copy(alpha = 0.3f)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
                         Column(
-                            modifier = Modifier.padding(14.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 14.dp),
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
-                            oemGuidance.steps.forEachIndexed { idx, step ->
-                                Row(
-                                    verticalAlignment = Alignment.Top,
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            Surface(
+                                shape = RoundedCornerShape(14.dp),
+                                color = AmberOrange.copy(alpha = 0.1f),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, AmberOrange.copy(alpha = 0.3f)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(14.dp),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(20.dp)
-                                            .clip(CircleShape)
-                                            .background(AmberOrange),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            text = "${idx + 1}",
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color.White
-                                        )
+                                    oemGuidance.steps.forEachIndexed { idx, step ->
+                                        Row(
+                                            verticalAlignment = Alignment.Top,
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(20.dp)
+                                                    .clip(CircleShape)
+                                                    .background(AmberOrange),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    text = "${idx + 1}",
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color.White
+                                                )
+                                            }
+                                            Text(
+                                                text = step,
+                                                fontSize = 12.sp,
+                                                color = MaterialTheme.colorScheme.onSurface,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                        }
                                     }
-                                    Text(
-                                        text = step,
-                                        fontSize = 12.sp,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.weight(1f)
-                                    )
+                                }
+                            }
+
+                            OutlinedButton(
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    OemBatteryHelper.launchOemSettings(context, oemGuidance)
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = fieldShape,
+                                border = androidx.compose.foundation.BorderStroke(1.5.dp, AmberOrange),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = AmberOrange)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Open ${oemGuidance.oemName} Battery Settings", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                 }
                             }
                         }
                     }
-
-                    OutlinedButton(
-                        onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            OemBatteryHelper.launchOemSettings(context, oemGuidance)
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.5.dp, AmberOrange),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = AmberOrange)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Open ${oemGuidance.oemName} Battery Settings", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                        }
-                    }
-                    } // end Column
-                    } // end AnimatedVisibility
                 }
             }
         }
 
-        // 4. App Branding & Version Card
+        // 8. App Branding & Version Card
         GlassCard(modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1067,7 +962,7 @@ fun SettingsScreen(
                             .clip(RoundedCornerShape(10.dp))
                             .background(
                                 brush = Brush.linearGradient(
-                                    colors = listOf(Color(0xFF8B5CF6), Color(0xFF6366F1))
+                                    colors = listOf(WfoDayPurple, Color(0xFF6366F1))
                                 )
                             ),
                         contentAlignment = Alignment.Center
@@ -1088,7 +983,7 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "Automated Wi-Fi & Schedule Scanner",
+                            text = "Automated Wi-Fi & Schedule Engine",
                             fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1122,7 +1017,7 @@ fun SettingsScreen(
                 isFirstLoad.value = false
                 return@LaunchedEffect
             }
-            kotlinx.coroutines.delay(600L)
+            delay(600L)
             val currentCfg = configState ?: OfficeConfigEntity()
             val newConfig = currentCfg.copy(
                 id = configState?.id ?: 0,
@@ -1160,6 +1055,7 @@ private fun SectionHeader(
     title: String,
     subtitle: String,
     gradientColors: List<Color>,
+    summaryBadge: String? = null,
     expanded: Boolean = true,
     onToggle: (() -> Unit)? = null
 ) {
@@ -1207,6 +1103,23 @@ private fun SectionHeader(
                 fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+        if (!expanded && summaryBadge != null) {
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.padding(end = 6.dp)
+            ) {
+                Text(
+                    text = summaryBadge,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
         if (onToggle != null) {
             Icon(
@@ -1259,7 +1172,160 @@ private fun StatSummaryChip(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun KeywordChipsGroup(
+    label: String,
+    keywordsString: String,
+    onKeywordsChanged: (String) -> Unit
+) {
+    val keywordsList = remember(keywordsString) {
+        keywordsString.split(",")
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+    }
+
+    var showAddDialog by remember { mutableStateOf(false) }
+    var newKeywordText by remember { mutableStateOf("") }
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Text(
+            text = label,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            keywordsList.forEach { kw ->
+                InputChip(
+                    selected = true,
+                    onClick = {
+                        // Remove chip on tap
+                        val newList = keywordsList.filter { it != kw }
+                        onKeywordsChanged(newList.joinToString(", "))
+                    },
+                    label = { Text(kw, fontSize = 11.sp) },
+                    trailingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Remove",
+                            modifier = Modifier.size(14.dp)
+                        )
+                    },
+                    colors = InputChipDefaults.inputChipColors(
+                        selectedContainerColor = WfoDayPurple.copy(alpha = 0.18f),
+                        selectedLabelColor = MaterialTheme.colorScheme.onSurface
+                    )
+                )
+            }
+
+            // + Add Keyword Chip Button
+            SuggestionChip(
+                onClick = { showAddDialog = true },
+                label = { Text("+ Add Tag", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                icon = { Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(14.dp)) }
+            )
+        }
+    }
+
+    if (showAddDialog) {
+        AlertDialog(
+            onDismissRequest = { showAddDialog = false },
+            title = { Text("Add Trigger Keyword", fontSize = 16.sp, fontWeight = FontWeight.Bold) },
+            text = {
+                OutlinedTextField(
+                    value = newKeywordText,
+                    onValueChange = { newKeywordText = it },
+                    label = { Text("Keyword (e.g. Punch In)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (newKeywordText.isNotBlank()) {
+                            val updated = (keywordsList + newKeywordText.trim()).joinToString(", ")
+                            onKeywordsChanged(updated)
+                            newKeywordText = ""
+                        }
+                        showAddDialog = false
+                    }
+                ) {
+                    Text("ADD", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddDialog = false }) {
+                    Text("CANCEL")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun StatusPermissionRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    isGranted: Boolean,
+    actionText: String,
+    onActionClick: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = if (isGranted) EmeraldGreen.copy(alpha = 0.12f) else ElectricBlue.copy(alpha = 0.15f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, if (isGranted) EmeraldGreen.copy(alpha = 0.3f) else ElectricBlue.copy(alpha = 0.4f)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = if (isGranted) EmeraldGreen else ElectricBlue,
+                    modifier = Modifier.size(20.dp)
+                )
+                Column {
+                    Text(
+                        text = title,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = subtitle,
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            if (!isGranted) {
+                TextButton(onClick = onActionClick) {
+                    Text(actionText, fontWeight = FontWeight.Bold, color = ElectricBlue, fontSize = 12.sp)
+                }
+            }
+        }
+    }
+}
+
 private fun calculateShiftDuration(checkIn: String, checkOut: String): String {
     return TimeFormatUtils.calculateShiftDuration(checkIn, checkOut)
 }
-

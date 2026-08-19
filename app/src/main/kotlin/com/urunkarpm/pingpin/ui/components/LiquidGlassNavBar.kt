@@ -1,14 +1,16 @@
 package com.urunkarpm.pingpin.ui.components
 
-import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
@@ -22,158 +24,222 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.urunkarpm.pingpin.ui.theme.ElectricBlue
 
-data class NavItemData(
+/**
+ * State representation for items inside navigation bar.
+ */
+data class LiquidNavItem(
     val icon: ImageVector,
-    val activeIcon: ImageVector,
-    val label: String
+    val activeIcon: ImageVector = icon,
+    val label: String,
+    val badgeCount: Int = 0
 )
 
-private val NavItems = listOf(
-    NavItemData(Icons.Outlined.Home, Icons.Filled.Home, "Home"),
-    NavItemData(Icons.Outlined.Insights, Icons.Filled.Insights, "Insights"),
-    NavItemData(Icons.Outlined.Settings, Icons.Filled.Settings, "Settings")
+/**
+ * Backward compatibility type alias for existing codebase callers.
+ */
+typealias NavItemData = LiquidNavItem
+
+/**
+ * Default sample navigation items for PingPin.
+ */
+val DefaultPingPinNavItems = listOf(
+    LiquidNavItem(Icons.Outlined.Home, Icons.Filled.Home, "Home"),
+    LiquidNavItem(Icons.Outlined.Insights, Icons.Filled.Insights, "Insights"),
+    LiquidNavItem(Icons.Outlined.Settings, Icons.Filled.Settings, "Settings")
 )
 
+/**
+ * Modern High-Contrast Floating Navigation Bar with crystal clear text & icons.
+ */
 @Composable
-fun LiquidGlassNavBar(
-    selectedTab: Int,
-    onTabSelected: (Int) -> Unit,
-    modifier: Modifier = Modifier
+fun LiquidGlassBottomBar(
+    items: List<LiquidNavItem>,
+    selectedIndex: Int,
+    onItemSelected: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+    barHeight: Dp = 64.dp,
+    containerCornerRadius: Dp = 32.dp,
+    indicatorCornerRadius: Dp = 24.dp
 ) {
     val haptic = LocalHapticFeedback.current
-    val capsuleShape = RoundedCornerShape(32.dp)
-    val puckShape = RoundedCornerShape(24.dp)
     val isDark = MaterialTheme.colorScheme.background.red < 0.5f
 
-    val validIndex = selectedTab.coerceIn(0, NavItems.size - 1)
+    val validIndex = selectedIndex.coerceIn(0, (items.size - 1).coerceAtLeast(0))
+
+    val capsuleShape = RoundedCornerShape(containerCornerRadius)
+    val indicatorShape = RoundedCornerShape(indicatorCornerRadius)
+
+    // Solid/High-opacity container background for zero blur distortion
+    val containerBg = if (isDark) {
+        Color(0xFF10141D)
+    } else {
+        Color(0xFFFFFFFF)
+    }
+
+    val hairlineBorder = if (isDark) {
+        Color.White.copy(alpha = 0.15f)
+    } else {
+        Color.Black.copy(alpha = 0.10f)
+    }
 
     Box(
         modifier = modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(start = 20.dp, end = 20.dp, bottom = 12.dp),
+            .padding(horizontal = 20.dp, vertical = 12.dp),
         contentAlignment = Alignment.Center
     ) {
-        val navBg = if (isDark) {
-            MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.95f)
-        } else {
-            MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
-        }
-
-        val navBorder = if (isDark) {
-            Color.White.copy(alpha = 0.12f)
-        } else {
-            Color.Black.copy(alpha = 0.08f)
-        }
-
-        // Outer Container
+        // Outer Floating Panel Container
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(64.dp)
+                .height(barHeight)
                 .shadow(
-                    elevation = if (isDark) 12.dp else 6.dp,
+                    elevation = if (isDark) 16.dp else 8.dp,
                     shape = capsuleShape,
-                    ambientColor = Color.Black.copy(alpha = 0.15f),
-                    spotColor = Color.Black.copy(alpha = 0.2f)
+                    ambientColor = Color.Black.copy(alpha = if (isDark) 0.50f else 0.12f),
+                    spotColor = Color.Black.copy(alpha = if (isDark) 0.60f else 0.18f)
                 )
                 .clip(capsuleShape)
-                .background(navBg)
-                .border(width = 1.dp, color = navBorder, shape = capsuleShape)
+                .background(containerBg)
+                .border(width = 1.dp, color = hairlineBorder, shape = capsuleShape)
         ) {
-            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            BoxWithConstraints(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 6.dp, vertical = 6.dp)
+            ) {
                 val totalWidth = maxWidth
-                val itemWidth = totalWidth / NavItems.size
+                val itemCount = items.size
+                val itemWidth = if (itemCount > 0) totalWidth / itemCount else totalWidth
 
-                val animatedLeftOffset by animateDpAsState(
+                val indicatorOffset by animateDpAsState(
                     targetValue = itemWidth * validIndex,
-                    animationSpec = tween(durationMillis = 300, easing = LinearEasing),
-                    label = "SelectionPuckOffset"
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioLowBouncy,
+                        stiffness = Spring.StiffnessMediumLow
+                    ),
+                    label = "iOSPuckOffset"
                 )
 
-                // Selection Pill Background
+                // High-contrast selection pill
                 Box(
                     modifier = Modifier
-                        .offset(x = animatedLeftOffset)
+                        .offset(x = indicatorOffset)
                         .width(itemWidth)
                         .fillMaxHeight()
-                        .padding(horizontal = 6.dp, vertical = 6.dp)
-                        .clip(puckShape)
-                        .background(MaterialTheme.colorScheme.primaryContainer)
+                        .padding(horizontal = 4.dp)
+                        .clip(indicatorShape)
+                        .background(
+                            if (isDark) {
+                                ElectricBlue.copy(alpha = 0.25f)
+                            } else {
+                                ElectricBlue.copy(alpha = 0.12f)
+                            }
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = if (isDark) Color(0xFF60A5FA).copy(alpha = 0.50f) else ElectricBlue.copy(alpha = 0.35f),
+                            shape = indicatorShape
+                        )
                 )
 
-                // Nav Buttons Row
+                // Tab Buttons Row
                 Row(
                     modifier = Modifier.fillMaxSize(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    NavItems.forEachIndexed { index, item ->
+                    items.forEachIndexed { index, item ->
                         val isSelected = index == validIndex
                         val interactionSource = remember { MutableInteractionSource() }
 
-                        val flipProgress by animateFloatAsState(
-                            targetValue = if (isSelected) 1f else 0f,
-                            animationSpec = tween(durationMillis = 300, easing = LinearEasing),
-                            label = "IconTextFlip_$index"
+                        val activeColor = if (isDark) Color.White else ElectricBlue
+                        val inactiveColor = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+
+                        val animatedColor by animateColorAsState(
+                            targetValue = if (isSelected) activeColor else inactiveColor,
+                            animationSpec = spring(stiffness = Spring.StiffnessMedium),
+                            label = "TabColor_$index"
                         )
 
-                        val rotationX = if (flipProgress <= 0.5f) {
-                            flipProgress * 180f
-                        } else {
-                            (flipProgress - 1f) * 180f
-                        }
+                        val scale by animateFloatAsState(
+                            targetValue = if (isSelected) 1.04f else 1.0f,
+                            animationSpec = spring(stiffness = Spring.StiffnessMedium),
+                            label = "TabScale_$index"
+                        )
 
                         Box(
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight()
+                                .semantics {
+                                    this.role = Role.Tab
+                                    this.selected = isSelected
+                                    this.contentDescription = item.label
+                                }
                                 .clickable(
                                     interactionSource = interactionSource,
                                     indication = null
                                 ) {
                                     if (!isSelected) {
                                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        onTabSelected(index)
+                                        onItemSelected(index)
                                     }
                                 },
                             contentAlignment = Alignment.Center
                         ) {
-                            Box(
+                            Row(
                                 modifier = Modifier
-                                    .fillMaxHeight()
-                                    .graphicsLayer {
-                                        this.rotationX = rotationX
-                                        cameraDistance = 12f * density
-                                    },
-                                contentAlignment = Alignment.Center
+                                    .scale(scale)
+                                    .padding(horizontal = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
                             ) {
-                                if (flipProgress <= 0.5f) {
-                                    Icon(
-                                        imageVector = item.icon,
-                                        contentDescription = item.label,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                } else {
-                                    Text(
-                                        text = item.label,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        letterSpacing = 0.3.sp,
-                                        maxLines = 1
-                                    )
-                                }
+                                Icon(
+                                    imageVector = if (isSelected) item.activeIcon else item.icon,
+                                    contentDescription = item.label,
+                                    tint = animatedColor,
+                                    modifier = Modifier.size(22.dp)
+                                )
+
+                                Spacer(modifier = Modifier.width(6.dp))
+
+                                Text(
+                                    text = item.label,
+                                    color = animatedColor,
+                                    fontSize = 13.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    letterSpacing = 0.2.sp,
+                                    maxLines = 1
+                                )
+                            }
+
+                            if (item.badgeCount > 0) {
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(top = 8.dp, end = 12.dp)
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.error)
+                                )
                             }
                         }
                     }
@@ -183,4 +249,19 @@ fun LiquidGlassNavBar(
     }
 }
 
-
+/**
+ * Backward-compatible wrapper for PingPin's navbar callers.
+ */
+@Composable
+fun LiquidGlassNavBar(
+    selectedTab: Int,
+    onTabSelected: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    LiquidGlassBottomBar(
+        items = DefaultPingPinNavItems,
+        selectedIndex = selectedTab,
+        onItemSelected = onTabSelected,
+        modifier = modifier
+    )
+}

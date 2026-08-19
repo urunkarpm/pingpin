@@ -397,7 +397,7 @@ fun HomeScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 140.dp),
+                    .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 220.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // Expressive App Header
@@ -633,7 +633,8 @@ fun HomeScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.BottomCenter)
-                    .padding(horizontal = 16.dp, vertical = 6.dp)
+                    .navigationBarsPadding()
+                    .padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 100.dp)
             ) {
                 ExpandableWeeklyCalendarCard(
                     records = recordsState,
