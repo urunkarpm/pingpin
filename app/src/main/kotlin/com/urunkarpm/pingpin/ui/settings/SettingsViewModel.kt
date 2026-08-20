@@ -12,6 +12,7 @@ import com.urunkarpm.pingpin.service.NotificationService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -22,8 +23,51 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val officeConfigRepo = OfficeConfigRepository(db.officeConfigDao())
     private val profileRepo = UserProfileRepository(db.userProfileDao())
     val notifService = NotificationService(context)
+    val updateManager = com.urunkarpm.pingpin.service.UpdateManager(context)
+
+    private val _updateState = kotlinx.coroutines.flow.MutableStateFlow<com.urunkarpm.pingpin.service.UpdateState>(com.urunkarpm.pingpin.service.UpdateState.Idle)
+    val updateState: StateFlow<com.urunkarpm.pingpin.service.UpdateState> = _updateState.asStateFlow()
+
+    fun checkForUpdates() {
+        viewModelScope.launch {
+            _updateState.value = com.urunkarpm.pingpin.service.UpdateState.Checking
+            val currentVersion = try {
+                context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.7.0"
+            } catch (e: Exception) {
+                "1.7.0"
+            }
+            _updateState.value = updateManager.checkForUpdate(currentVersion)
+        }
+    }
+
+    fun downloadAndInstallUpdate(updateInfo: com.urunkarpm.pingpin.service.UpdateInfo) {
+        viewModelScope.launch {
+            _updateState.value = com.urunkarpm.pingpin.service.UpdateState.Downloading(0f, 0L, updateInfo.apkSize)
+            val result = updateManager.downloadApk(updateInfo) { progress, downloaded, total ->
+                _updateState.value = com.urunkarpm.pingpin.service.UpdateState.Downloading(progress, downloaded, total)
+            }
+            result.onSuccess { apkFile ->
+                _updateState.value = com.urunkarpm.pingpin.service.UpdateState.ReadyToInstall(apkFile, updateInfo)
+                installDownloadedApk(apkFile)
+            }.onFailure { error ->
+                _updateState.value = com.urunkarpm.pingpin.service.UpdateState.Error(error.localizedMessage ?: "Failed to download update.")
+            }
+        }
+    }
+
+    fun installDownloadedApk(apkFile: java.io.File) {
+        if (!updateManager.hasInstallPermission()) {
+            updateManager.openInstallPermissionSettings()
+            return
+        }
+        val result = updateManager.installApk(apkFile)
+        result.onFailure { error ->
+            _updateState.value = com.urunkarpm.pingpin.service.UpdateState.Error(error.localizedMessage ?: "Failed to launch package installer.")
+        }
+    }
 
     val configState: StateFlow<OfficeConfigEntity?> = officeConfigRepo.configFlow
+
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     val profileState: StateFlow<UserProfileEntity?> = profileRepo.profileFlow

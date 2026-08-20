@@ -35,7 +35,6 @@ import android.app.KeyguardManager
 import android.os.Build
 import android.view.WindowManager
 import com.urunkarpm.pingpin.data.local.AppDatabase
-import com.urunkarpm.pingpin.service.AttendanceService
 import com.urunkarpm.pingpin.service.NotificationService
 import com.urunkarpm.pingpin.service.portal.PortalAutoCheckInEngine
 import com.urunkarpm.pingpin.service.portal.PortalCredentialManager
@@ -58,9 +57,36 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
 
     private val statusMessageState = mutableStateOf("Initializing Portal...")
     private val isLoadingState = mutableStateOf(true)
+    private val currentUrlState = mutableStateOf("")
+    private val isUrlMismatchState = mutableStateOf(false)
 
     private var pendingGeoOrigin: String? = null
     private var pendingGeoCallback: GeolocationPermissions.Callback? = null
+
+    private fun normalizeUrl(rawUrl: String): String {
+        var u = rawUrl.trim().lowercase()
+        if (u.startsWith("https://")) u = u.substring(8)
+        else if (u.startsWith("http://")) u = u.substring(7)
+        u = u.trimEnd('/')
+        val hashIdx = u.indexOf('#')
+        if (hashIdx != -1) u = u.substring(0, hashIdx)
+        val queryIdx = u.indexOf('?')
+        if (queryIdx != -1) u = u.substring(0, queryIdx)
+        return u
+    }
+
+    private fun isUrlMatching(openedUrl: String, targetUrl: String): Boolean {
+        if (openedUrl.isBlank() || targetUrl.isBlank()) return true
+        val normOpened = normalizeUrl(openedUrl)
+        val normTarget = normalizeUrl(targetUrl)
+        if (normOpened.isEmpty() || normTarget.isEmpty()) return true
+        return normOpened == normTarget || normOpened.startsWith(normTarget) || normTarget.startsWith(normOpened)
+    }
+
+    private fun cleanUrlForDisplay(url: String): String {
+        if (url.isBlank()) return ""
+        return url.replace("https://", "").replace("http://", "").trimEnd('/')
+    }
 
     private val locationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -122,12 +148,8 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
             targetPortalUrl = url
             val autoLogin = config?.autoLoginEnabled ?: false
             val autoCheckInConfigured = config?.autoCheckInEnabled ?: false
-            val officeSsid = config?.ssid ?: ""
-            val wifiService = com.urunkarpm.pingpin.service.WifiService(applicationContext)
-            val isConnectedToOffice = if (officeSsid.isNotBlank()) wifiService.isConnectedToSSID(officeSsid) else false
-
             val isTestMode = intent.getBooleanExtra(EXTRA_IS_TEST_MODE, false)
-            val safeAutoPunch = (autoCheckInConfigured && isConnectedToOffice) || isTestMode
+            val safeAutoPunch = autoCheckInConfigured || isTestMode
             val customCheckInKeywords = config?.customCheckInKeywords ?: ""
             val customCheckOutKeywords = config?.customCheckOutKeywords ?: ""
 
@@ -136,10 +158,7 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
                     autoLogin = autoLogin,
                     autoCheckIn = safeAutoPunch,
                     customCheckInKeywords = customCheckInKeywords,
-                    customCheckOutKeywords = customCheckOutKeywords,
-                    isConnectedToOffice = isConnectedToOffice || isTestMode,
-                    officeSsid = officeSsid,
-                    autoCheckInConfigured = autoCheckInConfigured
+                    customCheckOutKeywords = customCheckOutKeywords
                 )
             }
         }
@@ -150,10 +169,7 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
         autoLogin: Boolean,
         autoCheckIn: Boolean,
         customCheckInKeywords: String,
-        customCheckOutKeywords: String,
-        isConnectedToOffice: Boolean,
-        officeSsid: String,
-        autoCheckInConfigured: Boolean
+        customCheckOutKeywords: String
     ) {
         val webView = webViewRef ?: return
         val credManager = PortalCredentialManager(this)
@@ -165,11 +181,15 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
             domStorageEnabled = true
             databaseEnabled = true
             setGeolocationEnabled(true)
+            @Suppress("DEPRECATION")
             setGeolocationDatabasePath(filesDir.path)
             useWideViewPort = true
             loadWithOverviewMode = true
+            setSupportZoom(true)
+            builtInZoomControls = true
+            displayZoomControls = false
+            textZoom = 100
             mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
-            userAgentString = webView.settings.userAgentString + " PingPinApp/1.5"
         }
 
         CookieManager.getInstance().apply {
@@ -183,11 +203,24 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
         )
 
         webView.webViewClient = object : WebViewClient() {
+            override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                super.onPageStarted(view, url, favicon)
+                val loadedUrl = url ?: view?.url ?: ""
+                currentUrlState.value = loadedUrl
+                val matches = isUrlMatching(loadedUrl, targetPortalUrl)
+                isUrlMismatchState.value = !matches && loadedUrl.isNotBlank()
+            }
+
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
                 isLoadingState.value = false
-                if (autoCheckInConfigured && !isConnectedToOffice) {
-                    statusMessageState.value = "⚠️ Not connected to Office Wi-Fi ($officeSsid). Auto-punch paused for safety."
+                val loadedUrl = url ?: view?.url ?: ""
+                currentUrlState.value = loadedUrl
+                val matches = isUrlMatching(loadedUrl, targetPortalUrl)
+                isUrlMismatchState.value = !matches && loadedUrl.isNotBlank()
+
+                if (!matches && loadedUrl.isNotBlank()) {
+                    statusMessageState.value = "⚠️ Page mismatch: Opened on ${cleanUrlForDisplay(loadedUrl)} instead of target URL. Running engine..."
                 } else {
                     statusMessageState.value = "Page loaded. Running check-in engine..."
                 }
@@ -199,7 +232,8 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
                     autoLogin = autoLogin,
                     autoPunch = autoCheckIn,
                     customCheckInKeywords = customCheckInKeywords,
-                    customCheckOutKeywords = customCheckOutKeywords
+                    customCheckOutKeywords = customCheckOutKeywords,
+                    targetPortalUrl = targetPortalUrl
                 )
                 view?.evaluateJavascript(script, null)
             }
@@ -261,9 +295,6 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
             val db = AppDatabase.getInstance(applicationContext)
             val config = db.officeConfigDao().getConfig()
             val credManager = PortalCredentialManager(this@PortalActivity)
-            val wifiService = com.urunkarpm.pingpin.service.WifiService(applicationContext)
-            val officeSsid = config?.ssid ?: ""
-            val isConnectedToOffice = if (officeSsid.isNotBlank()) wifiService.isConnectedToSSID(officeSsid) else false
 
             val script = PortalAutoCheckInEngine.generateAutomationScript(
                 actionType = actionType,
@@ -272,15 +303,12 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
                 autoLogin = config?.autoLoginEnabled ?: false,
                 autoPunch = true,
                 customCheckInKeywords = config?.customCheckInKeywords ?: "",
-                customCheckOutKeywords = config?.customCheckOutKeywords ?: ""
+                customCheckOutKeywords = config?.customCheckOutKeywords ?: "",
+                targetPortalUrl = targetPortalUrl
             )
 
             withContext(Dispatchers.Main) {
-                if (!isConnectedToOffice && officeSsid.isNotBlank()) {
-                    statusMessageState.value = "⚠️ Device is not on Office Wi-Fi ($officeSsid). Running manual punch trigger..."
-                } else {
-                    statusMessageState.value = "Retrying automation script..."
-                }
+                statusMessageState.value = "Retrying automation script..."
                 webViewRef?.evaluateJavascript(script, null)
             }
         }
@@ -319,32 +347,19 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
     override fun onPunchSuccess(actionType: String) {
         runOnUiThread {
             val displayAction = if (actionType.equals("CHECK_IN", ignoreCase = true)) "Check In" else "Check Out"
-            statusMessageState.value = "🎉 $displayAction recorded! Syncing session with portal (closing in 6s)..."
+            statusMessageState.value = "🎉 $displayAction recorded on portal! (closing in 6s)..."
             Toast.makeText(this@PortalActivity, "$displayAction recorded!", Toast.LENGTH_LONG).show()
 
-            // Record attendance in PingPin database
-            lifecycleScope.launch(Dispatchers.IO) {
-                try {
-                    val db = AppDatabase.getInstance(applicationContext)
-                    val repo = com.urunkarpm.pingpin.data.repository.AttendanceRepository(db.attendanceRecordDao())
-                    val today = AttendanceService.getCurrentDateYyyyMmDd()
-                    val status = if (actionType.equals("CHECK_IN", ignoreCase = true)) "present" else "checked_out"
-                    repo.insertRecord(dateYyyyMmDd = today, status = status)
+            // Dismiss alarm if applicable
+            if (alarmId != -1) {
+                val notifService = NotificationService(this@PortalActivity)
+                notifService.dismissNotification(alarmId)
+            }
 
-                    // Dismiss alarm if applicable
-                    if (alarmId != -1) {
-                        val notifService = NotificationService(this@PortalActivity)
-                        notifService.dismissNotification(alarmId)
-                    }
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
-
-                // Auto finish after 6s delay to allow pending background location/API network calls to finish on portal server
+            // Auto finish after 6s delay to allow pending background location/API network calls to finish on portal server
+            lifecycleScope.launch(Dispatchers.Main) {
                 kotlinx.coroutines.delay(6000)
-                withContext(Dispatchers.Main) {
-                    finish()
-                }
+                finish()
             }
         }
     }
@@ -464,10 +479,57 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
                     }
                 }
 
+                // URL Mismatch Warning Banner
+                if (isUrlMismatchState.value) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 4.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF451A03)),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "⚠️ URL Mismatch Detected",
+                                    color = Color(0xFFFDBA74),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Opened: ${cleanUrlForDisplay(currentUrlState.value)}\nExpected: ${cleanUrlForDisplay(targetPortalUrl)}",
+                                    color = Color(0xFFFED7AA),
+                                    fontSize = 10.sp
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Button(
+                                onClick = {
+                                    webViewRef?.loadUrl(targetPortalUrl)
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD97706)),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("Load Target URL", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+
                 // WebView Container
                 AndroidView(
                     factory = { ctx ->
                         WebView(ctx).apply {
+                            layoutParams = android.view.ViewGroup.LayoutParams(
+                                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                                android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                            )
                             webViewRef = this
                         }
                     },

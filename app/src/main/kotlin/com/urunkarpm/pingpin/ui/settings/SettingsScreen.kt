@@ -57,7 +57,8 @@ private enum class SettingsSection {
     WORKSPACE,
     PORTAL_AUTOMATION,
     ALARM,
-    OEM
+    OEM,
+    APP_UPDATE
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -65,11 +66,21 @@ private enum class SettingsSection {
 fun SettingsScreen(
     modifier: Modifier = Modifier,
     isDarkTheme: Boolean = false,
-    onToggleTheme: (Boolean) -> Unit = {}
+    onToggleTheme: (Boolean) -> Unit = {},
+    viewModel: SettingsViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
     val haptic = LocalHapticFeedback.current
+    val updateState by viewModel.updateState.collectAsState()
+
+    val currentAppVersion = remember {
+        try {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.7.0"
+        } catch (e: Exception) {
+            "1.7.0"
+        }
+    }
 
     val db = remember { AppDatabase.getInstance(context) }
     val officeConfigRepo = remember { OfficeConfigRepository(db.officeConfigDao()) }
@@ -98,6 +109,7 @@ fun SettingsScreen(
     var passwordVisible by remember { mutableStateOf(false) }
 
     var testAlarmFired by remember { mutableStateOf(false) }
+    var showAppChangelogDialog by remember { mutableStateOf(false) }
 
     // Accordion expansion state: null means all collapsed by default
     var expandedSection by rememberSaveable { mutableStateOf<SettingsSection?>(null) }
@@ -106,6 +118,7 @@ fun SettingsScreen(
     val portalAutomationExpanded = expandedSection == SettingsSection.PORTAL_AUTOMATION
     val alarmExpanded = expandedSection == SettingsSection.ALARM
     val oemExpanded = expandedSection == SettingsSection.OEM
+    val appUpdateExpanded = expandedSection == SettingsSection.APP_UPDATE
 
     val oemGuidance = remember { OemBatteryHelper.getGuidance() }
     val fieldShape = remember { RoundedCornerShape(16.dp) }
@@ -949,8 +962,373 @@ fun SettingsScreen(
             }
         }
 
-        // 8. App Branding & Version Card
+        // 8. App Updates Section
         GlassCard(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                SectionHeader(
+                    icon = Icons.Default.SystemUpdate,
+                    title = "APP UPDATES & RELEASES",
+                    subtitle = "Check GitHub for app updates and install latest release",
+                    gradientColors = listOf(Color(0xFF0EA5E9), Color(0xFF2563EB)),
+                    summaryBadge = when (updateState) {
+                        is com.urunkarpm.pingpin.service.UpdateState.UpdateAvailable -> "NEW UPDATE"
+                        is com.urunkarpm.pingpin.service.UpdateState.UpToDate -> "UP TO DATE"
+                        is com.urunkarpm.pingpin.service.UpdateState.Downloading -> "DOWNLOADING"
+                        is com.urunkarpm.pingpin.service.UpdateState.ReadyToInstall -> "READY"
+                        else -> "v$currentAppVersion"
+                    },
+                    expanded = appUpdateExpanded,
+                    onToggle = { expandedSection = if (appUpdateExpanded) null else SettingsSection.APP_UPDATE }
+                )
+
+                AnimatedVisibility(
+                    visible = appUpdateExpanded,
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut()
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Text(
+                                    text = "Current Installed Version",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = "v$currentAppVersion",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+
+                            if (updateState is com.urunkarpm.pingpin.service.UpdateState.Idle ||
+                                updateState is com.urunkarpm.pingpin.service.UpdateState.UpToDate ||
+                                updateState is com.urunkarpm.pingpin.service.UpdateState.Error
+                            ) {
+                                Button(
+                                    onClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        viewModel.checkForUpdates()
+                                    },
+                                    shape = fieldShape,
+                                    colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Refresh,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Check for Update", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+
+                        when (val state = updateState) {
+                            is com.urunkarpm.pingpin.service.UpdateState.Checking -> {
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = ElectricBlue.copy(alpha = 0.1f),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(14.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(20.dp),
+                                            strokeWidth = 2.dp,
+                                            color = ElectricBlue
+                                        )
+                                        Text(
+                                            text = "Checking GitHub Releases...",
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+                                }
+                            }
+
+                            is com.urunkarpm.pingpin.service.UpdateState.UpToDate -> {
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = EmeraldGreen.copy(alpha = 0.12f),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, EmeraldGreen.copy(alpha = 0.3f)),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(14.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.CheckCircle,
+                                            contentDescription = null,
+                                            tint = EmeraldGreen,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                        Column {
+                                            Text(
+                                                text = "PingPin is up to date!",
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                            Text(
+                                                text = "You are running the latest release (v${state.currentVersion}).",
+                                                fontSize = 11.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            is com.urunkarpm.pingpin.service.UpdateState.UpdateAvailable -> {
+                                val info = state.updateInfo
+                                Surface(
+                                    shape = RoundedCornerShape(14.dp),
+                                    color = AmberOrange.copy(alpha = 0.12f),
+                                    border = androidx.compose.foundation.BorderStroke(1.5.dp, AmberOrange.copy(alpha = 0.5f)),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(14.dp),
+                                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.NewReleases,
+                                                contentDescription = null,
+                                                tint = AmberOrange,
+                                                modifier = Modifier.size(22.dp)
+                                            )
+                                            Text(
+                                                text = "New Update Available: v${info.versionName}",
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                        }
+
+                                        if (info.apkSize > 0) {
+                                            Text(
+                                                text = "Download size: ${String.format("%.1f", info.apkSize / (1024f * 1024f))} MB",
+                                                fontSize = 11.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+
+                                        if (info.releaseNotes.isNotBlank()) {
+                                            ChangelogView(releaseNotes = info.releaseNotes)
+                                        }
+
+                                        Button(
+                                            onClick = {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                viewModel.downloadAndInstallUpdate(info)
+                                            },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            shape = fieldShape,
+                                            colors = ButtonDefaults.buttonColors(containerColor = AmberOrange)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Download,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text("Download & Install Update", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                        }
+                                    }
+                                }
+                            }
+
+                            is com.urunkarpm.pingpin.service.UpdateState.Downloading -> {
+                                Surface(
+                                    shape = RoundedCornerShape(14.dp),
+                                    color = ElectricBlue.copy(alpha = 0.12f),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, ElectricBlue.copy(alpha = 0.3f)),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(14.dp),
+                                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = "Downloading Update...",
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                            Text(
+                                                text = "${(state.progress * 100).toInt()}%",
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                color = ElectricBlue
+                                            )
+                                        }
+
+                                        LinearProgressIndicator(
+                                            progress = { state.progress },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(8.dp)
+                                                .clip(RoundedCornerShape(4.dp)),
+                                            color = ElectricBlue,
+                                            trackColor = ElectricBlue.copy(alpha = 0.2f)
+                                        )
+
+                                        if (state.totalBytes > 0) {
+                                            Text(
+                                                text = "${String.format("%.1f", state.downloadedBytes / (1024f * 1024f))} MB / ${String.format("%.1f", state.totalBytes / (1024f * 1024f))} MB",
+                                                fontSize = 11.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            is com.urunkarpm.pingpin.service.UpdateState.ReadyToInstall -> {
+                                Surface(
+                                    shape = RoundedCornerShape(14.dp),
+                                    color = EmeraldGreen.copy(alpha = 0.12f),
+                                    border = androidx.compose.foundation.BorderStroke(1.5.dp, EmeraldGreen.copy(alpha = 0.5f)),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(14.dp),
+                                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.SystemUpdate,
+                                                contentDescription = null,
+                                                tint = EmeraldGreen,
+                                                modifier = Modifier.size(22.dp)
+                                            )
+                                            Text(
+                                                text = "APK Downloaded & Ready!",
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                        }
+
+                                        Text(
+                                            text = "Tap below to launch the Android Package Installer for v${state.updateInfo.versionName}.",
+                                            fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+
+                                        if (state.updateInfo.releaseNotes.isNotBlank()) {
+                                            ChangelogView(releaseNotes = state.updateInfo.releaseNotes)
+                                        }
+
+                                        Button(
+                                            onClick = {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                viewModel.installDownloadedApk(state.apkFile)
+                                            },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            shape = fieldShape,
+                                            colors = ButtonDefaults.buttonColors(containerColor = EmeraldGreen)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.SystemUpdate,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text("Install Update Now", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                        }
+                                    }
+                                }
+                            }
+
+                            is com.urunkarpm.pingpin.service.UpdateState.Error -> {
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.3f)),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Warning,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.error,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                            Text(
+                                                text = state.message,
+                                                fontSize = 12.sp,
+                                                color = MaterialTheme.colorScheme.onErrorContainer
+                                            )
+                                        }
+                                        TextButton(onClick = { viewModel.checkForUpdates() }) {
+                                            Text("Retry", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                        }
+                                    }
+                                }
+                            }
+
+                            is com.urunkarpm.pingpin.service.UpdateState.Idle -> {
+                                // Default state before button click
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 9. App Version & Applied Changes Card
+        GlassCard(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    showAppChangelogDialog = true
+                }
+        ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -959,17 +1337,17 @@ fun SettingsScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(38.dp)
                             .clip(RoundedCornerShape(10.dp))
                             .background(
                                 brush = Brush.linearGradient(
-                                    colors = listOf(WfoDayPurple, Color(0xFF6366F1))
+                                    colors = listOf(WfoDayPurple, ElectricBlue)
                                 )
                             ),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Security,
+                            imageVector = Icons.Default.Info,
                             contentDescription = null,
                             tint = Color.White,
                             modifier = Modifier.size(20.dp)
@@ -978,15 +1356,15 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
-                            text = "PingPin Attendance v1.0",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
+                            text = "PingPin v$currentAppVersion",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.ExtraBold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "Automated Wi-Fi & Schedule Engine",
+                            text = "Tap to view applied changes & release notes",
                             fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
@@ -995,15 +1373,90 @@ fun SettingsScreen(
                     shape = RoundedCornerShape(8.dp),
                     color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
                 ) {
-                    Text(
-                        text = "ACTIVE",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "WHAT'S NEW",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Icon(
+                            imageVector = Icons.Default.ChevronRight,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(12.dp)
+                        )
+                    }
                 }
             }
+        }
+
+        if (showAppChangelogDialog) {
+            var showFullHistory by remember { mutableStateOf(false) }
+
+            AlertDialog(
+                onDismissRequest = { showAppChangelogDialog = false },
+                title = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Description,
+                            contentDescription = null,
+                            tint = ElectricBlue,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Column {
+                            Text(
+                                text = if (showFullHistory) "All Version Releases" else "What's New in v$currentAppVersion",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = if (showFullHistory) "Full version release history" else "Recent changes applied to this app",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                },
+                text = {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 380.dp)
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        FormattedChangelogText(
+                            if (showFullHistory) com.urunkarpm.pingpin.data.AppChangelog.FULL_CHANGELOG
+                            else com.urunkarpm.pingpin.data.AppChangelog.CURRENT_VERSION_CHANGELOG
+                        )
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showFullHistory = !showFullHistory }) {
+                        Text(
+                            text = if (showFullHistory) "Show Current Only" else "Full History",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            color = ElectricBlue
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = { showAppChangelogDialog = false },
+                        colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue)
+                    ) {
+                        Text("CLOSE", fontWeight = FontWeight.Bold)
+                    }
+                }
+            )
         }
 
         // Auto-save effect: debounced 600ms after any field change
@@ -1329,4 +1782,149 @@ private fun StatusPermissionRow(
 
 private fun calculateShiftDuration(checkIn: String, checkOut: String): String {
     return TimeFormatUtils.calculateShiftDuration(checkIn, checkOut)
+}
+
+@Composable
+private fun ChangelogView(
+    releaseNotes: String,
+    modifier: Modifier = Modifier
+) {
+    var showFullDialog by remember { mutableStateOf(false) }
+
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Description,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = "Changelog & Release Notes",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
+                TextButton(
+                    onClick = { showFullDialog = true },
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                    modifier = Modifier.height(26.dp)
+                ) {
+                    Text("Expand", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = ElectricBlue)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 160.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                FormattedChangelogText(releaseNotes)
+            }
+        }
+    }
+
+    if (showFullDialog) {
+        AlertDialog(
+            onDismissRequest = { showFullDialog = false },
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Description,
+                        contentDescription = null,
+                        tint = ElectricBlue,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Text("Release Notes & Changelog", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                }
+            },
+            text = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 360.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    FormattedChangelogText(releaseNotes)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showFullDialog = false }) {
+                    Text("CLOSE", fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun FormattedChangelogText(notes: String) {
+    val lines = remember(notes) {
+        notes.lines().filter { it.isNotBlank() }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        lines.forEach { line ->
+            val trimmed = line.trim()
+            when {
+                trimmed.startsWith("#") -> {
+                    val headerText = trimmed.replace("^#+\\s*".toRegex(), "")
+                    Text(
+                        text = headerText,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(top = 4.dp, bottom = 2.dp)
+                    )
+                }
+                trimmed.startsWith("-") || trimmed.startsWith("*") -> {
+                    val bulletText = trimmed.substring(1).trim()
+                        .replace("\\*\\*(.*?)\\*\\*".toRegex(), "$1")
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.padding(start = 4.dp)
+                    ) {
+                        Text("•", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = bulletText,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            lineHeight = 16.sp
+                        )
+                    }
+                }
+                else -> {
+                    val cleaned = trimmed.replace("\\*\\*(.*?)\\*\\*".toRegex(), "$1")
+                    Text(
+                        text = cleaned,
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 16.sp
+                    )
+                }
+            }
+        }
+    }
 }

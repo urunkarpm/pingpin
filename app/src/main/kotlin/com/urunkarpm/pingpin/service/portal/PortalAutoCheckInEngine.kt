@@ -50,10 +50,12 @@ class PortalAutoCheckInEngine {
             autoLogin: Boolean,
             autoPunch: Boolean,
             customCheckInKeywords: String = "",
-            customCheckOutKeywords: String = ""
+            customCheckOutKeywords: String = "",
+            targetPortalUrl: String = ""
         ): String {
             val escapedUser = username.replace("'", "\\'").replace("\n", "")
             val escapedPass = password.replace("'", "\\'").replace("\n", "")
+            val escapedTargetUrl = targetPortalUrl.replace("'", "\\'").replace("\n", "")
             val isCheckIn = actionType.equals("CHECK_IN", ignoreCase = true)
 
             val parsedCustomKeywords = if (isCheckIn) {
@@ -91,14 +93,109 @@ class PortalAutoCheckInEngine {
                     }
                 }
 
+                function checkUrlMismatch() {
+                    try {
+                        var targetUrl = '$escapedTargetUrl';
+                        if (!targetUrl) return;
+
+                        var currentHref = (window.location.href || '').toLowerCase();
+                        var targetLower = targetUrl.toLowerCase();
+
+                        function clean(u) {
+                            return u.replace(/^https?:\/\//, '').replace(/\/+$/, '').replace(/#.*$/, '').replace(/\?.*$/, '');
+                        }
+
+                        var cleanCurrent = clean(currentHref);
+                        var cleanTarget = clean(targetLower);
+
+                        if (cleanCurrent && cleanTarget && cleanCurrent !== cleanTarget && !cleanCurrent.startsWith(cleanTarget) && !cleanTarget.startsWith(cleanCurrent)) {
+                            var isAuthPage = currentHref.includes('login') || currentHref.includes('auth') || currentHref.includes('signin') || currentHref.includes('sso');
+                            if (isAuthPage) {
+                                notifyStatus("🔒 Opened Login/Auth page. Attempting auto-login...");
+                            } else {
+                                notifyStatus("⚠️ Browser opened page (" + cleanCurrent + ") differing from target URL (" + cleanTarget + ")");
+                            }
+                        }
+                    } catch(e){}
+                }
+
+                function ensureViewportMeta() {
+                    try {
+                        if (!document.querySelector('meta[name="viewport"]')) {
+                            var meta = document.createElement('meta');
+                            meta.name = 'viewport';
+                            meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes';
+                            if (document.head) {
+                                document.head.appendChild(meta);
+                            } else if (document.body) {
+                                document.body.appendChild(meta);
+                            }
+                        }
+                    } catch(e){}
+                }
+
                 function triggerInputChange(element, value) {
+                    if (!element) return;
                     try {
                         element.focus();
-                        element.value = value;
+                        var setter = null;
+                        if (element.constructor && element.constructor.prototype) {
+                            var pd = Object.getOwnPropertyDescriptor(element.constructor.prototype, 'value');
+                            if (pd && pd.set) setter = pd.set;
+                        }
+                        if (!setter && window.HTMLInputElement && window.HTMLInputElement.prototype) {
+                            var pd2 = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value');
+                            if (pd2 && pd2.set) setter = pd2.set;
+                        }
+                        if (setter) {
+                            setter.call(element, value);
+                        } else {
+                            element.value = value;
+                        }
                         element.dispatchEvent(new Event('input', { bubbles: true }));
                         element.dispatchEvent(new Event('change', { bubbles: true }));
                         element.dispatchEvent(new Event('blur', { bubbles: true }));
+                    } catch(e) {
+                        try {
+                            element.value = value;
+                            element.dispatchEvent(new Event('input', { bubbles: true }));
+                            element.dispatchEvent(new Event('change', { bubbles: true }));
+                        } catch(ex){}
+                    }
+                }
+
+                function clickElement(el) {
+                    if (!el) return;
+                    try {
+                        el.removeAttribute('disabled');
+                        el.disabled = false;
                     } catch(e){}
+                    try {
+                        el.focus();
+                    } catch(e){}
+
+                    try {
+                        var evt = new MouseEvent('click', {
+                            bubbles: true,
+                            cancelable: true,
+                            view: window
+                        });
+                        el.dispatchEvent(evt);
+                    } catch(e){}
+
+                    try {
+                        el.click();
+                    } catch(e){}
+
+                    if (el.form) {
+                        try {
+                            if (typeof el.form.requestSubmit === 'function') {
+                                el.form.requestSubmit();
+                            } else if (typeof el.form.submit === 'function') {
+                                el.form.submit();
+                            }
+                        } catch(e){}
+                    }
                 }
 
                 function isVisible(el) {
@@ -109,34 +206,87 @@ class PortalAutoCheckInEngine {
                     return (el.innerText || el.textContent || el.value || el.getAttribute('aria-label') || el.getAttribute('title') || '').toLowerCase().trim();
                 }
 
+                function findSubmitButton(formContext) {
+                    var root = formContext || document;
+                    var submitBtn = root.querySelector('button[type="submit"], input[type="submit"], button[class*="login"], button[id*="login"], #loginBtn, #submit, button[id*="next"], button[class*="next"], #next, #continue');
+                    if (submitBtn && isVisible(submitBtn)) return submitBtn;
+
+                    var candidates = Array.from(root.querySelectorAll('button, input[type="button"], input[type="submit"], a, div[role="button"], span[role="button"], div[class*="btn"], span[class*="btn"]'));
+                    var targetKeywords = ['log in', 'login', 'sign in', 'signin', 'submit', 'proceed', 'next', 'continue', 'verify'];
+
+                    for (var i = 0; i < candidates.length; i++) {
+                        var c = candidates[i];
+                        if (!isVisible(c)) continue;
+                        var txt = getElementText(c);
+                        if (!txt) continue;
+                        for (var k = 0; k < targetKeywords.length; k++) {
+                            if (txt === targetKeywords[k] || txt.startsWith(targetKeywords[k] + ' ') || txt.endsWith(' ' + targetKeywords[k])) {
+                                return c;
+                            }
+                        }
+                    }
+                    return null;
+                }
+
                 function tryAutoLogin() {
                     if (!${autoLogin}) return false;
-                    
-                    var userInput = document.querySelector('input[type="email"], input[type="text"][name*="user"], input[name*="user"], input[name*="login"], input[name*="email"], input[name*="emp"], #username, #email, #emp_id');
-                    var passInput = document.querySelector('input[type="password"], input[name*="pass"], #password');
+                    if ('$escapedUser' === '' && '$escapedPass' === '') return false;
 
-                    if (userInput && passInput && ('$escapedUser' !== '' && '$escapedPass' !== '')) {
-                        if (!userInput.value) {
-                            triggerInputChange(userInput, '$escapedUser');
-                        }
-                        if (!passInput.value) {
-                            triggerInputChange(passInput, '$escapedPass');
-                        }
+                    ensureViewportMeta();
+
+                    var userInput = document.querySelector('input[type="email"], input[type="text"][name*="user"], input[name*="user"], input[name*="login"], input[name*="email"], input[name*="emp"], #username, #email, #emp_id, input[id*="user"], input[id*="email"], input[aria-label*="user"], input[aria-label*="email"]');
+                    var passInput = document.querySelector('input[type="password"], input[name*="pass"], #password, input[id*="pass"], input[aria-label*="pass"]');
+
+                    if (userInput && passInput && isVisible(userInput) && isVisible(passInput)) {
+                        triggerInputChange(userInput, '$escapedUser');
+                        triggerInputChange(passInput, '$escapedPass');
 
                         notifyStatus("Auto-filling login credentials...");
 
-                        var submitBtn = document.querySelector('button[type="submit"], input[type="submit"], button[class*="login"], button[id*="login"], #loginBtn, #submit');
+                        var submitBtn = findSubmitButton();
                         if (submitBtn) {
                             setTimeout(function() {
                                 notifyStatus("Submitting login...");
                                 if (window.PingPinBridge && window.PingPinBridge.loginSubmitted) {
                                     window.PingPinBridge.loginSubmitted();
                                 }
-                                submitBtn.click();
-                            }, 600);
+                                clickElement(submitBtn);
+                            }, 500);
                             return true;
                         }
+                    } 
+                    else if (userInput && isVisible(userInput) && (!passInput || !isVisible(passInput))) {
+                        if ('$escapedUser' !== '') {
+                            triggerInputChange(userInput, '$escapedUser');
+                            notifyStatus("Auto-filling username (Step 1)...");
+                            var nextBtn = findSubmitButton();
+                            if (nextBtn) {
+                                setTimeout(function() {
+                                    notifyStatus("Clicking Next...");
+                                    clickElement(nextBtn);
+                                }, 500);
+                                return true;
+                            }
+                        }
                     }
+                    else if (passInput && isVisible(passInput) && (!userInput || !isVisible(userInput))) {
+                        if ('$escapedPass' !== '') {
+                            triggerInputChange(passInput, '$escapedPass');
+                            notifyStatus("Auto-filling password (Step 2)...");
+                            var finalBtn = findSubmitButton();
+                            if (finalBtn) {
+                                setTimeout(function() {
+                                    notifyStatus("Submitting login...");
+                                    if (window.PingPinBridge && window.PingPinBridge.loginSubmitted) {
+                                        window.PingPinBridge.loginSubmitted();
+                                    }
+                                    clickElement(finalBtn);
+                                }, 500);
+                                return true;
+                            }
+                        }
+                    }
+
                     return false;
                 }
 
@@ -310,6 +460,10 @@ class PortalAutoCheckInEngine {
 
                 function pollEngine() {
                     attempts++;
+
+                    if (attempts === 1) {
+                        checkUrlMismatch();
+                    }
 
                     if (checkSpecialStates()) {
                         clearInterval(intervalTimer);
