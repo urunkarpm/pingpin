@@ -2,6 +2,7 @@ package com.urunkarpm.pingpin.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.urunkarpm.pingpin.ui.components.LiquidGlassNavBar
@@ -17,8 +18,9 @@ fun MainShell(
     isDarkTheme: Boolean = false,
     onToggleTheme: (Boolean) -> Unit = {}
 ) {
-    var selectedTab by remember { mutableStateOf(0) }
+    var selectedTab by remember { mutableIntStateOf(0) }
     val windowSizeInfo = rememberWindowSizeInfo()
+    val saveableStateHolder = rememberSaveableStateHolder()
 
     if (windowSizeInfo.useNavRail) {
         Row(
@@ -36,13 +38,15 @@ fun MainShell(
                     .weight(1f)
                     .fillMaxHeight()
             ) {
-                when (selectedTab) {
-                    0 -> HomeScreen()
-                    1 -> InsightsScreen()
-                    2 -> SettingsScreen(
-                        isDarkTheme = isDarkTheme,
-                        onToggleTheme = onToggleTheme
-                    )
+                saveableStateHolder.SaveableStateProvider(key = selectedTab) {
+                    when (selectedTab) {
+                        0 -> HomeScreen()
+                        1 -> InsightsScreen()
+                        2 -> SettingsScreen(
+                            isDarkTheme = isDarkTheme,
+                            onToggleTheme = onToggleTheme
+                        )
+                    }
                 }
             }
         }
@@ -57,13 +61,15 @@ fun MainShell(
                     .fillMaxSize()
                     .statusBarsPadding()
             ) {
-                when (selectedTab) {
-                    0 -> HomeScreen()
-                    1 -> InsightsScreen()
-                    2 -> SettingsScreen(
-                        isDarkTheme = isDarkTheme,
-                        onToggleTheme = onToggleTheme
-                    )
+                saveableStateHolder.SaveableStateProvider(key = selectedTab) {
+                    when (selectedTab) {
+                        0 -> HomeScreen()
+                        1 -> InsightsScreen()
+                        2 -> SettingsScreen(
+                            isDarkTheme = isDarkTheme,
+                            onToggleTheme = onToggleTheme
+                        )
+                    }
                 }
             }
 

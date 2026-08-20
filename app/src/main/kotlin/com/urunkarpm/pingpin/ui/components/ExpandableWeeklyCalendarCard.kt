@@ -27,6 +27,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.urunkarpm.pingpin.data.local.entity.AttendanceRecordEntity
@@ -190,9 +191,6 @@ fun ExpandableWeeklyCalendarCard(
         modifier = modifier
             .fillMaxWidth()
             .graphicsLayer()
-            .animateContentSize(
-                animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)
-            )
             .pointerInput(Unit) {
                 detectVerticalDragGestures(
                     onDragStart = { totalDrag = 0f },
@@ -227,8 +225,8 @@ fun ExpandableWeeklyCalendarCard(
                     AnimatedContent(
                         targetState = isExpanded,
                         transitionSpec = {
-                            (fadeIn(animationSpec = tween(200)) + slideInVertically { -it / 2 })
-                                .togetherWith(fadeOut(animationSpec = tween(150)) + slideOutVertically { it / 2 })
+                            (fadeIn(animationSpec = tween(180)) + slideInVertically { -it / 2 })
+                                .togetherWith(fadeOut(animationSpec = tween(120)) + slideOutVertically { it / 2 })
                         },
                         label = "title_transition"
                     ) { expanded ->
@@ -245,8 +243,8 @@ fun ExpandableWeeklyCalendarCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     AnimatedVisibility(
                         visible = !isExpanded,
-                        enter = fadeIn(animationSpec = tween(200)) + expandHorizontally(),
-                        exit = fadeOut(animationSpec = tween(150)) + shrinkHorizontally()
+                        enter = fadeIn(animationSpec = tween(180)) + expandHorizontally(),
+                        exit = fadeOut(animationSpec = tween(120)) + shrinkHorizontally()
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             IconButton(
@@ -311,22 +309,17 @@ fun ExpandableWeeklyCalendarCard(
             AnimatedContent(
                 targetState = isExpanded,
                 transitionSpec = {
+                    val fadeSpec = tween<Float>(durationMillis = 200, easing = FastOutSlowInEasing)
+                    val slideSpec = tween<IntOffset>(durationMillis = 200, easing = FastOutSlowInEasing)
+                    val sizeSpec = tween<androidx.compose.ui.unit.IntSize>(durationMillis = 200, easing = FastOutSlowInEasing)
                     if (targetState) {
-                        // Expanding (Week -> Month)
-                        (fadeIn(animationSpec = tween(220, delayMillis = 60)) +
-                                slideInVertically(animationSpec = spring(dampingRatio = 0.85f, stiffness = 380f)) { -it / 6 })
-                            .togetherWith(
-                                fadeOut(animationSpec = tween(140)) +
-                                        slideOutVertically(animationSpec = spring(dampingRatio = 0.85f, stiffness = 380f)) { it / 6 }
-                            ).using(SizeTransform(clip = true))
+                        (fadeIn(animationSpec = fadeSpec) + slideInVertically(animationSpec = slideSpec) { -it / 6 })
+                            .togetherWith(fadeOut(animationSpec = fadeSpec) + slideOutVertically(animationSpec = slideSpec) { it / 6 })
+                            .using(SizeTransform(clip = true) { _, _ -> sizeSpec })
                     } else {
-                        // Collapsing (Month -> Week)
-                        (fadeIn(animationSpec = tween(220, delayMillis = 60)) +
-                                slideInVertically(animationSpec = spring(dampingRatio = 0.85f, stiffness = 380f)) { it / 6 })
-                            .togetherWith(
-                                fadeOut(animationSpec = tween(140)) +
-                                        slideOutVertically(animationSpec = spring(dampingRatio = 0.85f, stiffness = 380f)) { -it / 6 }
-                            ).using(SizeTransform(clip = true))
+                        (fadeIn(animationSpec = fadeSpec) + slideInVertically(animationSpec = slideSpec) { it / 6 })
+                            .togetherWith(fadeOut(animationSpec = fadeSpec) + slideOutVertically(animationSpec = slideSpec) { -it / 6 })
+                            .using(SizeTransform(clip = true) { _, _ -> sizeSpec })
                     }
                 },
                 label = "calendar_view_transition"
@@ -365,7 +358,7 @@ fun ExpandableWeeklyCalendarCard(
                                 tint = ElectricBlue,
                                 modifier = Modifier
                                     .size(16.dp)
-                                    .offset(y = arrowOffsetY.dp)
+                                    .graphicsLayer { translationY = arrowOffsetY.dp.toPx() }
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
@@ -427,7 +420,7 @@ fun ExpandableWeeklyCalendarCard(
                                 tint = ElectricBlue,
                                 modifier = Modifier
                                     .size(16.dp)
-                                    .offset(y = downArrowOffsetY.dp)
+                                    .graphicsLayer { translationY = downArrowOffsetY.dp.toPx() }
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(

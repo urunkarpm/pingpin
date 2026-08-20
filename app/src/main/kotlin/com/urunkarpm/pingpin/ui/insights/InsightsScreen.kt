@@ -97,13 +97,12 @@ fun InsightsScreen(
 
         var attendedWfoCount = 0
 
+        val dayCal = Calendar.getInstance()
         for (day in 1..maxDays) {
             val dateStr = String.format(Locale.US, "%04d-%02d-%02d", selectedYear, selectedMonth, day)
-            val c = Calendar.getInstance().apply {
-                set(selectedYear, selectedMonth - 1, day, 0, 0, 0)
-                set(Calendar.MILLISECOND, 0)
-            }
-            if (c.before(installCal) && !recordsMap.containsKey(dateStr)) {
+            dayCal.set(selectedYear, selectedMonth - 1, day, 0, 0, 0)
+            dayCal.set(Calendar.MILLISECOND, 0)
+            if (dayCal.before(installCal) && !recordsMap.containsKey(dateStr)) {
                 continue
             }
 
@@ -115,8 +114,8 @@ fun InsightsScreen(
                 else -> day <= currentDay
             }
 
-            val isWork = WorkingDays.isWorkingDay(c, workingDaysMask)
-            val isWfo = WorkingDays.isWfoDay(c, wfoDaysMask)
+            val isWork = WorkingDays.isWorkingDay(dayCal, workingDaysMask)
+            val isWfo = WorkingDays.isWfoDay(dayCal, wfoDaysMask)
 
             if (isWork) {
                 workTotal++
@@ -987,17 +986,22 @@ private fun AttendanceLogSummaryCard(
                     )
                 }
             } else {
-                val displayRecords = sortedRecords.take(5)
-                val sdfTime = remember { SimpleDateFormat("hh:mm a", Locale.US) }
-                val sdfInput = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US) }
-                val sdfDisplayDate = remember { SimpleDateFormat("EEE, MMM dd", Locale.US) }
-
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    displayRecords.forEach { record ->
+                val formattedRecords = remember(sortedRecords) {
+                    val sdfTime = SimpleDateFormat("hh:mm a", Locale.US)
+                    val sdfInput = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+                    val sdfDisplayDate = SimpleDateFormat("EEE, MMM dd", Locale.US)
+                    sortedRecords.take(5).map { record ->
                         val dateObj = try { sdfInput.parse(record.dateYyyyMmDd) } catch (e: Exception) { null }
                         val dateFormatted = dateObj?.let { sdfDisplayDate.format(it) } ?: record.dateYyyyMmDd
                         val timeStr = sdfTime.format(Date(record.markedAt))
                         val isLate = record.status.equals("late", ignoreCase = true)
+                        Triple(record, dateFormatted, Pair(timeStr, isLate))
+                    }
+                }
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    formattedRecords.forEach { (record, dateFormatted, timeAndStatus) ->
+                        val (timeStr, isLate) = timeAndStatus
 
                         Row(
                             modifier = Modifier

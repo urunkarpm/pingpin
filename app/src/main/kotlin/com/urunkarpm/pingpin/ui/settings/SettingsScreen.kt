@@ -16,6 +16,7 @@ import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -98,8 +99,8 @@ fun SettingsScreen(
 
     var testAlarmFired by remember { mutableStateOf(false) }
 
-    // Accordion expansion state: null means all collapsed by default or workspace open
-    var expandedSection by remember { mutableStateOf<SettingsSection?>(SettingsSection.WORKSPACE) }
+    // Accordion expansion state: null means all collapsed by default
+    var expandedSection by rememberSaveable { mutableStateOf<SettingsSection?>(null) }
     val profileExpanded = expandedSection == SettingsSection.PROFILE
     val workspaceExpanded = expandedSection == SettingsSection.WORKSPACE
     val portalAutomationExpanded = expandedSection == SettingsSection.PORTAL_AUTOMATION
@@ -107,7 +108,7 @@ fun SettingsScreen(
     val oemExpanded = expandedSection == SettingsSection.OEM
 
     val oemGuidance = remember { OemBatteryHelper.getGuidance() }
-    val fieldShape = RoundedCornerShape(16.dp)
+    val fieldShape = remember { RoundedCornerShape(16.dp) }
 
     LaunchedEffect(configState, profileState) {
         configState?.let { cfg ->

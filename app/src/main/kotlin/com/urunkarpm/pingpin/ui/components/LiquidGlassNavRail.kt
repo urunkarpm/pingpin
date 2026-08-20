@@ -2,8 +2,9 @@ package com.urunkarpm.pingpin.ui.components
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -24,12 +25,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.urunkarpm.pingpin.ui.theme.ElectricBlue
+import kotlin.math.roundToInt
 
 private val NavItems = listOf(
     NavItemData(Icons.Outlined.Home, Icons.Filled.Home, "Home"),
@@ -70,6 +75,22 @@ fun LiquidGlassNavRail(
             .padding(start = 12.dp, end = 8.dp, top = 16.dp, bottom = 16.dp),
         contentAlignment = Alignment.Center
     ) {
+        var containerHeightPx by remember { mutableIntStateOf(0) }
+        val itemCount = NavItems.size.coerceAtLeast(1)
+
+        val targetY = if (containerHeightPx > 0) {
+            (containerHeightPx.toFloat() / itemCount) * validIndex
+        } else 0f
+
+        val indicatorOffsetPxState = animateFloatAsState(
+            targetValue = targetY,
+            animationSpec = spring(
+                dampingRatio = 0.82f,
+                stiffness = 1400f
+            ),
+            label = "SelectionPuckOffsetRail"
+        )
+
         // Outer Rail Container
         Box(
             modifier = Modifier
@@ -85,29 +106,18 @@ fun LiquidGlassNavRail(
                 .background(containerBg)
                 .border(width = 1.dp, color = hairlineBorder, shape = capsuleShape)
         ) {
-            BoxWithConstraints(
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(vertical = 12.dp)
+                    .onSizeChanged { containerHeightPx = it.height }
             ) {
-                val totalHeight = maxHeight
-                val itemHeight = totalHeight / NavItems.size
-
-                val animatedTopOffset by animateDpAsState(
-                    targetValue = itemHeight * validIndex,
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioLowBouncy,
-                        stiffness = Spring.StiffnessMediumLow
-                    ),
-                    label = "SelectionPuckOffsetRail"
-                )
-
-                // Selection Pill Background
+                // Selection Pill Background (Zero recompositions during movement)
                 Box(
                     modifier = Modifier
-                        .offset(y = animatedTopOffset)
                         .fillMaxWidth()
-                        .height(itemHeight)
+                        .fillMaxHeight(1f / itemCount)
+                        .offset { IntOffset(x = 0, y = indicatorOffsetPxState.value.roundToInt()) }
                         .padding(horizontal = 6.dp, vertical = 6.dp)
                         .clip(puckShape)
                         .background(
@@ -136,9 +146,9 @@ fun LiquidGlassNavRail(
                         val activeColor = if (isDark) Color.White else ElectricBlue
                         val inactiveColor = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
 
-                        val animatedColor by animateColorAsState(
+                        val animatedColorState = animateColorAsState(
                             targetValue = if (isSelected) activeColor else inactiveColor,
-                            animationSpec = spring(stiffness = Spring.StiffnessMedium),
+                            animationSpec = tween(durationMillis = 150),
                             label = "RailTabColor_$index"
                         )
 
@@ -164,13 +174,13 @@ fun LiquidGlassNavRail(
                                 Icon(
                                     imageVector = if (isSelected) item.activeIcon else item.icon,
                                     contentDescription = item.label,
-                                    tint = animatedColor,
+                                    tint = animatedColorState.value,
                                     modifier = Modifier.size(24.dp)
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
                                     text = item.label,
-                                    color = animatedColor,
+                                    color = animatedColorState.value,
                                     fontSize = 11.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                     letterSpacing = 0.3.sp,

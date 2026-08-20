@@ -28,6 +28,13 @@ import com.urunkarpm.pingpin.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
 
+private data class CellDateInfo(
+    val year: Int,
+    val month: Int,
+    val day: Int,
+    val isCurrentMonth: Boolean
+)
+
 private data class MonthDayCellData(
     val dayNum: Int,
     val dateStr: String,
@@ -102,26 +109,23 @@ fun MonthlyCalendarView(
             val isPreceding = slotIndex < firstDayOfWeek
             val isFollowing = slotIndex >= (firstDayOfWeek + maxDays)
 
-            val (cellDayNum, dateStr, isCurrentMonthDay) = when {
+            val (cYear, cMonth, cDay, isCurrentMonthDay) = when {
                 isPreceding -> {
                     val pDay = prevMaxDays - (firstDayOfWeek - 1 - slotIndex)
-                    val dStr = String.format(Locale.US, "%04d-%02d-%02d", prevCal.get(Calendar.YEAR), prevCal.get(Calendar.MONTH) + 1, pDay)
-                    Triple(pDay, dStr, false)
+                    CellDateInfo(prevCal.get(Calendar.YEAR), prevCal.get(Calendar.MONTH) + 1, pDay, false)
                 }
                 isFollowing -> {
                     val nDay = slotIndex - (firstDayOfWeek + maxDays) + 1
-                    val dStr = String.format(Locale.US, "%04d-%02d-%02d", nextCal.get(Calendar.YEAR), nextCal.get(Calendar.MONTH) + 1, nDay)
-                    Triple(nDay, dStr, false)
+                    CellDateInfo(nextCal.get(Calendar.YEAR), nextCal.get(Calendar.MONTH) + 1, nDay, false)
                 }
                 else -> {
-                    val cDay = slotIndex - firstDayOfWeek + 1
-                    val dStr = String.format(Locale.US, "%04d-%02d-%02d", year, month, cDay)
-                    Triple(cDay, dStr, true)
+                    val cDayNum = slotIndex - firstDayOfWeek + 1
+                    CellDateInfo(year, month, cDayNum, true)
                 }
             }
 
-            val parts = dateStr.split("-")
-            cellCal.set(parts[0].toInt(), parts[1].toInt() - 1, parts[2].toInt(), 0, 0, 0)
+            val dateStr = String.format(Locale.US, "%04d-%02d-%02d", cYear, cMonth, cDay)
+            cellCal.set(cYear, cMonth - 1, cDay, 0, 0, 0)
             cellCal.set(Calendar.MILLISECOND, 0)
 
             val isAttended = attendedSet.contains(dateStr)
@@ -134,7 +138,7 @@ fun MonthlyCalendarView(
 
             list.add(
                 MonthDayCellData(
-                    dayNum = cellDayNum,
+                    dayNum = cDay,
                     dateStr = dateStr,
                     isCurrentMonthDay = isCurrentMonthDay,
                     isToday = isToday,
