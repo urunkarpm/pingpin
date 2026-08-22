@@ -18,7 +18,6 @@ import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.LocalFireDepartment
-import androidx.compose.material.icons.filled.Radar
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material.icons.filled.WifiOff
@@ -43,7 +42,6 @@ import com.urunkarpm.pingpin.service.*
 import com.urunkarpm.pingpin.ui.components.ExpandableWeeklyCalendarCard
 import com.urunkarpm.pingpin.ui.components.GlassCard
 import com.urunkarpm.pingpin.ui.components.MakeupWfoCard
-import com.urunkarpm.pingpin.ui.components.OfficeOccupancyCard
 import com.urunkarpm.pingpin.ui.components.UpcomingHolidaysCard
 import com.urunkarpm.pingpin.ui.components.WeatherTravelCard
 import com.urunkarpm.pingpin.ui.theme.*
@@ -68,8 +66,6 @@ fun HomeScreen(
 
     val acceptedMakeupDates by viewModel.acceptedMakeupDatesState.collectAsState()
 
-    val bleResult by viewModel.bleResult.collectAsState()
-    val isBleScanning by viewModel.isBleScanning.collectAsState()
     val scanErrorMessage by viewModel.scanErrorMessage.collectAsState()
 
     LaunchedEffect(scanErrorMessage) {
@@ -116,8 +112,9 @@ fun HomeScreen(
         calculateCurrentStreak(recordsState, configState?.workingDaysMask ?: 31, installCal)
     }
 
-    // Selected Hub Tab (0: Weather & Travel, 1: Holidays, 2: Office Radar)
+    // Selected Hub Tab (0: Weather & Travel, 1: Holidays)
     var selectedTabIndex by remember { mutableIntStateOf(0) }
+    var isCalendarExpanded by remember { mutableStateOf(false) }
 
 
     val isDark = MaterialTheme.colorScheme.background.red < 0.5f
@@ -293,8 +290,7 @@ fun HomeScreen(
                         ) {
                             val tabs = listOf(
                                 Triple("Weather", Icons.Default.WbSunny, 0),
-                                Triple("Holidays", Icons.Default.BeachAccess, 1),
-                                Triple("Radar", Icons.Default.Radar, 2)
+                                Triple("Holidays", Icons.Default.BeachAccess, 1)
                             )
 
                             tabs.forEach { (label, icon, index) ->
@@ -306,7 +302,12 @@ fun HomeScreen(
                                         .background(
                                             if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
                                         )
-                                        .clickable { selectedTabIndex = index }
+                                        .clickable {
+                                            selectedTabIndex = index
+                                            if (isCalendarExpanded) {
+                                                isCalendarExpanded = false
+                                            }
+                                        }
                                         .padding(vertical = 10.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -351,19 +352,10 @@ fun HomeScreen(
                                     }
                                 )
                             }
-                            1 -> {
+                            else -> {
                                 UpcomingHolidaysCard(
                                     upcomingHolidays = upcomingHolidays,
                                     allHolidays = allIndianHolidays
-                                )
-                            }
-                            2 -> {
-                                OfficeOccupancyCard(
-                                    scanResult = bleResult,
-                                    isScanning = isBleScanning,
-                                    onStartScan = {
-                                        viewModel.startBleScan()
-                                    }
                                 )
                             }
                         }
@@ -383,6 +375,8 @@ fun HomeScreen(
                         workingDaysMask = configState?.workingDaysMask ?: 31,
                         wfoDaysMask = configState?.wfoDaysMask ?: 31,
                         acceptedMakeupDates = acceptedMakeupDates,
+                        isExpanded = isCalendarExpanded,
+                        onExpandedChange = { isCalendarExpanded = it },
                         onDayClick = { dayNum, dateStr ->
                             if (dateStr <= todayStr) {
                                 selectedDayForDialog = Pair(dayNum, dateStr)
@@ -551,8 +545,7 @@ fun HomeScreen(
                     ) {
                         val tabs = listOf(
                             Triple("Weather", Icons.Default.WbSunny, 0),
-                            Triple("Holidays", Icons.Default.BeachAccess, 1),
-                            Triple("Radar", Icons.Default.Radar, 2)
+                            Triple("Holidays", Icons.Default.BeachAccess, 1)
                         )
 
                         tabs.forEach { (label, icon, index) ->
@@ -564,7 +557,10 @@ fun HomeScreen(
                                     .background(
                                         if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
                                     )
-                                    .clickable { selectedTabIndex = index }
+                                    .clickable {
+                                        selectedTabIndex = index
+                                        isCalendarExpanded = false
+                                    }
                                     .padding(vertical = 10.dp),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -609,19 +605,10 @@ fun HomeScreen(
                                 }
                             )
                         }
-                        1 -> {
+                        else -> {
                             UpcomingHolidaysCard(
                                 upcomingHolidays = upcomingHolidays,
                                 allHolidays = allIndianHolidays
-                            )
-                        }
-                        2 -> {
-                            OfficeOccupancyCard(
-                                scanResult = bleResult,
-                                isScanning = isBleScanning,
-                                onStartScan = {
-                                    viewModel.startBleScan()
-                                }
                             )
                         }
                     }
@@ -641,6 +628,8 @@ fun HomeScreen(
                     workingDaysMask = configState?.workingDaysMask ?: 31,
                     wfoDaysMask = configState?.wfoDaysMask ?: 31,
                     acceptedMakeupDates = acceptedMakeupDates,
+                    isExpanded = isCalendarExpanded,
+                    onExpandedChange = { isCalendarExpanded = it },
                     onDayClick = { dayNum, dateStr ->
                         if (dateStr <= todayStr) {
                             selectedDayForDialog = Pair(dayNum, dateStr)

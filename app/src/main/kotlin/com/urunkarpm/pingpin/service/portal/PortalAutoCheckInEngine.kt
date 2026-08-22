@@ -111,9 +111,9 @@ class PortalAutoCheckInEngine {
                         if (cleanCurrent && cleanTarget && cleanCurrent !== cleanTarget && !cleanCurrent.startsWith(cleanTarget) && !cleanTarget.startsWith(cleanCurrent)) {
                             var isAuthPage = currentHref.includes('login') || currentHref.includes('auth') || currentHref.includes('signin') || currentHref.includes('sso');
                             if (isAuthPage) {
-                                notifyStatus("🔒 Opened Login/Auth page. Attempting auto-login...");
+                                notifyStatus("🔒 Login page detected. Attempting auto-login...");
                             } else {
-                                notifyStatus("⚠️ Browser opened page (" + cleanCurrent + ") differing from target URL (" + cleanTarget + ")");
+                                notifyStatus("Redirected to (" + cleanCurrent + "). Redirecting to target URL...");
                             }
                         }
                     } catch(e){}

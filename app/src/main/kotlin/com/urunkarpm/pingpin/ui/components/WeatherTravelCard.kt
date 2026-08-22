@@ -163,7 +163,7 @@ fun WeatherTravelCard(
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 3-Stat Content Cards Grid (Identical weight distribution as OfficeOccupancyCard)
+            // 3-Stat Content Cards Grid
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)

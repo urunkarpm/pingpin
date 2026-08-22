@@ -58,7 +58,80 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
     private val statusMessageState = mutableStateOf("Initializing Portal...")
     private val isLoadingState = mutableStateOf(true)
     private val currentUrlState = mutableStateOf("")
-    private val isUrlMismatchState = mutableStateOf(false)
+    private var autoRedirectCount = 0
+    private var hasSubmittedLogin = false
+    private val maxAutoRedirects = 3
+    private val redirectCauseState = mutableStateOf<String?>(null)
+
+    private fun isAuthUrl(url: String): Boolean {
+        val lower = url.lowercase()
+        return lower.contains("login") || lower.contains("auth") || lower.contains("signin") || lower.contains("sso")
+    }
+
+    private fun inspectRedirectCause(view: WebView?, loadedUrl: String) {
+        val cleanUrl = cleanUrlForDisplay(loadedUrl)
+        val urlLower = loadedUrl.lowercase()
+
+        val urlCauseHint = when {
+            urlLower.contains("session") && (urlLower.contains("expire") || urlLower.contains("timeout")) -> "Session Expired / Timeout"
+            urlLower.contains("denied") || urlLower.contains("unauthorized") || urlLower.contains("forbidden") -> "Access Denied / Unauthorized"
+            urlLower.contains("invalid") -> "Invalid Session / Credentials"
+            urlLower.contains("returnurl") || urlLower.contains("redirect") -> "Re-authentication required (ReturnUrl parameter detected)"
+            urlLower.contains("error") -> "Portal error page"
+            else -> null
+        }
+
+        val pageTitle = view?.title?.takeIf { it.isNotBlank() && !it.startsWith("http") } ?: ""
+
+        val detectCauseScript = """
+            (function() {
+                try {
+                    var title = document.title || '';
+                    var errorEl = document.querySelector('.error, .alert, #error, #message, [role="alert"], h1, h2, p.error-text');
+                    var textHint = errorEl ? (errorEl.innerText || errorEl.textContent || '').trim() : '';
+                    if (textHint.length > 120) textHint = textHint.substring(0, 120) + '...';
+                    return JSON.stringify({ title: title, textHint: textHint });
+                } catch(e) {
+                    return JSON.stringify({ title: '', textHint: '' });
+                }
+            })();
+        """.trimIndent()
+
+        view?.evaluateJavascript(detectCauseScript) { resultJson ->
+            var domTitle = pageTitle
+            var domHint = ""
+
+            try {
+                if (!resultJson.isNullOrBlank() && resultJson != "null") {
+                    var raw = resultJson.trim()
+                    if (raw.startsWith("\"") && raw.endsWith("\"")) {
+                        raw = raw.substring(1, raw.length - 1)
+                            .replace("\\\"", "\"")
+                            .replace("\\\\", "\\")
+                    }
+                    val jsonObj = org.json.JSONObject(raw)
+                    val t = jsonObj.optString("title")
+                    val h = jsonObj.optString("textHint")
+                    if (t.isNotBlank()) domTitle = t
+                    if (h.isNotBlank()) domHint = h
+                }
+            } catch (e: Exception) {
+                // Ignore parse error
+            }
+
+            val finalCause = when {
+                domHint.isNotBlank() -> domHint
+                urlCauseHint != null -> "$urlCauseHint ($cleanUrl)"
+                domTitle.isNotBlank() -> "Landing Page: \"$domTitle\" ($cleanUrl)"
+                else -> "Server continuously redirected to $cleanUrl"
+            }
+
+            runOnUiThread {
+                redirectCauseState.value = finalCause
+                statusMessageState.value = "⚠️ Redirected 3x away from target URL. Cause: $finalCause"
+            }
+        }
+    }
 
     private var pendingGeoOrigin: String? = null
     private var pendingGeoCallback: GeolocationPermissions.Callback? = null
@@ -207,8 +280,6 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
                 super.onPageStarted(view, url, favicon)
                 val loadedUrl = url ?: view?.url ?: ""
                 currentUrlState.value = loadedUrl
-                val matches = isUrlMatching(loadedUrl, targetPortalUrl)
-                isUrlMismatchState.value = !matches && loadedUrl.isNotBlank()
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
@@ -216,13 +287,27 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
                 isLoadingState.value = false
                 val loadedUrl = url ?: view?.url ?: ""
                 currentUrlState.value = loadedUrl
+
                 val matches = isUrlMatching(loadedUrl, targetPortalUrl)
-                isUrlMismatchState.value = !matches && loadedUrl.isNotBlank()
+                val isAuth = isAuthUrl(loadedUrl)
+                val displayAction = if (actionType.equals(ACTION_CHECK_IN, ignoreCase = true)) "Check In" else "Check Out"
 
                 if (!matches && loadedUrl.isNotBlank()) {
-                    statusMessageState.value = "⚠️ Page mismatch: Opened on ${cleanUrlForDisplay(loadedUrl)} instead of target URL. Running engine..."
+                    if (isAuth && !hasSubmittedLogin) {
+                        statusMessageState.value = "🔒 Login page detected. Attempting auto-login..."
+                    } else if (autoRedirectCount < maxAutoRedirects) {
+                        autoRedirectCount++
+                        statusMessageState.value = "Redirecting to target portal URL for $displayAction (Attempt $autoRedirectCount/$maxAutoRedirects)..."
+                        view?.loadUrl(targetPortalUrl)
+                        return
+                    } else {
+                        statusMessageState.value = "Inspecting redirect cause on 3rd attempt..."
+                        inspectRedirectCause(view, loadedUrl)
+                    }
                 } else {
-                    statusMessageState.value = "Page loaded. Running check-in engine..."
+                    autoRedirectCount = 0
+                    redirectCauseState.value = null
+                    statusMessageState.value = "Target portal loaded. Running $displayAction engine..."
                 }
 
                 val script = PortalAutoCheckInEngine.generateAutomationScript(
@@ -334,7 +419,8 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
 
     override fun onLoginSubmitted() {
         runOnUiThread {
-            statusMessageState.value = "Login submitted! Waiting for portal dashboard..."
+            hasSubmittedLogin = true
+            statusMessageState.value = "Login submitted! Navigating to target portal URL..."
         }
     }
 
@@ -479,8 +565,9 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
                     }
                 }
 
-                // URL Mismatch Warning Banner
-                if (isUrlMismatchState.value) {
+                // 3rd Redirect Cause Diagnostic Card
+                val causeMsg = redirectCauseState.value
+                if (causeMsg != null) {
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -495,28 +582,30 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "⚠️ URL Mismatch Detected",
+                                    text = "⚠️ Redirect Loop Cause (3rd Attempt)",
                                     color = Color(0xFFFDBA74),
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = "Opened: ${cleanUrlForDisplay(currentUrlState.value)}\nExpected: ${cleanUrlForDisplay(targetPortalUrl)}",
+                                    text = "Cause: $causeMsg",
                                     color = Color(0xFFFED7AA),
-                                    fontSize = 10.sp
+                                    fontSize = 11.sp
                                 )
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             Button(
                                 onClick = {
+                                    autoRedirectCount = 0
+                                    redirectCauseState.value = null
                                     webViewRef?.loadUrl(targetPortalUrl)
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD97706)),
                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                                 shape = RoundedCornerShape(8.dp)
                             ) {
-                                Text("Load Target URL", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                                Text("Retry Target", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
                             }
                         }
                     }

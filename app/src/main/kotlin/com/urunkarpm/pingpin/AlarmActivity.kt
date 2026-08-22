@@ -67,6 +67,14 @@ class AlarmActivity : ComponentActivity() {
         startAlarmSoundAndVibration()
 
         val alarmId = intent.getIntExtra("alarmId", 101)
+        val intentActionType = intent.getStringExtra("actionType")
+        val intentTitle = intent.getStringExtra("title") ?: ""
+        val initialIsCheckIn = when {
+            !intentActionType.isNullOrBlank() -> intentActionType == com.urunkarpm.pingpin.ui.portal.PortalActivity.ACTION_CHECK_IN
+            alarmId == NotificationService.CHECK_OUT_ALARM_ID || alarmId == NotificationService.CHECK_OUT_SNOOZE_ID || intentTitle.contains("CHECK-OUT", ignoreCase = true) -> false
+            else -> true
+        }
+
         val intentPortalUrl = intent.getStringExtra("portalUrl") ?: ""
         val prefs = getSharedPreferences(NotificationService.PREFS_NAME, Context.MODE_PRIVATE)
         val prefPortalUrl = prefs.getString("portalUrl", "") ?: ""
@@ -91,7 +99,7 @@ class AlarmActivity : ComponentActivity() {
 
             PingPinTheme(darkTheme = true) {
                 AlarmScreenContent(
-                    alarmId = alarmId,
+                    isCheckInMode = initialIsCheckIn,
                     portalUrl = portalUrlState,
                     onCheckIn = {
                         stopAlarmSound()
@@ -236,8 +244,8 @@ class AlarmActivity : ComponentActivity() {
         val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
         val safeFinish = {
             window?.decorView?.post {
-                finishAndRemoveTask()
-            } ?: finishAndRemoveTask()
+                finish()
+            } ?: finish()
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && keyguardManager != null && keyguardManager.isKeyguardLocked) {
@@ -262,7 +270,7 @@ class AlarmActivity : ComponentActivity() {
     }
 
     private fun openPortalAction(actionType: String, currentAlarmId: Int, currentPortalUrl: String) {
-        kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+        lifecycleScope.launch(Dispatchers.IO) {
             val db = com.urunkarpm.pingpin.data.local.AppDatabase.getInstance(applicationContext)
             val config = db.officeConfigDao().getConfig()
             val portalMode = config?.portalMode ?: "EXTERNAL_BROWSER"
@@ -283,8 +291,8 @@ class AlarmActivity : ComponentActivity() {
                     openBrowser(url)
                 }
                 window?.decorView?.post {
-                    finishAndRemoveTask()
-                } ?: finishAndRemoveTask()
+                    finish()
+                } ?: finish()
             }
         }
     }
@@ -362,14 +370,14 @@ class AlarmActivity : ComponentActivity() {
 
 @Composable
 fun AlarmScreenContent(
-    alarmId: Int,
+    isCheckInMode: Boolean = true,
     portalUrl: String,
     onCheckIn: () -> Unit,
     onSnooze: () -> Unit,
     onLeave: () -> Unit,
     onCheckOut: () -> Unit
 ) {
-    val isCheckIn = alarmId == NotificationService.CHECK_IN_ALARM_ID || alarmId == NotificationService.CHECK_IN_SNOOZE_ID
+    val isCheckIn = isCheckInMode
 
     // Pitch Black AMOLED color palette
     val bgGradientStart = Color(0xFF000000)

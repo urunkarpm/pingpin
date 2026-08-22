@@ -7,10 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.9.0] - 2026-08-22
+
+### Fixed
+- **Alarm Alert Check-In & Check-Out Action Execution**: Replaced task stack termination (`finishAndRemoveTask()`) with standard activity finish (`finish()`) when launching portal or browser actions from `AlarmActivity`. Prevents the app from abruptly closing or going to background when tapping Check-In or Check-Out.
+- **Dynamic Notification Action Resolution**: Resolved `ACTION_CHECK_IN` vs `ACTION_CHECK_OUT` dynamically based on alarm IDs (`CHECK_OUT_ALARM_ID`/`CHECK_OUT_SNOOZE_ID`), intent extras, and alarm titles across both `AlarmActivity` and `NotificationActionReceiver`.
+- **Structured Coroutine Concurrency**: Bound portal action database operations to `lifecycleScope` in `AlarmActivity` for safe concurrency.
+
+---
+
 ## [1.8.0] - 2026-08-20
 
 ### Added
-- **HR Portal Opened URL Verification & Safeguard**: Real-time URL checking on WebView page load events (`onPageStarted`, `onPageFinished`) and in-engine JS verification (`checkUrlMismatch`). Displays an amber warning banner and single-tap **"Load Target URL"** button if the browser hops or redirects to a different page.
+- **Automatic Portal Redirection & Auto-Punch**: When opening the portal viewer, if redirected to a different page or login screen, PingPin handles authentication and automatically redirects the WebView directly to the target portal URL to perform the check-in or check-out action seamlessly without displaying error banners.
 - **Framework-Aware Auto-Login Form Submission**: Enhanced credential auto-filling using native `HTMLInputElement` setters for Single-Page Applications (React, Vue, Angular), supporting both 1-step and 2-step (username -> next -> password -> submit) authentication flows.
 - **Full Viewport Responsive Page Scaling**: Configured `MATCH_PARENT` layout parameters on WebView container with responsive zoom controls (`textZoom = 100`, `setSupportZoom(true)`) and dynamic `<meta name="viewport">` injection to eliminate page cropping.
 

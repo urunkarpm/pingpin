@@ -42,7 +42,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
             }
             ACTION_OPEN_PORTAL -> {
                 notifService.dismissNotification(alarmId)
-                openPortal(context, portalUrl)
+                openPortal(context, portalUrl, alarmId)
             }
             ACTION_DISMISS -> {
                 notifService.dismissNotification(alarmId)
@@ -51,7 +51,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun openPortal(context: Context, portalUrl: String) {
+    private fun openPortal(context: Context, portalUrl: String, alarmId: Int = 101) {
         val pendingResult = goAsync()
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
             try {
@@ -65,12 +65,19 @@ class NotificationActionReceiver : BroadcastReceiver() {
                     } else rawUrl
                 } else "https://google.com"
 
+                val actionType = if (alarmId == NotificationService.CHECK_OUT_ALARM_ID || alarmId == NotificationService.CHECK_OUT_SNOOZE_ID) {
+                    com.urunkarpm.pingpin.ui.portal.PortalActivity.ACTION_CHECK_OUT
+                } else {
+                    com.urunkarpm.pingpin.ui.portal.PortalActivity.ACTION_CHECK_IN
+                }
+
                 kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                     if (portalMode == "IN_APP_AUTO") {
                         val portalIntent = com.urunkarpm.pingpin.ui.portal.PortalActivity.createIntent(
                             context = context,
-                            actionType = com.urunkarpm.pingpin.ui.portal.PortalActivity.ACTION_CHECK_IN,
-                            portalUrl = urlToOpen
+                            actionType = actionType,
+                            portalUrl = urlToOpen,
+                            alarmId = alarmId
                         ).apply {
                             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                         }

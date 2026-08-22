@@ -46,13 +46,23 @@ fun ExpandableWeeklyCalendarCard(
     acceptedMakeupDates: Set<String> = emptySet(),
     onDayClick: ((dayNum: Int, dateYyyyMmDd: String) -> Unit)? = null,
     onDayLongClick: ((dayNum: Int, dateYyyyMmDd: String) -> Unit)? = null,
+    isExpanded: Boolean = false,
+    onExpandedChange: ((Boolean) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val isDark = MaterialTheme.colorScheme.background.red < 0.5f
     val installCal = remember(context) { AppInstallManager.getInstallDateCalendar(context) }
 
-    var isExpanded by remember { mutableStateOf(false) }
+    var internalIsExpanded by remember { mutableStateOf(false) }
+    val currentIsExpanded = if (onExpandedChange != null) isExpanded else internalIsExpanded
+    val setExpanded: (Boolean) -> Unit = { newValue ->
+        if (onExpandedChange != null) {
+            onExpandedChange(newValue)
+        } else {
+            internalIsExpanded = newValue
+        }
+    }
     var weekOffset by remember { mutableIntStateOf(0) }
 
     var selectedYear by remember { mutableIntStateOf(Calendar.getInstance().get(Calendar.YEAR)) }
@@ -180,7 +190,7 @@ fun ExpandableWeeklyCalendarCard(
 
     // Arrow icon smooth 180-degree rotation animation
     val arrowRotation by animateFloatAsState(
-        targetValue = if (isExpanded) 180f else 0f,
+        targetValue = if (currentIsExpanded) 180f else 0f,
         animationSpec = spring(dampingRatio = 0.8f, stiffness = 300f),
         label = "arrow_rotation"
     )
@@ -196,9 +206,9 @@ fun ExpandableWeeklyCalendarCard(
                     onDragStart = { totalDrag = 0f },
                     onDragEnd = {
                         if (totalDrag < -20f) {
-                            isExpanded = true
+                            setExpanded(true)
                         } else if (totalDrag > 20f) {
-                            isExpanded = false
+                            setExpanded(false)
                         }
                         totalDrag = 0f
                     },
@@ -220,10 +230,10 @@ fun ExpandableWeeklyCalendarCard(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable { isExpanded = !isExpanded }
+                    modifier = Modifier.clickable { setExpanded(!currentIsExpanded) }
                 ) {
                     AnimatedContent(
-                        targetState = isExpanded,
+                        targetState = currentIsExpanded,
                         transitionSpec = {
                             (fadeIn(animationSpec = tween(180)) + slideInVertically { -it / 2 })
                                 .togetherWith(fadeOut(animationSpec = tween(120)) + slideOutVertically { it / 2 })
@@ -242,7 +252,7 @@ fun ExpandableWeeklyCalendarCard(
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     AnimatedVisibility(
-                        visible = !isExpanded,
+                        visible = !currentIsExpanded,
                         enter = fadeIn(animationSpec = tween(180)) + expandHorizontally(),
                         exit = fadeOut(animationSpec = tween(120)) + shrinkHorizontally()
                     ) {
@@ -291,12 +301,12 @@ fun ExpandableWeeklyCalendarCard(
                     }
 
                     IconButton(
-                        onClick = { isExpanded = !isExpanded },
+                        onClick = { setExpanded(!currentIsExpanded) },
                         modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.KeyboardArrowUp,
-                            contentDescription = if (isExpanded) "Collapse to Week View" else "Expand to Month View",
+                            contentDescription = if (currentIsExpanded) "Collapse to Week View" else "Expand to Month View",
                             tint = ElectricBlue,
                             modifier = Modifier.rotate(arrowRotation)
                         )
@@ -307,7 +317,7 @@ fun ExpandableWeeklyCalendarCard(
             Spacer(modifier = Modifier.height(12.dp))
 
             AnimatedContent(
-                targetState = isExpanded,
+                targetState = currentIsExpanded,
                 transitionSpec = {
                     val fadeSpec = tween<Float>(durationMillis = 200, easing = FastOutSlowInEasing)
                     val slideSpec = tween<IntOffset>(durationMillis = 200, easing = FastOutSlowInEasing)
@@ -348,7 +358,7 @@ fun ExpandableWeeklyCalendarCard(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { isExpanded = true },
+                                .clickable { setExpanded(true) },
                             horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -410,7 +420,7 @@ fun ExpandableWeeklyCalendarCard(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { isExpanded = false },
+                                .clickable { setExpanded(false) },
                             horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
