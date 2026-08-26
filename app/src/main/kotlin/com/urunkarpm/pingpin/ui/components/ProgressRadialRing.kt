@@ -22,6 +22,11 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.semantics
+
 @Composable
 fun ProgressRadialRing(
     percentage: Float, // 0.0 to 100.0
@@ -35,7 +40,6 @@ fun ProgressRadialRing(
         label = "ProgressSweep"
     )
 
-    val sweepAngle = (animatedPercentage / 100f) * 360f
     val trackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
 
     val gradientBrush = remember(color) {
@@ -49,10 +53,16 @@ fun ProgressRadialRing(
     }
 
     Box(
-        modifier = Modifier.size(size),
+        modifier = Modifier
+            .size(size)
+            .semantics(mergeDescendants = true) {
+                contentDescription = "WFO target compliance gauge: ${animatedPercentage.toInt()} percent"
+                progressBarRangeInfo = ProgressBarRangeInfo(animatedPercentage, 0f..100f)
+            },
         contentAlignment = Alignment.Center
     ) {
         Canvas(modifier = Modifier.size(size)) {
+            val currentSweepAngle = (animatedPercentage / 100f) * 360f
             val strokePx = strokeWidth.toPx()
             val inset = strokePx / 2f
             val arcSize = androidx.compose.ui.geometry.Size(
@@ -72,11 +82,11 @@ fun ProgressRadialRing(
             )
 
             // Animated Active Arc
-            if (sweepAngle > 0f) {
+            if (currentSweepAngle > 0f) {
                 drawArc(
                     brush = gradientBrush,
                     startAngle = -90f,
-                    sweepAngle = sweepAngle,
+                    sweepAngle = currentSweepAngle,
                     useCenter = false,
                     topLeft = androidx.compose.ui.geometry.Offset(inset, inset),
                     size = arcSize,

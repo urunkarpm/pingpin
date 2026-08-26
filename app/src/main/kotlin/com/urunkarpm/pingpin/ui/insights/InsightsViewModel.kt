@@ -70,7 +70,7 @@ class InsightsViewModel(application: Application) : AndroidViewModel(application
     suspend fun generatePdfStatement(): File {
         val year = selectedYear.value
         val month = selectedMonth.value
-        val profile = profileState.value ?: UserProfileEntity(fullName = "PingPin User", designation = "Team Member")
+        val profile = profileRepo.getProfile() ?: profileState.value ?: UserProfileEntity()
         val records = monthlyRecords.value
         val workingDaysMask = configState.value?.workingDaysMask ?: 31
         val wfoDaysMask = configState.value?.wfoDaysMask ?: 31

@@ -16,9 +16,11 @@ class PingPinApplication : Application() {
         // Initialize WorkManager background Wi-Fi attendance check (15-min fallback)
         WifiCheckWorker.schedulePeriodicCheck(this)
 
-        // Dynamically register the WiFi connection receiver so it responds instantly
-        // whenever the device joins any WiFi network (implicit broadcast restriction
-        // on API 26+ means we must register dynamically, not in the manifest).
+        // Register persistent system PendingIntent NetworkCallback for Wi-Fi events
+        // so background Wi-Fi connects trigger attendance checks even if app is closed.
+        WifiConnectionReceiver.registerWifiNetworkCallback(this)
+
+        // Dynamically register the WiFi connection receiver for active runtime events
         val filter = IntentFilter(WifiManager.NETWORK_STATE_CHANGED_ACTION)
         registerReceiver(wifiConnectionReceiver, filter)
     }

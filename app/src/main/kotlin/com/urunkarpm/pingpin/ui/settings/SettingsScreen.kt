@@ -12,8 +12,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -21,7 +21,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -46,10 +45,6 @@ import com.urunkarpm.pingpin.ui.components.TimePickerField
 import com.urunkarpm.pingpin.ui.components.WfoDaysSelector
 import com.urunkarpm.pingpin.ui.components.WifiSsidPickerField
 import com.urunkarpm.pingpin.ui.components.WorkingDaysSelector
-import com.urunkarpm.pingpin.ui.theme.AmberOrange
-import com.urunkarpm.pingpin.ui.theme.ElectricBlue
-import com.urunkarpm.pingpin.ui.theme.EmeraldGreen
-import com.urunkarpm.pingpin.ui.theme.WfoDayPurple
 import kotlinx.coroutines.delay
 
 private enum class SettingsSection {
@@ -67,12 +62,13 @@ fun SettingsScreen(
     modifier: Modifier = Modifier,
     isDarkTheme: Boolean = false,
     onToggleTheme: (Boolean) -> Unit = {},
-    viewModel: SettingsViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+    viewModel: SettingsViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
+    appUpdateViewModel: com.urunkarpm.pingpin.ui.update.AppUpdateViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
     val haptic = LocalHapticFeedback.current
-    val updateState by viewModel.updateState.collectAsState()
+    val updateState by appUpdateViewModel.updateState.collectAsState()
 
     val currentAppVersion = remember {
         try {
@@ -179,22 +175,18 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Avatar Box with Gradient Rim & Specular Glow
+                    // Avatar Box with Flat Material 3 Container Color
                     Box(
                         modifier = Modifier
                             .size(60.dp)
                             .clip(CircleShape)
-                            .background(
-                                brush = Brush.linearGradient(
-                                    colors = listOf(ElectricBlue, Color(0xFF06B6D4))
-                                )
-                            )
-                            .border(2.5.dp, Color.White.copy(alpha = 0.4f), CircleShape),
+                            .background(MaterialTheme.colorScheme.primaryContainer)
+                            .border(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = avatarInitials,
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Black
                         )
@@ -227,7 +219,7 @@ fun SettingsScreen(
                         // Status pill with pulse dot
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = if (isProfileComplete) EmeraldGreen.copy(alpha = 0.15f) else AmberOrange.copy(alpha = 0.15f)
+                            color = if (isProfileComplete) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.tertiaryContainer
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
@@ -238,13 +230,13 @@ fun SettingsScreen(
                                     modifier = Modifier
                                         .size(6.dp)
                                         .clip(CircleShape)
-                                        .background(if (isProfileComplete) EmeraldGreen else AmberOrange)
+                                        .background(if (isProfileComplete) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary)
                                 )
                                 Text(
                                     text = if (isProfileComplete) "AUTOMATION READY" else "CONFIGURATION PENDING",
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.ExtraBold,
-                                    color = if (isProfileComplete) EmeraldGreen else AmberOrange,
+                                    color = if (isProfileComplete) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onTertiaryContainer,
                                     letterSpacing = 0.5.sp
                                 )
                             }
@@ -260,17 +252,17 @@ fun SettingsScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     StatSummaryChip(
-                        icon = Icons.Default.Schedule,
+                        icon = Icons.Outlined.Schedule,
                         label = "${TimeFormatUtils.format24To12Hour(checkInTime)} - ${TimeFormatUtils.format24To12Hour(checkOutTime)}",
                         modifier = Modifier.weight(1f)
                     )
                     StatSummaryChip(
-                        icon = Icons.Default.DateRange,
+                        icon = Icons.Outlined.DateRange,
                         label = "$activeDaysCount Days/Wk",
                         modifier = Modifier.weight(1f)
                     )
                     StatSummaryChip(
-                        icon = Icons.Default.Wifi,
+                        icon = Icons.Outlined.Wifi,
                         label = ssid.ifBlank { "No Wi-Fi" },
                         modifier = Modifier.weight(1f)
                     )
@@ -293,20 +285,13 @@ fun SettingsScreen(
                         modifier = Modifier
                             .size(38.dp)
                             .clip(RoundedCornerShape(12.dp))
-                            .background(
-                                Brush.linearGradient(
-                                    if (isDarkTheme)
-                                        listOf(Color(0xFF6366F1), WfoDayPurple)
-                                    else
-                                        listOf(AmberOrange, Color(0xFFEF4444))
-                                )
-                            ),
+                            .background(MaterialTheme.colorScheme.secondaryContainer),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = if (isDarkTheme) Icons.Default.DarkMode else Icons.Default.LightMode,
+                            imageVector = if (isDarkTheme) Icons.Outlined.DarkMode else Icons.Outlined.LightMode,
                             contentDescription = null,
-                            tint = Color.White,
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -329,13 +314,7 @@ fun SettingsScreen(
                     onCheckedChange = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         onToggleTheme(it)
-                    },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
-                        checkedTrackColor = Color(0xFF6366F1),
-                        uncheckedThumbColor = Color.White,
-                        uncheckedTrackColor = AmberOrange
-                    )
+                    }
                 )
             }
         }
@@ -344,10 +323,11 @@ fun SettingsScreen(
         GlassCard(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 SectionHeader(
-                    icon = Icons.Default.Badge,
+                    icon = Icons.Outlined.Badge,
                     title = "EMPLOYEE PROFILE",
                     subtitle = "Personal identity & organization profile",
-                    gradientColors = listOf(ElectricBlue, Color(0xFF06B6D4)),
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    iconTint = MaterialTheme.colorScheme.primary,
                     summaryBadge = if (!profileExpanded && fullName.isNotBlank()) fullName else null,
                     expanded = profileExpanded,
                     onToggle = { expandedSection = if (profileExpanded) null else SettingsSection.PROFILE }
@@ -368,12 +348,12 @@ fun SettingsScreen(
                             value = fullName,
                             onValueChange = { fullName = it },
                             label = { Text("Full Name") },
-                            leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = ElectricBlue) },
+                            leadingIcon = { Icon(Icons.Outlined.Person, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
                             modifier = Modifier.fillMaxWidth(),
                             shape = fieldShape,
                             singleLine = true,
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = ElectricBlue,
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
                                 unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
                             )
                         )
@@ -386,10 +366,11 @@ fun SettingsScreen(
         GlassCard(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 SectionHeader(
-                    icon = Icons.Default.Business,
+                    icon = Icons.Outlined.Business,
                     title = "WORKSPACE & TIMINGS",
                     subtitle = "Office Wi-Fi network & shift schedule",
-                    gradientColors = listOf(EmeraldGreen, Color(0xFF10B981)),
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    iconTint = MaterialTheme.colorScheme.secondary,
                     summaryBadge = if (!workspaceExpanded && ssid.isNotBlank()) "$ssid • $shiftDurationText" else null,
                     expanded = workspaceExpanded,
                     onToggle = { expandedSection = if (workspaceExpanded) null else SettingsSection.WORKSPACE }
@@ -435,8 +416,8 @@ fun SettingsScreen(
                         // Shift Duration Tint Badge
                         Surface(
                             shape = RoundedCornerShape(12.dp),
-                            color = EmeraldGreen.copy(alpha = 0.12f),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, EmeraldGreen.copy(alpha = 0.25f)),
+                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f)),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(
@@ -448,9 +429,9 @@ fun SettingsScreen(
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(
-                                        imageVector = Icons.Default.Bolt,
+                                        imageVector = Icons.Outlined.Bolt,
                                         contentDescription = null,
-                                        tint = EmeraldGreen,
+                                        tint = MaterialTheme.colorScheme.secondary,
                                         modifier = Modifier.size(18.dp)
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
@@ -465,7 +446,7 @@ fun SettingsScreen(
                                     text = shiftDurationText,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = EmeraldGreen
+                                    color = MaterialTheme.colorScheme.secondary
                                 )
                             }
                         }
@@ -476,7 +457,7 @@ fun SettingsScreen(
                             onValueChange = { portalUrl = it },
                             label = { Text("Company HR Portal URL (Optional)") },
                             placeholder = { Text("e.g. hr.mycompany.com") },
-                            leadingIcon = { Icon(Icons.Default.Language, contentDescription = null, tint = EmeraldGreen) },
+                            leadingIcon = { Icon(Icons.Outlined.Language, contentDescription = null, tint = MaterialTheme.colorScheme.secondary) },
                             trailingIcon = {
                                 if (portalUrl.isNotBlank()) {
                                     IconButton(onClick = {
@@ -491,7 +472,7 @@ fun SettingsScreen(
                                             Toast.makeText(context, "Cannot open URL", Toast.LENGTH_SHORT).show()
                                         }
                                     }) {
-                                        Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = "Open Portal URL", tint = EmeraldGreen)
+                                        Icon(Icons.AutoMirrored.Outlined.OpenInNew, contentDescription = "Open Portal URL", tint = MaterialTheme.colorScheme.secondary)
                                     }
                                 }
                             },
@@ -499,7 +480,7 @@ fun SettingsScreen(
                             shape = fieldShape,
                             singleLine = true,
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = EmeraldGreen,
+                                focusedBorderColor = MaterialTheme.colorScheme.secondary,
                                 unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
                             )
                         )
@@ -524,11 +505,12 @@ fun SettingsScreen(
         GlassCard(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 SectionHeader(
-                    icon = Icons.Default.VpnKey,
+                    icon = Icons.Outlined.VpnKey,
                     title = "HR PORTAL AUTOMATION",
                     subtitle = "Auto-login & automated check-in execution",
-                    gradientColors = listOf(WfoDayPurple, Color(0xFFEC4899)),
-                    summaryBadge = if (!portalAutomationExpanded) if (autoLoginEnabled) "Auto-Login: ON" else "Auto-Login: OFF" else null,
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                    iconTint = MaterialTheme.colorScheme.tertiary,
+                    summaryBadge = if (!portalAutomationExpanded) if (portalMode == "IN_APP_AUTO") "In-App Auto: ON" else "In-App Auto: OFF" else null,
                     expanded = portalAutomationExpanded,
                     onToggle = { expandedSection = if (portalAutomationExpanded) null else SettingsSection.PORTAL_AUTOMATION }
                 )
@@ -561,7 +543,7 @@ fun SettingsScreen(
                                 label = { Text("In-App Auto Portal", fontSize = 12.sp) },
                                 leadingIcon = {
                                     if (portalMode == "IN_APP_AUTO") {
-                                        Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Icon(Icons.Outlined.Check, contentDescription = null, modifier = Modifier.size(16.dp))
                                     }
                                 },
                                 modifier = Modifier.weight(1f)
@@ -572,7 +554,7 @@ fun SettingsScreen(
                                 label = { Text("Chrome Browser", fontSize = 12.sp) },
                                 leadingIcon = {
                                     if (portalMode == "EXTERNAL_BROWSER") {
-                                        Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Icon(Icons.Outlined.Check, contentDescription = null, modifier = Modifier.size(16.dp))
                                     }
                                 },
                                 modifier = Modifier.weight(1f)
@@ -661,12 +643,12 @@ fun SettingsScreen(
                                     value = portalUsername,
                                     onValueChange = { portalUsername = it },
                                     label = { Text("Portal Username / Email / Emp ID") },
-                                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = WfoDayPurple) },
+                                    leadingIcon = { Icon(Icons.Outlined.Person, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary) },
                                     modifier = Modifier.fillMaxWidth(),
                                     shape = fieldShape,
                                     singleLine = true,
                                     colors = OutlinedTextFieldDefaults.colors(
-                                        focusedBorderColor = WfoDayPurple,
+                                        focusedBorderColor = MaterialTheme.colorScheme.tertiary,
                                         unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
                                     )
                                 )
@@ -675,11 +657,11 @@ fun SettingsScreen(
                                     value = portalPassword,
                                     onValueChange = { portalPassword = it },
                                     label = { Text("Portal Password") },
-                                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = WfoDayPurple) },
+                                    leadingIcon = { Icon(Icons.Outlined.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary) },
                                     trailingIcon = {
                                         IconButton(onClick = { passwordVisible = !passwordVisible }) {
                                             Icon(
-                                                imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                                imageVector = if (passwordVisible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
                                                 contentDescription = null
                                             )
                                         }
@@ -689,7 +671,7 @@ fun SettingsScreen(
                                     shape = fieldShape,
                                     singleLine = true,
                                     colors = OutlinedTextFieldDefaults.colors(
-                                        focusedBorderColor = WfoDayPurple,
+                                        focusedBorderColor = MaterialTheme.colorScheme.tertiary,
                                         unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
                                     )
                                 )
@@ -707,9 +689,12 @@ fun SettingsScreen(
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = fieldShape,
-                                colors = ButtonDefaults.buttonColors(containerColor = WfoDayPurple)
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.tertiary,
+                                    contentColor = MaterialTheme.colorScheme.onTertiary
+                                )
                             ) {
-                                Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Icon(Icons.Outlined.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text("Test In-App Auto Portal Now", fontWeight = FontWeight.Bold)
                             }
@@ -745,10 +730,11 @@ fun SettingsScreen(
         GlassCard(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 SectionHeader(
-                    icon = Icons.Default.AlarmOn,
+                    icon = Icons.Outlined.AlarmOn,
                     title = "ALARM PRECISION & RELIABILITY",
                     subtitle = "System permissions for punctual alert execution",
-                    gradientColors = listOf(WfoDayPurple, Color(0xFF6366F1)),
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    iconTint = MaterialTheme.colorScheme.primary,
                     summaryBadge = if (!alarmExpanded) if (hasExactAlarmPerm) "Exact Alarm: Ready" else "Exact Alarm: Action Req." else null,
                     expanded = alarmExpanded,
                     onToggle = { expandedSection = if (alarmExpanded) null else SettingsSection.ALARM }
@@ -767,7 +753,7 @@ fun SettingsScreen(
                     ) {
                         // Exact Alarm Status Tile
                         StatusPermissionRow(
-                            icon = if (hasExactAlarmPerm) Icons.Default.CheckCircle else Icons.Default.Warning,
+                            icon = if (hasExactAlarmPerm) Icons.Outlined.CheckCircle else Icons.Outlined.Warning,
                             title = "Exact Alarm Execution",
                             subtitle = if (hasExactAlarmPerm) "Granted • Guaranteed precise second timing" else "Restricted by OS • Tap to enable exact alarm permission",
                             isGranted = hasExactAlarmPerm,
@@ -788,7 +774,7 @@ fun SettingsScreen(
 
                         // Battery Exemption Status Tile
                         StatusPermissionRow(
-                            icon = if (isBatteryIgnored) Icons.Default.BatteryFull else Icons.Default.BatterySaver,
+                            icon = if (isBatteryIgnored) Icons.Outlined.BatteryFull else Icons.Outlined.BatterySaver,
                             title = "Unrestricted Battery Mode",
                             subtitle = if (isBatteryIgnored) "Unrestricted • Immune to background app killer" else "Optimized • Tap to allow unrestricted background alarm execution",
                             isGranted = isBatteryIgnored,
@@ -810,7 +796,7 @@ fun SettingsScreen(
                         // Full Screen Intent Status Tile
                         val hasFullScreenAccess = hasOverlayPerm && hasFullScreenIntentPerm
                         StatusPermissionRow(
-                            icon = if (hasFullScreenAccess) Icons.Default.Fullscreen else Icons.Default.Layers,
+                            icon = if (hasFullScreenAccess) Icons.Outlined.Fullscreen else Icons.Outlined.Layers,
                             title = "Full-Screen Alert Display",
                             subtitle = if (hasFullScreenAccess) "Granted • Alarm pops up full-screen when screen is on" else "Restricted • Tap to allow full-screen alerts when screen is on",
                             isGranted = hasFullScreenAccess,
@@ -846,8 +832,8 @@ fun SettingsScreen(
                             modifier = Modifier.fillMaxWidth(),
                             shape = fieldShape,
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = WfoDayPurple,
-                                contentColor = Color.White
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
                             )
                         ) {
                             Row(
@@ -855,7 +841,7 @@ fun SettingsScreen(
                                 horizontalArrangement = Arrangement.Center
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Alarm,
+                                    imageVector = Icons.Outlined.Alarm,
                                     contentDescription = null,
                                     modifier = Modifier.size(18.dp)
                                 )
@@ -877,10 +863,11 @@ fun SettingsScreen(
             GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     SectionHeader(
-                        icon = Icons.Default.BatteryAlert,
+                        icon = Icons.Outlined.BatteryAlert,
                         title = "BATTERY & SYSTEM HEALTH",
                         subtitle = "Device specific optimization settings for ${oemGuidance.oemName}",
-                        gradientColors = listOf(AmberOrange, Color(0xFFF59E0B)),
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        iconTint = MaterialTheme.colorScheme.secondary,
                         summaryBadge = if (!oemExpanded) oemGuidance.oemName else null,
                         expanded = oemExpanded,
                         onToggle = { expandedSection = if (oemExpanded) null else SettingsSection.OEM }
@@ -899,8 +886,8 @@ fun SettingsScreen(
                         ) {
                             Surface(
                                 shape = RoundedCornerShape(14.dp),
-                                color = AmberOrange.copy(alpha = 0.1f),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, AmberOrange.copy(alpha = 0.3f)),
+                                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f)),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Column(
@@ -916,14 +903,14 @@ fun SettingsScreen(
                                                 modifier = Modifier
                                                     .size(20.dp)
                                                     .clip(CircleShape)
-                                                    .background(AmberOrange),
+                                                    .background(MaterialTheme.colorScheme.secondary),
                                                 contentAlignment = Alignment.Center
                                             ) {
                                                 Text(
                                                     text = "${idx + 1}",
                                                     fontSize = 11.sp,
                                                     fontWeight = FontWeight.Bold,
-                                                    color = Color.White
+                                                    color = MaterialTheme.colorScheme.onSecondary
                                                 )
                                             }
                                             Text(
@@ -944,14 +931,14 @@ fun SettingsScreen(
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = fieldShape,
-                                border = androidx.compose.foundation.BorderStroke(1.5.dp, AmberOrange),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = AmberOrange)
+                                border = androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.secondary),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.secondary)
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.Center
                                 ) {
-                                    Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Icon(Icons.Outlined.Settings, contentDescription = null, modifier = Modifier.size(18.dp))
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text("Open ${oemGuidance.oemName} Battery Settings", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                 }
@@ -969,10 +956,11 @@ fun SettingsScreen(
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 SectionHeader(
-                    icon = Icons.Default.SystemUpdate,
+                    icon = Icons.Outlined.SystemUpdate,
                     title = "APP UPDATES & RELEASES",
                     subtitle = "Check GitHub for app updates and install latest release",
-                    gradientColors = listOf(Color(0xFF0EA5E9), Color(0xFF2563EB)),
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    iconTint = MaterialTheme.colorScheme.primary,
                     summaryBadge = when (updateState) {
                         is com.urunkarpm.pingpin.service.UpdateState.UpdateAvailable -> "NEW UPDATE"
                         is com.urunkarpm.pingpin.service.UpdateState.UpToDate -> "UP TO DATE"
@@ -1023,13 +1011,16 @@ fun SettingsScreen(
                                 Button(
                                     onClick = {
                                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        viewModel.checkForUpdates()
+                                        appUpdateViewModel.checkForUpdates(isAutoCheck = false)
                                     },
                                     shape = fieldShape,
-                                    colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue)
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary,
+                                        contentColor = MaterialTheme.colorScheme.onPrimary
+                                    )
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.Refresh,
+                                        imageVector = Icons.Outlined.Refresh,
                                         contentDescription = null,
                                         modifier = Modifier.size(16.dp)
                                     )
@@ -1043,7 +1034,7 @@ fun SettingsScreen(
                             is com.urunkarpm.pingpin.service.UpdateState.Checking -> {
                                 Surface(
                                     shape = RoundedCornerShape(12.dp),
-                                    color = ElectricBlue.copy(alpha = 0.1f),
+                                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Row(
@@ -1054,7 +1045,7 @@ fun SettingsScreen(
                                         CircularProgressIndicator(
                                             modifier = Modifier.size(20.dp),
                                             strokeWidth = 2.dp,
-                                            color = ElectricBlue
+                                            color = MaterialTheme.colorScheme.primary
                                         )
                                         Text(
                                             text = "Checking GitHub Releases...",
@@ -1069,8 +1060,8 @@ fun SettingsScreen(
                             is com.urunkarpm.pingpin.service.UpdateState.UpToDate -> {
                                 Surface(
                                     shape = RoundedCornerShape(12.dp),
-                                    color = EmeraldGreen.copy(alpha = 0.12f),
-                                    border = androidx.compose.foundation.BorderStroke(1.dp, EmeraldGreen.copy(alpha = 0.3f)),
+                                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Row(
@@ -1079,9 +1070,9 @@ fun SettingsScreen(
                                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Default.CheckCircle,
+                                            imageVector = Icons.Outlined.CheckCircle,
                                             contentDescription = null,
-                                            tint = EmeraldGreen,
+                                            tint = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.size(22.dp)
                                         )
                                         Column {
@@ -1105,8 +1096,8 @@ fun SettingsScreen(
                                 val info = state.updateInfo
                                 Surface(
                                     shape = RoundedCornerShape(14.dp),
-                                    color = AmberOrange.copy(alpha = 0.12f),
-                                    border = androidx.compose.foundation.BorderStroke(1.5.dp, AmberOrange.copy(alpha = 0.5f)),
+                                    color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f),
+                                    border = androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.5f)),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Column(
@@ -1118,9 +1109,9 @@ fun SettingsScreen(
                                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Default.NewReleases,
+                                                imageVector = Icons.Outlined.NewReleases,
                                                 contentDescription = null,
-                                                tint = AmberOrange,
+                                                tint = MaterialTheme.colorScheme.tertiary,
                                                 modifier = Modifier.size(22.dp)
                                             )
                                             Text(
@@ -1146,14 +1137,17 @@ fun SettingsScreen(
                                         Button(
                                             onClick = {
                                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                viewModel.downloadAndInstallUpdate(info)
+                                                appUpdateViewModel.downloadAndInstallUpdate(info)
                                             },
                                             modifier = Modifier.fillMaxWidth(),
                                             shape = fieldShape,
-                                            colors = ButtonDefaults.buttonColors(containerColor = AmberOrange)
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = MaterialTheme.colorScheme.tertiary,
+                                                contentColor = MaterialTheme.colorScheme.onTertiary
+                                            )
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Default.Download,
+                                                imageVector = Icons.Outlined.Download,
                                                 contentDescription = null,
                                                 modifier = Modifier.size(18.dp)
                                             )
@@ -1167,8 +1161,8 @@ fun SettingsScreen(
                             is com.urunkarpm.pingpin.service.UpdateState.Downloading -> {
                                 Surface(
                                     shape = RoundedCornerShape(14.dp),
-                                    color = ElectricBlue.copy(alpha = 0.12f),
-                                    border = androidx.compose.foundation.BorderStroke(1.dp, ElectricBlue.copy(alpha = 0.3f)),
+                                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Column(
@@ -1190,7 +1184,7 @@ fun SettingsScreen(
                                                 text = "${(state.progress * 100).toInt()}%",
                                                 fontSize = 13.sp,
                                                 fontWeight = FontWeight.ExtraBold,
-                                                color = ElectricBlue
+                                                color = MaterialTheme.colorScheme.primary
                                             )
                                         }
 
@@ -1200,8 +1194,8 @@ fun SettingsScreen(
                                                 .fillMaxWidth()
                                                 .height(8.dp)
                                                 .clip(RoundedCornerShape(4.dp)),
-                                            color = ElectricBlue,
-                                            trackColor = ElectricBlue.copy(alpha = 0.2f)
+                                            color = MaterialTheme.colorScheme.primary,
+                                            trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
                                         )
 
                                         if (state.totalBytes > 0) {
@@ -1218,8 +1212,8 @@ fun SettingsScreen(
                             is com.urunkarpm.pingpin.service.UpdateState.ReadyToInstall -> {
                                 Surface(
                                     shape = RoundedCornerShape(14.dp),
-                                    color = EmeraldGreen.copy(alpha = 0.12f),
-                                    border = androidx.compose.foundation.BorderStroke(1.5.dp, EmeraldGreen.copy(alpha = 0.5f)),
+                                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                                    border = androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Column(
@@ -1231,9 +1225,9 @@ fun SettingsScreen(
                                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Default.SystemUpdate,
+                                                imageVector = Icons.Outlined.SystemUpdate,
                                                 contentDescription = null,
-                                                tint = EmeraldGreen,
+                                                tint = MaterialTheme.colorScheme.primary,
                                                 modifier = Modifier.size(22.dp)
                                             )
                                             Text(
@@ -1257,14 +1251,17 @@ fun SettingsScreen(
                                         Button(
                                             onClick = {
                                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                viewModel.installDownloadedApk(state.apkFile)
+                                                appUpdateViewModel.installDownloadedApk(state.apkFile)
                                             },
                                             modifier = Modifier.fillMaxWidth(),
                                             shape = fieldShape,
-                                            colors = ButtonDefaults.buttonColors(containerColor = EmeraldGreen)
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = MaterialTheme.colorScheme.primary,
+                                                contentColor = MaterialTheme.colorScheme.onPrimary
+                                            )
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Default.SystemUpdate,
+                                                imageVector = Icons.Outlined.SystemUpdate,
                                                 contentDescription = null,
                                                 modifier = Modifier.size(18.dp)
                                             )
@@ -1293,7 +1290,7 @@ fun SettingsScreen(
                                             modifier = Modifier.weight(1f)
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Default.Warning,
+                                                imageVector = Icons.Outlined.Warning,
                                                 contentDescription = null,
                                                 tint = MaterialTheme.colorScheme.error,
                                                 modifier = Modifier.size(20.dp)
@@ -1339,17 +1336,13 @@ fun SettingsScreen(
                         modifier = Modifier
                             .size(38.dp)
                             .clip(RoundedCornerShape(10.dp))
-                            .background(
-                                brush = Brush.linearGradient(
-                                    colors = listOf(WfoDayPurple, ElectricBlue)
-                                )
-                            ),
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Info,
+                            imageVector = Icons.Outlined.Info,
                             contentDescription = null,
-                            tint = Color.White,
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -1385,7 +1378,7 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.primary
                         )
                         Icon(
-                            imageVector = Icons.Default.ChevronRight,
+                            imageVector = Icons.Outlined.ChevronRight,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(12.dp)
@@ -1406,9 +1399,9 @@ fun SettingsScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Description,
+                            imageVector = Icons.Outlined.Description,
                             contentDescription = null,
-                            tint = ElectricBlue,
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(22.dp)
                         )
                         Column {
@@ -1444,14 +1437,14 @@ fun SettingsScreen(
                             text = if (showFullHistory) "Show Current Only" else "Full History",
                             fontWeight = FontWeight.Bold,
                             fontSize = 12.sp,
-                            color = ElectricBlue
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 },
                 confirmButton = {
                     Button(
                         onClick = { showAppChangelogDialog = false },
-                        colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue)
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                     ) {
                         Text("CLOSE", fontWeight = FontWeight.Bold)
                     }
@@ -1508,7 +1501,8 @@ private fun SectionHeader(
     icon: ImageVector,
     title: String,
     subtitle: String,
-    gradientColors: List<Color>,
+    containerColor: Color = MaterialTheme.colorScheme.primaryContainer,
+    iconTint: Color = MaterialTheme.colorScheme.primary,
     summaryBadge: String? = null,
     expanded: Boolean = true,
     onToggle: (() -> Unit)? = null
@@ -1533,13 +1527,13 @@ private fun SectionHeader(
             modifier = Modifier
                 .size(38.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(Brush.linearGradient(gradientColors)),
+                .background(containerColor),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = Color.White,
+                tint = iconTint,
                 modifier = Modifier.size(20.dp)
             )
         }
@@ -1577,7 +1571,7 @@ private fun SectionHeader(
         }
         if (onToggle != null) {
             Icon(
-                imageVector = Icons.Default.KeyboardArrowDown,
+                imageVector = Icons.Outlined.KeyboardArrowDown,
                 contentDescription = if (expanded) "Collapse" else "Expand",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
@@ -1669,14 +1663,14 @@ private fun KeywordChipsGroup(
                     label = { Text(kw, fontSize = 11.sp) },
                     trailingIcon = {
                         Icon(
-                            imageVector = Icons.Default.Close,
+                            imageVector = Icons.Outlined.Close,
                             contentDescription = "Remove",
                             modifier = Modifier.size(14.dp)
                         )
                     },
                     colors = InputChipDefaults.inputChipColors(
-                        selectedContainerColor = WfoDayPurple.copy(alpha = 0.18f),
-                        selectedLabelColor = MaterialTheme.colorScheme.onSurface
+                        selectedContainerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.onTertiaryContainer
                     )
                 )
             }
@@ -1685,7 +1679,7 @@ private fun KeywordChipsGroup(
             SuggestionChip(
                 onClick = { showAddDialog = true },
                 label = { Text("+ Add Tag", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
-                icon = { Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(14.dp)) }
+                icon = { Icon(Icons.Outlined.Add, contentDescription = null, modifier = Modifier.size(14.dp)) }
             )
         }
     }
@@ -1737,8 +1731,8 @@ private fun StatusPermissionRow(
 ) {
     Surface(
         shape = RoundedCornerShape(12.dp),
-        color = if (isGranted) EmeraldGreen.copy(alpha = 0.12f) else ElectricBlue.copy(alpha = 0.15f),
-        border = androidx.compose.foundation.BorderStroke(1.dp, if (isGranted) EmeraldGreen.copy(alpha = 0.3f) else ElectricBlue.copy(alpha = 0.4f)),
+        color = if (isGranted) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, if (isGranted) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f) else MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f)),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -1754,7 +1748,7 @@ private fun StatusPermissionRow(
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = if (isGranted) EmeraldGreen else ElectricBlue,
+                    tint = if (isGranted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
                     modifier = Modifier.size(20.dp)
                 )
                 Column {
@@ -1773,7 +1767,7 @@ private fun StatusPermissionRow(
             }
             if (!isGranted) {
                 TextButton(onClick = onActionClick) {
-                    Text(actionText, fontWeight = FontWeight.Bold, color = ElectricBlue, fontSize = 12.sp)
+                    Text(actionText, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
                 }
             }
         }
@@ -1808,7 +1802,7 @@ private fun ChangelogView(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Description,
+                        imageVector = Icons.Outlined.Description,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(16.dp)
@@ -1826,7 +1820,7 @@ private fun ChangelogView(
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                     modifier = Modifier.height(26.dp)
                 ) {
-                    Text("Expand", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = ElectricBlue)
+                    Text("Expand", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                 }
             }
 
@@ -1852,9 +1846,9 @@ private fun ChangelogView(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Description,
+                        imageVector = Icons.Outlined.Description,
                         contentDescription = null,
-                        tint = ElectricBlue,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(22.dp)
                     )
                     Text("Release Notes & Changelog", fontSize = 16.sp, fontWeight = FontWeight.Bold)

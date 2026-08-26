@@ -188,33 +188,24 @@ fun ExpandableWeeklyCalendarCard(
         label = "down_arrow_offset"
     )
 
-    // Arrow icon smooth 180-degree rotation animation
-    val arrowRotation by animateFloatAsState(
-        targetValue = if (currentIsExpanded) 180f else 0f,
-        animationSpec = spring(dampingRatio = 0.8f, stiffness = 300f),
-        label = "arrow_rotation"
-    )
-
     var totalDrag by remember { mutableFloatStateOf(0f) }
 
     GlassCard(
         modifier = modifier
             .fillMaxWidth()
-            .graphicsLayer()
-            .pointerInput(Unit) {
+            .pointerInput(currentIsExpanded) {
                 detectVerticalDragGestures(
                     onDragStart = { totalDrag = 0f },
                     onDragEnd = {
-                        if (totalDrag < -20f) {
+                        if (!currentIsExpanded && totalDrag < -50f) {
                             setExpanded(true)
-                        } else if (totalDrag > 20f) {
+                        } else if (currentIsExpanded && totalDrag > 50f) {
                             setExpanded(false)
                         }
                         totalDrag = 0f
                     },
                     onDragCancel = { totalDrag = 0f },
-                    onVerticalDrag = { change, dragAmount ->
-                        change.consume()
+                    onVerticalDrag = { _, dragAmount ->
                         totalDrag += dragAmount
                     }
                 )
@@ -224,7 +215,9 @@ fun ExpandableWeeklyCalendarCard(
 
             // Header Bar
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .defaultMinSize(minHeight = 32.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -235,8 +228,7 @@ fun ExpandableWeeklyCalendarCard(
                     AnimatedContent(
                         targetState = currentIsExpanded,
                         transitionSpec = {
-                            (fadeIn(animationSpec = tween(180)) + slideInVertically { -it / 2 })
-                                .togetherWith(fadeOut(animationSpec = tween(120)) + slideOutVertically { it / 2 })
+                            fadeIn(animationSpec = tween(180)) togetherWith fadeOut(animationSpec = tween(120))
                         },
                         label = "title_transition"
                     ) { expanded ->
@@ -299,18 +291,6 @@ fun ExpandableWeeklyCalendarCard(
                             }
                         }
                     }
-
-                    IconButton(
-                        onClick = { setExpanded(!currentIsExpanded) },
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.KeyboardArrowUp,
-                            contentDescription = if (currentIsExpanded) "Collapse to Week View" else "Expand to Month View",
-                            tint = ElectricBlue,
-                            modifier = Modifier.rotate(arrowRotation)
-                        )
-                    }
                 }
             }
 
@@ -320,17 +300,9 @@ fun ExpandableWeeklyCalendarCard(
                 targetState = currentIsExpanded,
                 transitionSpec = {
                     val fadeSpec = tween<Float>(durationMillis = 200, easing = FastOutSlowInEasing)
-                    val slideSpec = tween<IntOffset>(durationMillis = 200, easing = FastOutSlowInEasing)
                     val sizeSpec = tween<androidx.compose.ui.unit.IntSize>(durationMillis = 200, easing = FastOutSlowInEasing)
-                    if (targetState) {
-                        (fadeIn(animationSpec = fadeSpec) + slideInVertically(animationSpec = slideSpec) { -it / 6 })
-                            .togetherWith(fadeOut(animationSpec = fadeSpec) + slideOutVertically(animationSpec = slideSpec) { it / 6 })
-                            .using(SizeTransform(clip = true) { _, _ -> sizeSpec })
-                    } else {
-                        (fadeIn(animationSpec = fadeSpec) + slideInVertically(animationSpec = slideSpec) { it / 6 })
-                            .togetherWith(fadeOut(animationSpec = fadeSpec) + slideOutVertically(animationSpec = slideSpec) { -it / 6 })
-                            .using(SizeTransform(clip = true) { _, _ -> sizeSpec })
-                    }
+                    (fadeIn(animationSpec = fadeSpec) togetherWith fadeOut(animationSpec = fadeSpec))
+                        .using(SizeTransform(clip = true) { _, _ -> sizeSpec })
                 },
                 label = "calendar_view_transition"
             ) { expanded ->

@@ -94,6 +94,10 @@
             android:exported="false" />
 
         <receiver
+            android:name=".receiver.WifiConnectionReceiver"
+            android:exported="false" />
+
+        <receiver
             android:name=".receiver.NotificationActionReceiver"
             android:exported="false">
             <intent-filter>

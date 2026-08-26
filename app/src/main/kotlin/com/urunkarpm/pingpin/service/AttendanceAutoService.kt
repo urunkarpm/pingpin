@@ -70,14 +70,26 @@ class AttendanceAutoService : Service() {
                 val wifiService = WifiService(applicationContext)
                 val attendanceService = AttendanceService(applicationContext, wifiService)
 
-                val result = attendanceService.checkAndMarkAttendance(
-                    officeConfig = config,
-                    attendanceRepo = attendanceRepo,
-                    onAttendanceMarked = {
-                        // Show a success notification (separate from the foreground one)
-                        showSuccessNotification()
+                var result: AttendanceCheckResult = AttendanceCheckResult.WIFI_MISMATCH
+                for (attempt in 1..3) {
+                    result = attendanceService.checkAndMarkAttendance(
+                        officeConfig = config,
+                        attendanceRepo = attendanceRepo,
+                        onAttendanceMarked = {
+                            // Show a success notification (separate from the foreground one)
+                            showSuccessNotification()
+                        }
+                    )
+
+                    if (result != AttendanceCheckResult.WIFI_MISMATCH) {
+                        break
                     }
-                )
+
+                    if (attempt < 3) {
+                        Log.d(TAG, "WiFi mismatch on attempt $attempt, retrying in 2s for Wi-Fi info resolution...")
+                        kotlinx.coroutines.delay(2000)
+                    }
+                }
 
                 Log.d(TAG, "Auto-attendance result: $result")
 

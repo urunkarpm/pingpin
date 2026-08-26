@@ -52,7 +52,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         .map { list -> list.toSet() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
 
-    private val _weatherState = MutableStateFlow(WeatherState())
+    private val _weatherState = MutableStateFlow(WeatherState(isInitialLoading = true, hasValidData = false))
     val weatherState: StateFlow<WeatherState> = _weatherState.asStateFlow()
 
     private val _isRefreshingWeather = MutableStateFlow(false)
@@ -136,9 +136,31 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 _isRefreshingWeather.value = true
-                _weatherState.value = weatherService.fetchWeatherAndTravelInsights()
+                if (_weatherState.value.hasValidData) {
+                    _weatherState.value = _weatherState.value.copy(isRefreshing = true)
+                }
+                val config = configState.value
+                val fetched = weatherService.fetchWeatherAndTravelInsights(
+                    checkInTimeStr = config?.checkInTime,
+                    checkOutTimeStr = config?.checkOutTime
+                )
+                _weatherState.value = fetched
             } catch (e: Exception) {
                 Log.e("HomeViewModel", "Error fetching weather", e)
+                if (!_weatherState.value.hasValidData) {
+                    _weatherState.value = WeatherState(
+                        hasValidData = false,
+                        isInitialLoading = false,
+                        isError = true,
+                        errorMessage = "Failed to load weather: ${e.localizedMessage ?: "Check connection"}"
+                    )
+                } else {
+                    _weatherState.value = _weatherState.value.copy(
+                        isRefreshing = false,
+                        isStale = true,
+                        errorMessage = "Failed to refresh weather data"
+                    )
+                }
             } finally {
                 _isRefreshingWeather.value = false
             }

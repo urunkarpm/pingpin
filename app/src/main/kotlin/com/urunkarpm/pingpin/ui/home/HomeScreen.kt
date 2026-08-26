@@ -44,6 +44,7 @@ import com.urunkarpm.pingpin.ui.components.GlassCard
 import com.urunkarpm.pingpin.ui.components.MakeupWfoCard
 import com.urunkarpm.pingpin.ui.components.UpcomingHolidaysCard
 import com.urunkarpm.pingpin.ui.components.WeatherTravelCard
+import com.urunkarpm.pingpin.ui.components.weather.WeatherDetailBottomSheet
 import com.urunkarpm.pingpin.ui.theme.*
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -79,6 +80,7 @@ fun HomeScreen(
     val allIndianHolidays = viewModel.allIndianHolidays
 
     var hasExactAlarmPerm by remember { mutableStateOf(viewModel.notifService.canScheduleExactAlarms()) }
+    var showWeatherDetailSheet by remember { mutableStateOf(false) }
 
     val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
@@ -95,7 +97,7 @@ fun HomeScreen(
     }
 
     val todayStr = remember { AttendanceService.getCurrentDateYyyyMmDd() }
-    val todayRecord = recordsState.find { it.dateYyyyMmDd == todayStr }
+    val todayRecord = remember(recordsState, todayStr) { recordsState.find { it.dateYyyyMmDd == todayStr } }
 
     val isTodayWfo = remember(configState) {
         val cal = Calendar.getInstance()
@@ -349,6 +351,9 @@ fun HomeScreen(
                                     isRefreshing = isRefreshingWeather,
                                     onRefresh = {
                                         viewModel.refreshWeather()
+                                    },
+                                    onClick = {
+                                        showWeatherDetailSheet = true
                                     }
                                 )
                             }
@@ -602,6 +607,9 @@ fun HomeScreen(
                                 isRefreshing = isRefreshingWeather,
                                 onRefresh = {
                                     viewModel.refreshWeather()
+                                },
+                                onClick = {
+                                    showWeatherDetailSheet = true
                                 }
                             )
                         }
@@ -648,70 +656,99 @@ fun HomeScreen(
         }
         val isCurrentlyAttended = recordsState.any { it.dateYyyyMmDd == dateStr }
 
+        val formattedDateStr = remember(dateStr) {
+            try {
+                val inFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+                val outFormat = SimpleDateFormat("EEEE, d MMM yyyy", Locale.US)
+                val parsed = inFormat.parse(dateStr)
+                if (parsed != null) outFormat.format(parsed) else dateStr
+            } catch (e: Exception) {
+                dateStr
+            }
+        }
+
         AlertDialog(
-            modifier = Modifier.widthIn(max = 500.dp),
+            modifier = Modifier.widthIn(max = 400.dp),
             onDismissRequest = { selectedDayForDialog = null },
             title = {
                 Text(
-                    text = "WFO Day Marking",
+                    text = formattedDateStr,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp
+                    fontSize = 17.sp
                 )
             },
             text = {
-                Column(
-                    modifier = Modifier.verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                Surface(
+                    shape = CircleShape,
+                    color = if (isCurrentlyAttended) (if (isDark) EmeraldGreenBgDark else EmeraldGreenBgLight)
+                            else MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f),
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        if (isCurrentlyAttended) EmeraldGreen.copy(alpha = 0.4f)
+                        else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    )
                 ) {
-                    Text(
-                        text = "Date: $dateStr",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = if (isCurrentlyAttended) "Status: Currently marked as Present (WFO)" else "Status: Not marked for WFO attendance",
-                        fontSize = 13.sp,
-                        color = if (isCurrentlyAttended) EmeraldGreen else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = "Select an option below to update your WFO attendance status for this date.",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                    )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(if (isCurrentlyAttended) EmeraldGreen else MaterialTheme.colorScheme.onSurfaceVariant)
+                        )
+                        Text(
+                            text = if (isCurrentlyAttended) "Present (WFO)" else "WFH / Not Marked",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (isCurrentlyAttended) (if (isDark) Color(0xFF6EE7B7) else Color(0xFF047857))
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        if (dateStr <= todayStr) {
-                            viewModel.markAttendancePresent(dateStr)
-                            Toast.makeText(context, "Marked WFO for $dateStr", Toast.LENGTH_SHORT).show()
+                if (isCurrentlyAttended) {
+                    TextButton(
+                        onClick = {
+                            viewModel.deleteAttendance(dateStr)
+                            Toast.makeText(context, "Marked as WFH for $dateStr", Toast.LENGTH_SHORT).show()
                             selectedDayForDialog = null
                         }
+                    ) {
+                        Text("MARK AS WFH", fontWeight = FontWeight.Bold, color = CrimsonRed)
                     }
-                ) {
-                    Text("MARK PRESENT (WFO)", fontWeight = FontWeight.Bold, color = EmeraldGreen)
+                } else {
+                    TextButton(
+                        onClick = {
+                            if (dateStr <= todayStr) {
+                                viewModel.markAttendancePresent(dateStr)
+                                Toast.makeText(context, "Marked WFO for $dateStr", Toast.LENGTH_SHORT).show()
+                                selectedDayForDialog = null
+                            }
+                        }
+                    ) {
+                        Text("MARK PRESENT (WFO)", fontWeight = FontWeight.Bold, color = EmeraldGreen)
+                    }
                 }
             },
             dismissButton = {
-                Row {
-                    if (isCurrentlyAttended) {
-                        TextButton(
-                            onClick = {
-                                viewModel.deleteAttendance(dateStr)
-                                Toast.makeText(context, "Cleared attendance for $dateStr", Toast.LENGTH_SHORT).show()
-                                selectedDayForDialog = null
-                            }
-                        ) {
-                            Text("MARK WFH / OFF", color = CrimsonRed)
-                        }
-                    }
-                    TextButton(onClick = { selectedDayForDialog = null }) {
-                        Text("CANCEL")
-                    }
+                TextButton(onClick = { selectedDayForDialog = null }) {
+                    Text("CANCEL")
                 }
             }
+        )
+    }
+
+    if (showWeatherDetailSheet) {
+        WeatherDetailBottomSheet(
+            weatherState = weatherState,
+            configState = configState,
+            todayRecord = todayRecord,
+            isTodayWfo = isTodayWfo,
+            onDismissRequest = { showWeatherDetailSheet = false }
         )
     }
 }

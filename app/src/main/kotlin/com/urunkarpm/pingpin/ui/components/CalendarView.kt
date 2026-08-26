@@ -17,6 +17,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -164,15 +168,15 @@ fun MonthlyCalendarView(
             IconButton(
                 onClick = onPreviousMonth,
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.surfaceContainerHigh)
             ) {
                 Icon(
                     Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                    contentDescription = "Prev Month",
+                    contentDescription = "Previous Month",
                     tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(24.dp)
                 )
             }
 
@@ -193,7 +197,7 @@ fun MonthlyCalendarView(
             IconButton(
                 onClick = onNextMonth,
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.surfaceContainerHigh)
             ) {
@@ -201,7 +205,7 @@ fun MonthlyCalendarView(
                     Icons.AutoMirrored.Filled.KeyboardArrowRight,
                     contentDescription = "Next Month",
                     tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(24.dp)
                 )
             }
         }
@@ -412,11 +416,33 @@ private fun MonthDayCellItem(
             )
         }
 
+        val cellAccessibilityText = remember(cell) {
+            if (!cell.isCurrentMonthDay) ""
+            else {
+                val statusText = when {
+                    cell.isAttended -> "Present WFO"
+                    cell.isMakeupWfo -> "Makeup WFO Scheduled"
+                    cell.isWfo && cell.isWorking -> if (cell.isFuture) "Scheduled WFO Day" else "Missed WFO Day"
+                    cell.isWorking -> "Off-site or WFH Working Day"
+                    else -> "Non-working Day"
+                }
+                val todayTag = if (cell.isToday) ", Today" else ""
+                "Date ${cell.dateStr}: $statusText$todayTag"
+            }
+        }
+
         if (!cell.isFuture) {
             circleModifier = circleModifier.combinedClickable(
                 onClick = { onDayClick?.invoke(cell.dayNum, cell.dateStr) },
                 onLongClick = { onDayLongClick?.invoke(cell.dayNum, cell.dateStr) }
             )
+        }
+
+        circleModifier = circleModifier.semantics(mergeDescendants = true) {
+            if (cell.isCurrentMonthDay) {
+                this.role = Role.Button
+                this.contentDescription = cellAccessibilityText
+            }
         }
 
         Box(

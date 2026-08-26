@@ -25,7 +25,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.urunkarpm.pingpin.ui.theme.EmeraldGreen
 
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+
 private val DAY_LABELS = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+private val FULL_DAY_NAMES = listOf("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
 
 @Composable
 fun WfoDaysSelector(
@@ -117,10 +124,16 @@ fun WfoDaysSelector(
                     modifier = Modifier
                         .weight(1f)
                         .aspectRatio(1f)
+                        .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
                         .scale(scaleAnim)
                         .clip(CircleShape)
                         .background(bgAnim)
                         .border(1.dp, borderAnim, CircleShape)
+                        .semantics {
+                            this.role = Role.Checkbox
+                            this.selected = isSelected
+                            this.contentDescription = "${FULL_DAY_NAMES[index]} WFO day"
+                        }
                         .clickable {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             val newMask = wfoDaysMask xor (1 shl index)
@@ -199,7 +212,7 @@ private fun WfoPresetChip(
             width = 1.dp,
             color = if (isSelected) EmeraldGreen else MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
         ),
-        modifier = modifier
+        modifier = modifier.defaultMinSize(minHeight = 48.dp)
     ) {
         Box(
             modifier = Modifier

@@ -34,6 +34,7 @@ class BootReceiver : BroadcastReceiver() {
             (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && action == AlarmManager.ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED)
         ) {
             WifiCheckWorker.schedulePeriodicCheck(context)
+            WifiConnectionReceiver.registerWifiNetworkCallback(context)
             rescheduleAlarms(context)
         }
     }

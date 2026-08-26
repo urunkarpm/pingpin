@@ -365,13 +365,17 @@ fun WifiSsidPickerDialog(
                 }
 
                 // Filtered & Grouped Content List
-                val filteredScanned = scannedNetworks.filter {
-                    it.ssid.contains(searchQuery, ignoreCase = true)
+                val filteredScanned = remember(scannedNetworks, searchQuery) {
+                    scannedNetworks.filter {
+                        it.ssid.contains(searchQuery, ignoreCase = true)
+                    }
                 }
 
-                val filteredSaved = savedSsids.filter {
-                    it.contains(searchQuery, ignoreCase = true) &&
-                            scannedNetworks.none { scanned -> scanned.ssid.equals(it, ignoreCase = true) }
+                val filteredSaved = remember(savedSsids, searchQuery, scannedNetworks) {
+                    savedSsids.filter {
+                        it.contains(searchQuery, ignoreCase = true) &&
+                                scannedNetworks.none { scanned -> scanned.ssid.equals(it, ignoreCase = true) }
+                    }
                 }
 
                 LazyColumn(

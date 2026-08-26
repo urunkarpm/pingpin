@@ -118,26 +118,57 @@ class PdfExportService(private val context: Context) {
         canvas.drawRoundRect(cardRect, 10f, 10f, paint)
         paint.style = Paint.Style.FILL
 
-        textPaint.color = textDark
-        textPaint.textSize = 15f
-        textPaint.typeface = Typeface.DEFAULT_BOLD
-        val nameText = if (profile.fullName.isEmpty()) "EMPLOYEE REPORT" else profile.fullName.uppercase()
-        canvas.drawText(nameText, 52f, 110f, textPaint)
+        val nameText = if (profile.fullName.isBlank()) "EMPLOYEE REPORT" else profile.fullName.trim().uppercase()
+        val hasDesignation = !profile.designation.isNullOrBlank() && profile.designation != "Team Member"
+        val hasEmpId = !profile.employeeId.isNullOrBlank() && profile.employeeId != "PingPin Verified WFO Log"
 
-        textPaint.color = primaryAccent
-        textPaint.textSize = 11f
-        textPaint.typeface = Typeface.DEFAULT_BOLD
-        val desigText = if (profile.designation.isEmpty()) "Team Member" else profile.designation
-        canvas.drawText(desigText, 52f, 126f, textPaint)
+        if (hasDesignation && hasEmpId) {
+            textPaint.color = textDark
+            textPaint.textSize = 14f
+            textPaint.typeface = Typeface.DEFAULT_BOLD
+            canvas.drawText(nameText, 52f, 108f, textPaint)
 
-        paint.color = borderSoft
-        canvas.drawLine(52f, 136f, 324f, 136f, paint)
+            textPaint.color = primaryAccent
+            textPaint.textSize = 10.5f
+            textPaint.typeface = Typeface.DEFAULT_BOLD
+            canvas.drawText(profile.designation, 52f, 124f, textPaint)
 
-        textPaint.color = textMuted
-        textPaint.textSize = 9.5f
-        textPaint.typeface = Typeface.DEFAULT
-        val empIdText = profile.employeeId?.let { "Emp ID: $it" } ?: "PingPin Verified WFO Log"
-        canvas.drawText(empIdText, 52f, 156f, textPaint)
+            paint.color = borderSoft
+            canvas.drawLine(52f, 136f, 324f, 136f, paint)
+
+            textPaint.color = textMuted
+            textPaint.textSize = 9f
+            textPaint.typeface = Typeface.DEFAULT
+            canvas.drawText("Emp ID: ${profile.employeeId}", 52f, 156f, textPaint)
+        } else if (hasDesignation) {
+            textPaint.color = textDark
+            textPaint.textSize = 15f
+            textPaint.typeface = Typeface.DEFAULT_BOLD
+            canvas.drawText(nameText, 52f, 120f, textPaint)
+
+            textPaint.color = primaryAccent
+            textPaint.textSize = 11f
+            textPaint.typeface = Typeface.DEFAULT_BOLD
+            canvas.drawText(profile.designation, 52f, 140f, textPaint)
+        } else if (hasEmpId) {
+            textPaint.color = textDark
+            textPaint.textSize = 15f
+            textPaint.typeface = Typeface.DEFAULT_BOLD
+            canvas.drawText(nameText, 52f, 114f, textPaint)
+
+            paint.color = borderSoft
+            canvas.drawLine(52f, 130f, 324f, 130f, paint)
+
+            textPaint.color = textMuted
+            textPaint.textSize = 9.5f
+            textPaint.typeface = Typeface.DEFAULT
+            canvas.drawText("Emp ID: ${profile.employeeId}", 52f, 154f, textPaint)
+        } else {
+            textPaint.color = textDark
+            textPaint.textSize = 16f
+            textPaint.typeface = Typeface.DEFAULT_BOLD
+            canvas.drawText(nameText, 52f, 137f, textPaint)
+        }
 
         // WFO Rate Badge Card
         val badgeRect = RectF(352f, 84f, 559f, 180f)

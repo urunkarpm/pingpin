@@ -5,6 +5,18 @@ All notable changes to **PingPin** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-08-27
+
+### Added
+- **Weather & Commute Intelligence**: Integrated real-time weather forecasts (`WeatherService`), commute safety advisories, and Material 3 weather hero visuals into the daily home dashboard.
+- **In-App Update Checker**: Introduced `UpdateAvailableDialog` and `UpdateChecker` targeting GitHub API releases to automatically inform users when newer versions of PingPin are released.
+- **PDF Attendance Export Engine**: Formatted PDF export capabilities allowing users to customize date ranges and save clean PDF attendance logs.
+
+### Fixed
+- **Background Attendance & Wi-Fi Tracking**: Enhanced background service reliability for Wi-Fi check-in/check-out detection with WorkManager fallback polling and `BootReceiver` startup triggers.
+- **Accessibility Enhancements**: Applied full accessibility audit fixes including explicit content descriptions, touch target sizing, high-contrast support, and dynamic scaling across UI components.
+- **Calendar & Navigation Refinement**: Fixed padding and tile spacing in calendar views and optimized settings screen layouts.
+
 ---
 
 ## [1.9.0] - 2026-08-22

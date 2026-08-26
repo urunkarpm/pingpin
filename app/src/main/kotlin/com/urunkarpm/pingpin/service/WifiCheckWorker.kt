@@ -8,6 +8,8 @@ import com.urunkarpm.pingpin.data.repository.AttendanceRepository
 import com.urunkarpm.pingpin.data.repository.OfficeConfigRepository
 import java.util.concurrent.TimeUnit
 
+import com.urunkarpm.pingpin.receiver.WifiConnectionReceiver
+
 class WifiCheckWorker(
     appContext: Context,
     workerParams: WorkerParameters
@@ -47,13 +49,20 @@ class WifiCheckWorker(
                 val attendanceService = AttendanceService(applicationContext, wifiService)
                 val notificationService = NotificationService(applicationContext)
 
-                attendanceService.checkAndMarkAttendance(
+                val result = attendanceService.checkAndMarkAttendance(
                     officeConfig = config,
                     attendanceRepo = attendanceRepo,
                     onAttendanceMarked = {
                         notificationService.showAttendanceSuccessNotification()
                     }
                 )
+
+                if (result == AttendanceCheckResult.SUCCESS ||
+                    result == AttendanceCheckResult.ALREADY_MARKED ||
+                    result == AttendanceCheckResult.NON_WORKING_DAY
+                ) {
+                    WifiConnectionReceiver.markTodayAsHandled(applicationContext)
+                }
             }
             Result.success()
         } catch (e: Exception) {

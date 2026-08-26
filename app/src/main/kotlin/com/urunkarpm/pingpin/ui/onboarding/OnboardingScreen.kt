@@ -121,8 +121,9 @@ fun OnboardingScreen(
         }
     }
 
+    val isReduceMotion = com.urunkarpm.pingpin.ui.theme.rememberIsReduceMotionEnabled()
     val infiniteTransition = rememberInfiniteTransition(label = "hero_glow")
-    val pulseScale by infiniteTransition.animateFloat(
+    val animatedPulseScale by infiniteTransition.animateFloat(
         initialValue = 1.0f,
         targetValue = 1.05f,
         animationSpec = infiniteRepeatable(
@@ -131,13 +132,14 @@ fun OnboardingScreen(
         ),
         label = "pulse"
     )
+    val pulseScale = if (isReduceMotion) 1.0f else animatedPulseScale
 
     val isDark = MaterialTheme.colorScheme.background.red < 0.5f
 
     // Progress animation
     val progressAnimated by animateFloatAsState(
         targetValue = (currentStep - 1).toFloat() / totalSteps.toFloat(),
-        animationSpec = spring(stiffness = Spring.StiffnessLow),
+        animationSpec = if (isReduceMotion) tween(0) else spring(stiffness = Spring.StiffnessLow),
         label = "setup_progress"
     )
 
