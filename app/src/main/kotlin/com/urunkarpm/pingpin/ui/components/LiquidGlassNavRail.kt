@@ -33,6 +33,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import com.urunkarpm.pingpin.ui.theme.ElectricBlue
 import kotlin.math.roundToInt
 
@@ -156,6 +161,11 @@ fun LiquidGlassNavRail(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .weight(1f)
+                                .semantics {
+                                    this.role = Role.Tab
+                                    this.selected = isSelected
+                                    this.contentDescription = item.label
+                                }
                                 .clickable(
                                     interactionSource = interactionSource,
                                     indication = null
@@ -173,7 +183,7 @@ fun LiquidGlassNavRail(
                             ) {
                                 Icon(
                                     imageVector = if (isSelected) item.activeIcon else item.icon,
-                                    contentDescription = item.label,
+                                    contentDescription = null,
                                     tint = animatedColorState.value,
                                     modifier = Modifier.size(24.dp)
                                 )

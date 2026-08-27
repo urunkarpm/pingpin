@@ -2,14 +2,40 @@ package com.urunkarpm.pingpin.data
 
 object AppChangelog {
     const val CURRENT_VERSION_CHANGELOG = """
-### Fixed
-- **Alarm Alert Check-In & Check-Out Action Execution**: Replaced task stack termination (`finishAndRemoveTask()`) with standard activity finish (`finish()`) when launching portal or browser actions from `AlarmActivity`. Prevents the app from abruptly closing or going to background when tapping Check-In or Check-Out.
-- **Dynamic Notification Action Resolution**: Resolved `ACTION_CHECK_IN` vs `ACTION_CHECK_OUT` dynamically based on alarm IDs (`CHECK_OUT_ALARM_ID`/`CHECK_OUT_SNOOZE_ID`), intent extras, and alarm titles across both `AlarmActivity` and `NotificationActionReceiver`.
-- **Structured Coroutine Concurrency**: Bound portal action database operations to `lifecycleScope` in `AlarmActivity` for safe concurrency.
+### Added & Enhanced
+- **Android Accessibility Principles**: Full accessibility audit compliance including TalkBack screen reader support, explicit element content descriptions, custom accessibility action labels, semantic roles (`Role.Button`, `Role.Checkbox`, `Role.Tab`), merged legend descriptions, and minimum 48dp x 48dp touch target boundaries.
+- **High-Contrast Calendar Day Numbers**: Solid high-contrast black (white in dark mode) calendar numbers on non-WFO days for crisp readability across all light & dark themes.
+- **Weather & Commute Intelligence**: Integrated real-time weather forecasts (`WeatherService`), commute safety advisories, and Material 3 weather visuals into the daily home dashboard.
+- **In-App Update Checker**: Automated GitHub API release update notifications with 1-tap installation via `UpdateAvailableDialog`.
+- **PDF Attendance Export Engine**: Formatted PDF export capabilities allowing users to customize date ranges and save clean PDF attendance logs.
 """
 
     const val FULL_CHANGELOG = """
-## [1.9.0] - Current Release
+## [2.1.0] - Current Release
+
+### Added & Enhanced
+- **Android Accessibility Principles**: Full accessibility audit compliance including TalkBack screen reader support, explicit element content descriptions, custom accessibility action labels, semantic roles (`Role.Button`, `Role.Checkbox`, `Role.Tab`), merged legend descriptions, and minimum 48dp x 48dp touch target boundaries.
+- **High-Contrast Calendar Day Numbers**: Solid high-contrast black (white in dark mode) calendar numbers on non-WFO days for crisp readability across all light & dark themes.
+- **Weather & Commute Intelligence**: Integrated real-time weather forecasts (`WeatherService`), commute safety advisories, and Material 3 weather visuals into the daily home dashboard.
+- **In-App Update Checker**: Automated GitHub API release update notifications with 1-tap installation via `UpdateAvailableDialog`.
+- **PDF Attendance Export Engine**: Formatted PDF export capabilities allowing users to customize date ranges and save clean PDF attendance logs.
+
+---
+
+## [2.0.0]
+
+### Added & Enhanced
+- **High-Contrast Calendar Day Numbers**: Made date numbers on non-WFO days (off-days, non-working days, and pre-install dates) solid high-contrast black (white in dark mode) so date numbers remain crisp and viewable everywhere on all backgrounds.
+- **Weather & Commute Intelligence**: Integrated real-time weather forecasts (`WeatherService`), commute safety advisories, and Material 3 weather hero visuals into the daily home dashboard.
+- **In-App Update Checker**: Introduced `UpdateAvailableDialog` and `UpdateChecker` targeting GitHub API releases to automatically inform users when newer versions of PingPin are released.
+- **PDF Attendance Export Engine**: Formatted PDF export capabilities allowing users to customize date ranges and save clean PDF attendance logs.
+- **Background Attendance & Wi-Fi Tracking**: Enhanced background service reliability for Wi-Fi check-in/check-out detection with WorkManager fallback polling and `BootReceiver` startup triggers.
+- **Accessibility Enhancements**: Applied full accessibility audit fixes including explicit content descriptions, touch target sizing, high-contrast support, and dynamic scaling across UI components.
+- **Calendar & Navigation Refinement**: Fixed padding and tile spacing in calendar views and optimized settings screen layouts.
+
+---
+
+## [1.9.0]
 
 ### Fixed
 - **Alarm Alert Check-In & Check-Out Action Execution**: Replaced task stack termination (`finishAndRemoveTask()`) with standard activity finish (`finish()`) when launching portal or browser actions from `AlarmActivity`. Prevents the app from abruptly closing or going to background when tapping Check-In or Check-Out.

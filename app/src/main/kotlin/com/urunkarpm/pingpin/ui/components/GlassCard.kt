@@ -27,6 +27,11 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+
 @Composable
 fun GlassCard(
     modifier: Modifier = Modifier,
@@ -34,6 +39,9 @@ fun GlassCard(
     borderColor: Color? = null,
     backgroundColor: Color? = null,
     onClick: (() -> Unit)? = null,
+    onClickLabel: String? = null,
+    role: Role? = if (onClick != null) Role.Button else null,
+    contentDescription: String? = null,
     content: @Composable BoxScope.() -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
@@ -86,9 +94,14 @@ fun GlassCard(
             .clip(shape)
             .background(gradientBrush)
             .border(width = 1.dp, color = defaultBorder, shape = shape)
+            .semantics {
+                role?.let { this.role = it }
+                contentDescription?.let { this.contentDescription = it }
+            }
             .clickable(
                 interactionSource = interactionSource,
-                indication = null
+                indication = null,
+                onClickLabel = onClickLabel
             ) {
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 onClick()
@@ -105,6 +118,9 @@ fun GlassCard(
             .clip(shape)
             .background(gradientBrush)
             .border(width = 1.dp, color = defaultBorder, shape = shape)
+            .semantics {
+                contentDescription?.let { this.contentDescription = it }
+            }
     }
 
     Box(

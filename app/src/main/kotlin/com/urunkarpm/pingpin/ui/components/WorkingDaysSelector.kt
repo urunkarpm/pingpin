@@ -30,6 +30,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 
 private val DAY_LABELS = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 private val FULL_DAY_NAMES = listOf("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
@@ -132,9 +133,12 @@ fun WorkingDaysSelector(
                         .semantics {
                             this.role = Role.Checkbox
                             this.selected = isSelected
+                            this.stateDescription = if (isSelected) "Selected" else "Not selected"
                             this.contentDescription = "${FULL_DAY_NAMES[index]} working day"
                         }
-                        .clickable {
+                        .clickable(
+                            onClickLabel = "Toggle ${FULL_DAY_NAMES[index]} working day"
+                        ) {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             val newMask = workingDaysMask xor (1 shl index)
                             onMaskChanged(newMask)

@@ -29,6 +29,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -163,7 +168,8 @@ fun HomeScreen(
                             fontSize = 28.sp,
                             fontWeight = FontWeight.Black,
                             color = MaterialTheme.colorScheme.onSurface,
-                            letterSpacing = (-0.8).sp
+                            letterSpacing = (-0.8).sp,
+                            modifier = Modifier.semantics { heading() }
                         )
 
                         // Streak Badge
@@ -173,7 +179,10 @@ fun HomeScreen(
                             border = androidx.compose.foundation.BorderStroke(
                                 1.dp,
                                 AmberOrange.copy(alpha = 0.3f)
-                            )
+                            ),
+                            modifier = Modifier.semantics(mergeDescendants = true) {
+                                contentDescription = "Current attendance streak: $currentStreak Days"
+                            }
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
@@ -181,7 +190,7 @@ fun HomeScreen(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.LocalFireDepartment,
-                                    contentDescription = "Streak",
+                                    contentDescription = null,
                                     tint = AmberOrange,
                                     modifier = Modifier.size(18.dp)
                                 )

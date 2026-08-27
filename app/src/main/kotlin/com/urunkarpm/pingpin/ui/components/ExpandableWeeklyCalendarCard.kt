@@ -25,6 +25,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
@@ -223,7 +229,16 @@ fun ExpandableWeeklyCalendarCard(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable { setExpanded(!currentIsExpanded) }
+                    modifier = Modifier
+                        .semantics {
+                            heading()
+                            this.role = Role.Button
+                            this.stateDescription = if (currentIsExpanded) "Expanded view" else "Collapsed view"
+                            this.contentDescription = if (!currentIsExpanded) "Week $weekRangeTitle. Double tap to expand monthly calendar." else "Monthly Calendar. Double tap to collapse."
+                        }
+                        .clickable(
+                            onClickLabel = if (currentIsExpanded) "Collapse calendar" else "Expand calendar"
+                        ) { setExpanded(!currentIsExpanded) }
                 ) {
                     AnimatedContent(
                         targetState = currentIsExpanded,
@@ -454,9 +469,9 @@ private fun WeeklyDayItem(
     val textColor = when {
         data.isAttended -> if (isDark) Color(0xFF6EE7B7) else Color(0xFF047857)
         data.isMakeupWfo && !data.isAttended -> if (isDark) Color(0xFFFDE68A) else Color(0xFFB45309)
-        data.isBeforeInstall -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
-        !data.isWorking -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
-        !data.isWfo -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+        data.isBeforeInstall -> if (isDark) Color.White else Color.Black
+        !data.isWorking -> if (isDark) Color.White else Color.Black
+        !data.isWfo -> if (isDark) Color.White else Color.Black
         data.isFuture || (data.isToday && data.isWfo) -> if (isDark) Color(0xFFC4B5FD) else Color(0xFF6D28D9)
         data.isToday -> ElectricBlue
         else -> if (isDark) Color(0xFFFCA5A5) else Color(0xFFB91C1C)

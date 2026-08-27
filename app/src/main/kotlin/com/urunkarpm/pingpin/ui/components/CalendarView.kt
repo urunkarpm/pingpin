@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -183,7 +184,13 @@ fun MonthlyCalendarView(
             Surface(
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.primaryContainer,
-                modifier = Modifier.clickable { onMonthClick() }
+                modifier = Modifier
+                    .semantics {
+                        heading()
+                        role = Role.Button
+                        contentDescription = "$monthTitle. Tap to select month and year."
+                    }
+                    .clickable { onMonthClick() }
             ) {
                 Text(
                     text = monthTitle,
@@ -360,9 +367,9 @@ private fun MonthDayCellItem(
         !cell.isCurrentMonthDay -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
         cell.isAttended -> if (isDark) Color(0xFF6EE7B7) else Color(0xFF047857)
         cell.isMakeupWfo && !cell.isAttended -> if (isDark) Color(0xFFFDE68A) else Color(0xFFB45309)
-        cell.isBeforeInstall -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
-        !cell.isWorking -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
-        !cell.isWfo -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+        cell.isBeforeInstall -> if (isDark) Color.White else Color.Black
+        !cell.isWorking -> if (isDark) Color.White else Color.Black
+        !cell.isWfo -> if (isDark) Color.White else Color.Black
         cell.isFuture || (cell.isToday && cell.isWfo) -> if (isDark) Color(0xFFC4B5FD) else Color(0xFF6D28D9)
         cell.isToday -> ElectricBlue
         else -> if (isDark) Color(0xFFFCA5A5) else Color(0xFFB91C1C)
@@ -481,7 +488,12 @@ private fun LegendItem(
     label: String,
     isBorderOnly: Boolean = false
 ) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.semantics(mergeDescendants = true) {
+            contentDescription = "Legend item: $label"
+        }
+    ) {
         Box(
             modifier = Modifier
                 .size(14.dp)

@@ -200,7 +200,11 @@ fun LiquidGlassBottomBar(
                                 .semantics {
                                     this.role = Role.Tab
                                     this.selected = isSelected
-                                    this.contentDescription = item.label
+                                    this.contentDescription = if (item.badgeCount > 0) {
+                                        "${item.label}, ${item.badgeCount} unread notifications"
+                                    } else {
+                                        item.label
+                                    }
                                 }
                                 .clickable(
                                     interactionSource = interactionSource,
@@ -225,7 +229,7 @@ fun LiquidGlassBottomBar(
                             ) {
                                 Icon(
                                     imageVector = if (isSelected) item.activeIcon else item.icon,
-                                    contentDescription = item.label,
+                                    contentDescription = null,
                                     tint = animatedColorState.value,
                                     modifier = Modifier.size(22.dp)
                                 )
