@@ -41,6 +41,7 @@ import com.urunkarpm.pingpin.service.WifiService
 import com.urunkarpm.pingpin.service.WorkingDays
 import com.urunkarpm.pingpin.service.portal.PortalCredentialManager
 import com.urunkarpm.pingpin.ui.components.GlassCard
+import com.urunkarpm.pingpin.ui.components.PingPinSwitch
 import com.urunkarpm.pingpin.ui.components.TimePickerField
 import com.urunkarpm.pingpin.ui.components.WifiSsidPickerField
 import com.urunkarpm.pingpin.ui.components.WorkingDaysSelector
@@ -1183,9 +1184,10 @@ private fun Step5PortalSection(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        Switch(
+                        PingPinSwitch(
                             checked = autoCheckInEnabled,
-                            onCheckedChange = onAutoCheckInEnabledChange
+                            onCheckedChange = onAutoCheckInEnabledChange,
+                            checkedTrackColor = com.urunkarpm.pingpin.ui.theme.EmeraldGreen
                         )
                     }
 
@@ -1234,9 +1236,10 @@ private fun Step5PortalSection(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        Switch(
+                        PingPinSwitch(
                             checked = autoLoginEnabled,
-                            onCheckedChange = onAutoLoginEnabledChange
+                            onCheckedChange = onAutoLoginEnabledChange,
+                            checkedTrackColor = Color(0xFF8B5CF6)
                         )
                     }
 

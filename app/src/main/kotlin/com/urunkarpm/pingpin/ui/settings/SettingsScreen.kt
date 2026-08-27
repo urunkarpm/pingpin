@@ -1,5 +1,6 @@
 package com.urunkarpm.pingpin.ui.settings
 
+import android.content.Intent
 import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -46,6 +47,7 @@ import com.urunkarpm.pingpin.service.NotificationService
 import com.urunkarpm.pingpin.service.OemBatteryHelper
 import com.urunkarpm.pingpin.service.WorkingDays
 import com.urunkarpm.pingpin.ui.components.GlassCard
+import com.urunkarpm.pingpin.ui.components.PingPinSwitch
 import com.urunkarpm.pingpin.ui.components.TimeFormatUtils
 import com.urunkarpm.pingpin.ui.components.TimePickerField
 import com.urunkarpm.pingpin.ui.components.WfoDaysSelector
@@ -102,6 +104,7 @@ fun SettingsScreen(
 
     val credManager = remember { com.urunkarpm.pingpin.service.portal.PortalCredentialManager(context) }
     var portalMode by remember { mutableStateOf("EXTERNAL_BROWSER") }
+    var useFloatingPortal by remember { mutableStateOf(true) }
     var autoLoginEnabled by remember { mutableStateOf(false) }
     var autoCheckInEnabled by remember { mutableStateOf(false) }
     var customCheckInKeywords by remember { mutableStateOf("") }
@@ -134,6 +137,7 @@ fun SettingsScreen(
             workingDaysMask = cfg.workingDaysMask
             wfoDaysMask = cfg.wfoDaysMask
             portalMode = cfg.portalMode
+            useFloatingPortal = cfg.useFloatingPortal
             autoLoginEnabled = cfg.autoLoginEnabled
             autoCheckInEnabled = cfg.autoCheckInEnabled
             customCheckInKeywords = cfg.customCheckInKeywords
@@ -315,12 +319,18 @@ fun SettingsScreen(
                         )
                     }
                 }
-                Switch(
+                PingPinSwitch(
                     checked = isDarkTheme,
                     onCheckedChange = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         onToggleTheme(it)
-                    }
+                    },
+                    checkedIcon = Icons.Outlined.DarkMode,
+                    uncheckedIcon = Icons.Outlined.LightMode,
+                    checkedTrackColor = MaterialTheme.colorScheme.primary,
+                    uncheckedTrackColor = Color(0xFFFEF3C7),
+                    uncheckedThumbColor = Color(0xFFD97706),
+                    uncheckedBorderColor = Color(0xFFF59E0B),
+                    iconTintUnchecked = Color.White
                 )
             }
         }
@@ -570,6 +580,85 @@ fun SettingsScreen(
                         if (portalMode == "IN_APP_AUTO") {
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
 
+                            // Floating Mini Window Switch Row
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Use Floating Mini Window",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "Opens browser in a non-disruptive floating window over other apps",
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                PingPinSwitch(
+                                    checked = useFloatingPortal,
+                                    onCheckedChange = { useFloatingPortal = it },
+                                    checkedTrackColor = MaterialTheme.colorScheme.tertiary
+                                )
+                            }
+
+                            if (useFloatingPortal) {
+                                val canDrawOverlays = remember(useFloatingPortal) {
+                                    android.provider.Settings.canDrawOverlays(context)
+                                }
+                                if (!canDrawOverlays) {
+                                    Card(
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f)
+                                        ),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(12.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Outlined.Warning,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.error
+                                            )
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = "Overlay Permission Required",
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                                )
+                                                Text(
+                                                    text = "PingPin needs 'Display over other apps' permission for the floating window.",
+                                                    fontSize = 11.sp,
+                                                    color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
+                                                )
+                                            }
+                                            Button(
+                                                onClick = {
+                                                    val intent = Intent(
+                                                        android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                                        android.net.Uri.parse("package:${context.packageName}")
+                                                    )
+                                                    context.startActivity(intent)
+                                                },
+                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                                            ) {
+                                                Text("Grant", fontSize = 11.sp)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+
                             // Auto Check-In Switch Row
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -589,9 +678,10 @@ fun SettingsScreen(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
-                                Switch(
+                                PingPinSwitch(
                                     checked = autoCheckInEnabled,
-                                    onCheckedChange = { autoCheckInEnabled = it }
+                                    onCheckedChange = { autoCheckInEnabled = it },
+                                    checkedTrackColor = com.urunkarpm.pingpin.ui.theme.EmeraldGreen
                                 )
                             }
 
@@ -638,9 +728,10 @@ fun SettingsScreen(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
-                                Switch(
+                                PingPinSwitch(
                                     checked = autoLoginEnabled,
-                                    onCheckedChange = { autoLoginEnabled = it }
+                                    onCheckedChange = { autoLoginEnabled = it },
+                                    checkedTrackColor = MaterialTheme.colorScheme.tertiary
                                 )
                             }
 
@@ -1462,7 +1553,7 @@ fun SettingsScreen(
         val isFirstLoad = remember { mutableStateOf(true) }
         LaunchedEffect(
             fullName, ssid, checkInTime, checkOutTime, portalUrl,
-            workingDaysMask, wfoDaysMask, portalMode, autoLoginEnabled,
+            workingDaysMask, wfoDaysMask, portalMode, useFloatingPortal, autoLoginEnabled,
             autoCheckInEnabled, customCheckInKeywords, customCheckOutKeywords,
             portalUsername, portalPassword
         ) {
@@ -1481,6 +1572,7 @@ fun SettingsScreen(
                 workingDaysMask = workingDaysMask,
                 wfoDaysMask = wfoDaysMask,
                 portalMode = portalMode,
+                useFloatingPortal = useFloatingPortal,
                 autoLoginEnabled = autoLoginEnabled,
                 autoCheckInEnabled = autoCheckInEnabled,
                 customCheckInKeywords = customCheckInKeywords.trim(),

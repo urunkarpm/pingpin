@@ -3,6 +3,7 @@ package com.urunkarpm.pingpin.data
 object AppChangelog {
     const val CURRENT_VERSION_CHANGELOG = """
 ### Added & Enhanced
+- **High-Contrast Toggle Switches**: Redesigned all app toggle switches with custom `PingPinSwitch` featuring high-contrast track outlines, bright contrast thumb fills for AMOLED Dark & E-Ink Light themes, in-thumb icon indicators (sun/moon for theme switch, checkmark for feature toggles), tactile haptics, and spring animations.
 - **Android Accessibility Principles**: Full accessibility audit compliance including TalkBack screen reader support, explicit element content descriptions, custom accessibility action labels, semantic roles (`Role.Button`, `Role.Checkbox`, `Role.Tab`), merged legend descriptions, and minimum 48dp x 48dp touch target boundaries.
 - **High-Contrast Calendar Day Numbers**: Solid high-contrast black (white in dark mode) calendar numbers on non-WFO days for crisp readability across all light & dark themes.
 - **Weather & Commute Intelligence**: Integrated real-time weather forecasts (`WeatherService`), commute safety advisories, and Material 3 weather visuals into the daily home dashboard.
@@ -14,6 +15,7 @@ object AppChangelog {
 ## [2.1.0] - Current Release
 
 ### Added & Enhanced
+- **High-Contrast Toggle Switches**: Redesigned all app toggle switches with custom `PingPinSwitch` featuring high-contrast track outlines, bright contrast thumb fills for AMOLED Dark & E-Ink Light themes, in-thumb icon indicators (sun/moon for theme switch, checkmark for feature toggles), tactile haptics, and spring animations.
 - **Android Accessibility Principles**: Full accessibility audit compliance including TalkBack screen reader support, explicit element content descriptions, custom accessibility action labels, semantic roles (`Role.Button`, `Role.Checkbox`, `Role.Tab`), merged legend descriptions, and minimum 48dp x 48dp touch target boundaries.
 - **High-Contrast Calendar Day Numbers**: Solid high-contrast black (white in dark mode) calendar numbers on non-WFO days for crisp readability across all light & dark themes.
 - **Weather & Commute Intelligence**: Integrated real-time weather forecasts (`WeatherService`), commute safety advisories, and Material 3 weather visuals into the daily home dashboard.

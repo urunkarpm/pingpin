@@ -22,6 +22,7 @@ data class OfficeConfigEntity(
     val portalPreset: String = "GENERIC",
     val customCheckInKeywords: String = "",
     val customCheckOutKeywords: String = "",
+    val useFloatingPortal: Boolean = true,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 )

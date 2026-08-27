@@ -276,17 +276,28 @@ class AlarmActivity : ComponentActivity() {
             val portalMode = config?.portalMode ?: "EXTERNAL_BROWSER"
             val url = if (currentPortalUrl.isNotBlank()) currentPortalUrl else (config?.portalUrl ?: "")
 
+            val useFloating = config?.useFloatingPortal ?: true
+
             withContext(Dispatchers.Main) {
                 if (portalMode == "IN_APP_AUTO") {
-                    val intent = com.urunkarpm.pingpin.ui.portal.PortalActivity.createIntent(
-                        context = this@AlarmActivity,
-                        actionType = actionType,
-                        portalUrl = url,
-                        alarmId = currentAlarmId
-                    ).apply {
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    if (useFloating && android.provider.Settings.canDrawOverlays(this@AlarmActivity)) {
+                        com.urunkarpm.pingpin.service.portal.FloatingPortalService.startService(
+                            context = this@AlarmActivity,
+                            actionType = actionType,
+                            portalUrl = url,
+                            alarmId = currentAlarmId
+                        )
+                    } else {
+                        val intent = com.urunkarpm.pingpin.ui.portal.PortalActivity.createIntent(
+                            context = this@AlarmActivity,
+                            actionType = actionType,
+                            portalUrl = url,
+                            alarmId = currentAlarmId
+                        ).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                        }
+                        startActivity(intent)
                     }
-                    startActivity(intent)
                 } else {
                     openBrowser(url)
                 }

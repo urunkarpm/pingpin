@@ -140,6 +140,12 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <!-- Floating Portal Auto Check-In Overlay Service -->
+        <service
+            android:name=".service.portal.FloatingPortalService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
     </application>
 
 </manifest>
