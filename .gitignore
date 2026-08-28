@@ -16,7 +16,10 @@ key.properties
 **/*.keystore
 **/*.jks
 
-# Appium / test artifacts
-appium_tests/
+# Playwright / test artifacts
+playwright_tests/node_modules/
+playwright_tests/test-results/
+playwright_tests/playwright-report/
+
 
 

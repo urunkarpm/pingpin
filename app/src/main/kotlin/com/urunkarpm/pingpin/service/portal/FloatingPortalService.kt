@@ -155,8 +155,13 @@ class FloatingPortalService : Service(), PortalAutoCheckInEngine.PortalCallback 
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
 
         val displayMetrics = resources.displayMetrics
-        val width = (displayMetrics.widthPixels * 0.90).toInt().coerceAtMost((360 * displayMetrics.density).toInt())
-        val height = (displayMetrics.heightPixels * 0.60).toInt().coerceAtMost((520 * displayMetrics.density).toInt())
+        val density = displayMetrics.density
+
+        // YouTube-style compact PIP window dimensions (e.g. 250dp x 160dp)
+        val targetWidth = (250 * density).toInt()
+        val targetHeight = (160 * density).toInt()
+        val width = targetWidth.coerceAtMost((displayMetrics.widthPixels * 0.75).toInt())
+        val height = targetHeight.coerceAtMost((displayMetrics.heightPixels * 0.30).toInt())
 
         val layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
@@ -175,22 +180,20 @@ class FloatingPortalService : Service(), PortalAutoCheckInEngine.PortalCallback 
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            y = (80 * displayMetrics.density).toInt()
+            y = (80 * density).toInt()
         }
 
-        val density = displayMetrics.density
-
-        // Root container with dark glass theme
+        // Root container with dark glass theme & sleek rounded corners
         val rootLayout = FrameLayout(this).apply {
             val drawable = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                cornerRadius = 16f * density
-                setColor(Color.parseColor("#EE0F172A")) // Slate dark glass background
-                setStroke((1.5f * density).toInt(), Color.parseColor("#3338BDF8")) // Cyan border
+                cornerRadius = 14f * density
+                setColor(Color.parseColor("#F20F172A")) // Slate dark glass background
+                setStroke((1.5f * density).toInt(), Color.parseColor("#475569")) // Subtle accent border
             }
             background = drawable
-            elevation = 16f * density
-            setPadding((8 * density).toInt(), (8 * density).toInt(), (8 * density).toInt(), (8 * density).toInt())
+            elevation = 12f * density
+            setPadding((6 * density).toInt(), (6 * density).toInt(), (6 * density).toInt(), (6 * density).toInt())
         }
 
         val mainContainer = LinearLayout(this).apply {
@@ -205,43 +208,51 @@ class FloatingPortalService : Service(), PortalAutoCheckInEngine.PortalCallback 
         val headerBar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            val hPadding = (12 * density).toInt()
-            val vPadding = (8 * density).toInt()
+            val hPadding = (8 * density).toInt()
+            val vPadding = (4 * density).toInt()
             setPadding(hPadding, vPadding, hPadding, vPadding)
             val headerBg = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                cornerRadius = 10f * density
-                setColor(Color.parseColor("#221E293B"))
+                cornerRadius = 8f * density
+                setColor(Color.parseColor("#331E293B"))
             }
             background = headerBg
         }
 
-        // Drag handle indicator & title
         titleTextView = TextView(this).apply {
-            text = if (actionType.equals("CHECK_IN", ignoreCase = true)) "📌 PingPin Floating Check-In" else "📌 PingPin Floating Check-Out"
+            text = if (actionType.equals("CHECK_IN", ignoreCase = true)) "📌 Check-In" else "📌 Check-Out"
             setTextColor(Color.WHITE)
-            textSize = 13f
+            textSize = 11f
             typeface = android.graphics.Typeface.DEFAULT_BOLD
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f)
+        }
+
+        val fullScreenHeaderBtn = TextView(this).apply {
+            text = " ⛶ "
+            setTextColor(Color.parseColor("#38BDF8"))
+            textSize = 14f
+            setPadding((6 * density).toInt(), 0, (6 * density).toInt(), 0)
+            setOnClickListener { openFullScreen() }
         }
 
         minimizeBtn = TextView(this).apply {
             text = " 🗕 "
             setTextColor(Color.parseColor("#94A3B8"))
-            textSize = 15f
-            setPadding((8 * density).toInt(), 0, (8 * density).toInt(), 0)
+            textSize = 14f
+            setPadding((6 * density).toInt(), 0, (6 * density).toInt(), 0)
             setOnClickListener { toggleMinimize() }
         }
 
         closeBtn = TextView(this).apply {
             text = " ✕ "
             setTextColor(Color.parseColor("#F87171"))
-            textSize = 15f
-            setPadding((8 * density).toInt(), 0, (8 * density).toInt(), 0)
+            textSize = 14f
+            setPadding((6 * density).toInt(), 0, (6 * density).toInt(), 0)
             setOnClickListener { stopSelf() }
         }
 
         headerBar.addView(titleTextView)
+        headerBar.addView(fullScreenHeaderBtn)
         headerBar.addView(minimizeBtn)
         headerBar.addView(closeBtn)
 
@@ -272,11 +283,13 @@ class FloatingPortalService : Service(), PortalAutoCheckInEngine.PortalCallback 
 
         // Status Badge Row
         statusTextView = TextView(this).apply {
-            text = "Initializing Floating Auto Engine..."
+            text = "Initializing Auto Engine..."
             setTextColor(Color.parseColor("#38BDF8"))
-            textSize = 11f
-            val sPaddingH = (12 * density).toInt()
-            val sPaddingV = (6 * density).toInt()
+            textSize = 10f
+            maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
+            val sPaddingH = (8 * density).toInt()
+            val sPaddingV = (2 * density).toInt()
             setPadding(sPaddingH, sPaddingV, sPaddingH, sPaddingV)
         }
 
@@ -287,7 +300,7 @@ class FloatingPortalService : Service(), PortalAutoCheckInEngine.PortalCallback 
                 0,
                 1.0f
             ).apply {
-                topMargin = (6 * density).toInt()
+                topMargin = (4 * density).toInt()
             }
             val webBg = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
@@ -315,7 +328,39 @@ class FloatingPortalService : Service(), PortalAutoCheckInEngine.PortalCallback 
             addJavascriptInterface(PortalAutoCheckInEngine.WebBridge(this@FloatingPortalService), "PingPinBridge")
         }
 
+        // YouTube-style Center Fullscreen Button Overlay
+        val centerFullScreenBtn = FrameLayout(this).apply {
+            val btnSize = (40 * density).toInt()
+            layoutParams = FrameLayout.LayoutParams(btnSize, btnSize).apply {
+                gravity = Gravity.CENTER
+            }
+            val btnDrawable = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.parseColor("#D90F172A")) // Semi-transparent dark glass
+                setStroke((1.5f * density).toInt(), Color.parseColor("#38BDF8")) // Cyan accent border
+            }
+            background = btnDrawable
+            elevation = 8f * density
+
+            val iconTv = TextView(this@FloatingPortalService).apply {
+                text = "⛶"
+                setTextColor(Color.WHITE)
+                textSize = 18f
+                gravity = Gravity.CENTER
+                layoutParams = FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                )
+            }
+            addView(iconTv)
+
+            setOnClickListener {
+                openFullScreen()
+            }
+        }
+
         webViewContainer?.addView(webView)
+        webViewContainer?.addView(centerFullScreenBtn)
 
         mainContainer.addView(headerBar)
         mainContainer.addView(statusTextView)
@@ -332,6 +377,23 @@ class FloatingPortalService : Service(), PortalAutoCheckInEngine.PortalCallback 
         }
     }
 
+    private fun openFullScreen() {
+        try {
+            val intent = PortalActivity.createIntent(
+                context = applicationContext,
+                actionType = actionType,
+                portalUrl = portalUrl,
+                alarmId = alarmId
+            ).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            }
+            startActivity(intent)
+            stopSelf()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to open full screen PortalActivity: ${e.message}", e)
+        }
+    }
+
     private fun toggleMinimize() {
         val view = floatingView ?: return
         val params = windowParams ?: return
@@ -340,14 +402,16 @@ class FloatingPortalService : Service(), PortalAutoCheckInEngine.PortalCallback 
         isMinimized = !isMinimized
         if (isMinimized) {
             webViewContainer?.visibility = View.GONE
-            params.width = (240 * density).toInt()
+            params.width = (180 * density).toInt()
             params.height = ViewGroup.LayoutParams.WRAP_CONTENT
             minimizeBtn?.text = " 🗖 "
         } else {
             webViewContainer?.visibility = View.VISIBLE
             val displayMetrics = resources.displayMetrics
-            params.width = (displayMetrics.widthPixels * 0.90).toInt().coerceAtMost((360 * density).toInt())
-            params.height = (displayMetrics.heightPixels * 0.60).toInt().coerceAtMost((520 * density).toInt())
+            val targetWidth = (250 * density).toInt()
+            val targetHeight = (160 * density).toInt()
+            params.width = targetWidth.coerceAtMost((displayMetrics.widthPixels * 0.75).toInt())
+            params.height = targetHeight.coerceAtMost((displayMetrics.heightPixels * 0.30).toInt())
             minimizeBtn?.text = " 🗕 "
         }
         windowManager?.updateViewLayout(view, params)

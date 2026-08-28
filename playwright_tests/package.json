@@ -1,0 +1,30 @@
+{
+  "name": "pingpin-playwright-tests",
+  "version": "1.0.0",
+  "description": "Comprehensive Playwright + JavaScript test suite module for PingPin UI components, alarm services, and pre-release verification",
+  "main": "lib/component-harness.js",
+  "scripts": {
+    "test": "playwright test",
+    "test:components": "playwright test tests/glass-card.spec.js tests/pingpin-switch.spec.js tests/calendar-view.spec.js tests/weekly-calendar-card.spec.js tests/makeup-wfo-card.spec.js tests/time-picker-dialog.spec.js tests/wifi-ssid-picker.spec.js tests/holidays-card.spec.js tests/days-selectors.spec.js tests/liquid-glass-nav.spec.js tests/progress-radial-ring.spec.js tests/weather-travel-card.spec.js tests/update-dialog.spec.js",
+    "test:alarms": "playwright test tests/alarm-activity.spec.js tests/alarm-service.spec.js",
+    "test:release": "playwright test tests/pre-release-suite.spec.js",
+    "test:ui": "playwright test --ui",
+    "test:report": "playwright show-report"
+  },
+  "keywords": [
+    "playwright",
+    "pingpin",
+    "component-testing",
+    "android-testing",
+    "pre-release"
+  ],
+  "author": "PingPin Engineering Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@playwright/test": "^1.49.1",
+    "playwright": "^1.49.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
