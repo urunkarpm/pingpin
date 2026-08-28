@@ -75,10 +75,10 @@ Managing corporate hybrid work schedules (WFO / WFH) should be effortless, not a
 - **Compliance Gauge**: Progress ring tracking your monthly WFO target percentage.
 - **Native PDF Summary**: Export formal monthly attendance statements and daily log tables powered by Android's `PdfDocument` API.
 
-### 🎨 8. Dual Themes & Accessibility Excellence
-- **E-Ink Paper Newsprint Theme**: High-contrast paper background (`#F7F4EB`) crafted for outdoor sunlight legibility.
-- **Charcoal Dark Mode**: Modern dark aesthetic with glassmorphism cards (`GlassCard`), liquid glass navbar (`LiquidGlassNavBar`), and custom Material 3 typography.
-- **TalkBack & Accessibility**: Full screen-reader support, explicit content descriptions, custom action labels, and 48dp+ touch target sizing.
+### ♿ 8. Accessibility Excellence
+- **TalkBack & Screen Readers**: Comprehensive Android accessibility integration with explicit content descriptions, custom action labels, and semantic roles.
+- **Touch Target Sizing**: Guarantees a minimum 48dp x 48dp touch target boundary across all interactive cards, switches, and buttons.
+- **High-Contrast Legibility**: Crisp visual contrast for date tiles, calendar badges, and text headers for maximum legibility.
 
 ---
 
