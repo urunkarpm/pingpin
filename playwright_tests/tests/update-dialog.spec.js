@@ -8,7 +8,7 @@ test.describe('UpdateAvailableDialog Component Specs', () => {
         <h2 id="update-title">🚀 New Update Available! (v2.4.0)</h2>
         <p id="release-summary">What's New in PingPin:</p>
         <ul id="changelog-list">
-          <li>Enhanced BLE Laptop & Mobile scan speed</li>
+          <li>Enhanced Wi-Fi check-in detection speed</li>
           <li>Liquid Glass UI animations and smooth haptics</li>
           <li>Automatic compensation suggestion for missed WFO days</li>
         </ul>

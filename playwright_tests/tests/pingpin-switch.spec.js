@@ -46,7 +46,7 @@ test.describe('PingPinSwitch Component Specs', () => {
       <button id="pingpin-switch"
               role="switch"
               aria-checked="false"
-              aria-label="BLE Scanner"
+              aria-label="Wi-Fi Auto Attendance"
               data-state-description="Off"
               style="width: 52px; height: 32px; border-radius: 16px; background-color: #1e293b; border: 1px solid #64748b; cursor: pointer; position: relative;">
         <span id="switch-thumb" style="width: 24px; height: 24px; border-radius: 12px; background-color: #f8fafc; position: absolute; top: 3px; left: 4px;"></span>

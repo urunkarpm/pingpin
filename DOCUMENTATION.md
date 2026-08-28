@@ -7,13 +7,12 @@ This document provides a comprehensive, feature-by-feature breakdown of all capa
 ## Table of Contents
 1. [Automatic Wi-Fi Attendance Tracking](#1-automatic-wi-fi-attendance-tracking)
 2. [Hybrid WFO Schedule & Rescheduling ("Makeup WFO")](#2-hybrid-wfo-schedule--rescheduling-makeup-wfo)
-3. [BLE Office Presence & Laptop Occupancy Scanner](#3-ble-office-presence--laptop-occupancy-scanner)
-4. [Indian Public Holiday & Long Weekend Directory](#4-indian-public-holiday--long-weekend-directory)
-5. [Commute Weather & Travel Advisory Engine](#5-commute-weather--travel-advisory-engine)
-6. [Notifications, Alarms & OEM Battery Optimization](#6-notifications-alarms--oem-battery-optimization)
-7. [Analytics, Insights & Native PDF Exporter](#7-analytics-insights--native-pdf-exporter)
-8. [Interactive UI & Dual Design Themes](#8-interactive-ui--dual-design-themes)
-9. [Data Architecture & Local Storage](#9-data-architecture--local-storage)
+3. [Indian Public Holiday & Long Weekend Directory](#3-indian-public-holiday--long-weekend-directory)
+4. [Commute Weather & Travel Advisory Engine](#4-commute-weather--travel-advisory-engine)
+5. [Notifications, Alarms & OEM Battery Optimization](#5-notifications-alarms--oem-battery-optimization)
+6. [Analytics, Insights & Native PDF Exporter](#6-analytics-insights--native-pdf-exporter)
+7. [Interactive UI & Dual Design Themes](#7-interactive-ui--dual-design-themes)
+8. [Data Architecture & Local Storage](#8-data-architecture--local-storage)
 
 ---
 
@@ -56,22 +55,7 @@ Managed in [`MakeupWfoManager.kt`](file:///c:/Users/uprasenjeet/Documents/pingpi
 
 ---
 
-## 3. Tactical Office Radar & Mobile BLE Signal Scanner
-
-### Overview
-Located in [`BleMobileScannerService.kt`](file:///c:/Users/uprasenjeet/Documents/pingpin/app/src/main/kotlin/com/urunkarpm/pingpin/service/BleMobileScannerService.kt), this service non-intrusively measures office bay occupancy by scanning Bluetooth Low Energy (BLE) signals from nearby mobile phones (Android and iOS).
-
-### Key Capabilities
-- **Cross-Platform Mobile Device Detection**:
-  - **Android Devices**: Parses Manufacturer Specific Data for Google Vendor ID `0x00E0` and Samsung Vendor ID `0x0075`.
-  - **Apple iPhones / iOS Devices**: Parses Manufacturer Specific Data for Apple Vendor ID `0x004C`.
-- **RSSI Proximity Distance Calculation**: Converts RSSI signal strength into estimated distance meters ($\text{Range } 0.8\text{m} - 8\text{m}$).
-- **Proximity Zone Categorization**: Classifies devices into Immediate Bay ($< 2\text{m}$), Adjacent Wing ($2-5\text{m}$), and Outer Zone ($> 5\text{m}$).
-- **Military Radar HUD Display**: [`OfficeOccupancyCard.kt`](file:///c:/Users/uprasenjeet/Documents/pingpin/app/src/main/kotlin/com/urunkarpm/pingpin/ui/components/OfficeOccupancyCard.kt) renders a high-tech tactical military radar with electric neon green/cyan glow, 360° rotating sweep beam, range reticles, target blips, and sector density status.
-
----
-
-## 4. Indian Public Holiday & Long Weekend Directory
+## 3. Indian Public Holiday & Long Weekend Directory
 
 ### Overview
 Implemented in [`IndianHolidayService.kt`](file:///c:/Users/uprasenjeet/Documents/pingpin/app/src/main/kotlin/com/urunkarpm/pingpin/service/IndianHolidayService.kt), providing a built-in calendar of Indian holidays across 2026.

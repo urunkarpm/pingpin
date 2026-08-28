@@ -72,15 +72,6 @@ fun HomeScreen(
 
     val acceptedMakeupDates by viewModel.acceptedMakeupDatesState.collectAsState()
 
-    val scanErrorMessage by viewModel.scanErrorMessage.collectAsState()
-
-    LaunchedEffect(scanErrorMessage) {
-        scanErrorMessage?.let { msg ->
-            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
-            viewModel.clearScanError()
-        }
-    }
-
     val upcomingHolidays = viewModel.upcomingHolidays
     val allIndianHolidays = viewModel.allIndianHolidays
 

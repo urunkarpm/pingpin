@@ -12,7 +12,7 @@
   [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
   <p align="center">
-    <b>Never miss a WFO mandate again. Effortlessly track attendance, auto-schedule makeup days, scan office bay occupancy with BLE radar, check live commute weather, and auto-punch HR portals — 100% on-device with zero cloud tracking.</b>
+    <b>Never miss a WFO mandate again. Effortlessly track attendance, auto-schedule makeup days, check live commute weather, and auto-punch HR portals — 100% on-device with zero cloud tracking.</b>
   </p>
 
 </div>
@@ -28,7 +28,6 @@ Managing corporate hybrid work schedules (WFO / WFH) should be effortless, not a
    │ 📡 Auto Wi-Fi Attendance   ├──> Local Calendar Logging (Present / Late)│
    │ 🌐 HR Portal Auto-Punch   ├──> Embedded Auto-Fill & Auto-Redirection   │
    │ 🔄 Makeup WFO Locator     ├──> Smart Missed Day Compensation           │
-   │ 💻 BLE Tactical Bay Radar ├──> Occupancy Headcount (Apple / Windows)   │
    │ 🌦️ Commute Weather Engine ├──> Hourly Travel Advisories & Warnings      │
    │ 📅 Holiday Directory      ├──> Pre-loaded 2026 Long Weekend Badges     │
    │ 📊 PDF Report Exporter    ├──> Formal Monthly Attendance Summaries     │
@@ -56,32 +55,27 @@ Managing corporate hybrid work schedules (WFO / WFH) should be effortless, not a
 - **Smart Candidate Finder**: Proposes compensation dates on upcoming WFH days (strictly excluding weekends, holidays, existing WFO days, and recorded attendance).
 - **Interactive UI Cards**: Accept or decline suggestions directly on the Home Screen. Suggestions automatically mark as `COMPLETED` when attendance is recorded.
 
-### 💻 4. Tactical Office Bay Radar & BLE Scanner
-- **Agentless Laptop Headcount**: Scans nearby Bluetooth Low Energy (BLE) signals to detect active office laptops—no software required on laptops!
-- **Cross-Platform Signatures**: Identifies Apple macOS (AirDrop/Handoff `0x004C`) and Microsoft Windows (`0x0006`) laptops.
-- **Proximity Radar HUD**: Visual military-style 360° rotating radar sweep with distance reticles ($0.8\text{m} - 8\text{m}$) and occupancy density metrics.
-
-### 🌦️ 5. Commute Weather & Travel Advisory Engine
+### 🌦️ 4. Commute Weather & Travel Advisory Engine
 - **Live Hourly Commute Weather**: Powered by the Open-Meteo API using GPS or office coordinates.
 - **Commute Breakdown**: Displays temperature, precipitation probability, and weather icons for key commute windows (8 AM, 9 AM, 1 PM, 5 PM, 6 PM, 8 PM).
 - **Smart Safety Advisories**: Recommends optimal transit options (Cab/Metro vs AC Transit) and alerts for severe rain or high heat ($>34^\circ\text{C}$).
 
-### 📅 6. Indian Public Holiday & Long Weekend Directory
+### 📅 5. Indian Public Holiday & Long Weekend Directory
 - **Pre-Loaded 2026 Directory**: Full list of Gazetted, Restricted, National, and Regional holidays.
 - **Long Weekend Detector**: Highlights holidays falling on Monday or Friday with a prominent `LONG WEEKEND` badge.
 - **Countdown Timers**: Real-time relative tags ("Today!", "Tomorrow!", "In 3 days").
 
-### ⏰ 7. Exact Alarms & OEM Battery Optimization Guides
+### ⏰ 6. Exact Alarms & OEM Battery Optimization Guides
 - **Deep Sleep Alarms**: Utilizes `AlarmManager.setExactAndAllowWhileIdle()` so alarms fire reliably even during Doze mode.
 - **Full-Screen Alert UI**: Custom alarm chime (`beep.mp3`) with direct action buttons.
 - **OEM Guides**: Built-in battery optimization instructions for Xiaomi/POCO (MIUI/HyperOS), Samsung, OnePlus, Vivo, Oppo, and RealMe devices.
 
-### 📊 8. Analytics, Radial Rings & Native PDF Exporter
+### 📊 7. Analytics, Radial Rings & Native PDF Exporter
 - **Streak Counter**: Tracks consecutive working days with verified attendance.
 - **Compliance Gauge**: Progress ring tracking your monthly WFO target percentage.
 - **Native PDF Summary**: Export formal monthly attendance statements and daily log tables powered by Android's `PdfDocument` API.
 
-### 🎨 9. Dual Themes & Accessibility Excellence
+### 🎨 8. Dual Themes & Accessibility Excellence
 - **E-Ink Paper Newsprint Theme**: High-contrast paper background (`#F7F4EB`) crafted for outdoor sunlight legibility.
 - **Charcoal Dark Mode**: Modern dark aesthetic with glassmorphism cards (`GlassCard`), liquid glass navbar (`LiquidGlassNavBar`), and custom Material 3 typography.
 - **TalkBack & Accessibility**: Full screen-reader support, explicit content descriptions, custom action labels, and 48dp+ touch target sizing.
@@ -95,7 +89,6 @@ Managing corporate hybrid work schedules (WFO / WFH) should be effortless, not a
 | **100% On-Device Privacy** | ✅ Yes | ❌ Cloud Tracking | ⚠️ Varies |
 | **Local Wi-Fi Attendance Auto-Log** | ✅ Yes | ❌ No | ❌ No |
 | **Smart Makeup WFO Finder** | ✅ Yes | ❌ No | ❌ No |
-| **BLE Office Bay Occupancy Radar** | ✅ Yes | ❌ No | ❌ No |
 | **Commute Weather & Travel Advisory** | ✅ Live Hourly | ❌ No | ❌ No |
 | **Native PDF Statement Exporter** | ✅ 1-Tap PDF | ⚠️ Limited | ❌ No |
 | **OEM Battery Optimization Setup** | ✅ Step-by-Step Guides | ❌ No | ❌ No |
@@ -113,7 +106,7 @@ PingPin is architected according to **Modern Android Architecture (MVVM / Clean 
 │           Jetpack Compose • Material 3 • Glassmorphism UI             │
 ├────────────────────────────────────────────────────────────────────────┤
 │                            Business Layer                              │
-│  Attendance Engine • Makeup WFO Manager • BLE Radar • Weather Service │
+│         Attendance Engine • Makeup WFO Manager • Weather Service        │
 ├────────────────────────────────────────────────────────────────────────┤
 │                              Data Layer                                │
 │       Android Jetpack Room SQLite • SharedPreferences Repository       │

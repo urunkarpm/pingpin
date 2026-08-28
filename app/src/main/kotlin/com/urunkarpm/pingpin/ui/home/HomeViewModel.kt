@@ -27,7 +27,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val wifiService = WifiService(context)
     private val attendanceService = AttendanceService(context, wifiService)
-    private val bleScanner = BleMobileScannerService(context)
     private val weatherService = WeatherService(context)
     val holidayService = IndianHolidayService()
     val notifService = NotificationService(context)
@@ -60,12 +59,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val isConnectedToOffice = MutableStateFlow(false)
     private var isAutoChecking = false
-
-    private val _bleResult = MutableStateFlow<BleMobileScanResult?>(null)
-    val bleResult: StateFlow<BleMobileScanResult?> = _bleResult.asStateFlow()
-
-    private val _isBleScanning = MutableStateFlow(false)
-    val isBleScanning: StateFlow<Boolean> = _isBleScanning.asStateFlow()
 
     val upcomingHolidays = holidayService.getUpcomingHolidays()
     val allIndianHolidays = holidayService.getAllHolidays()
@@ -163,28 +156,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 }
             } finally {
                 _isRefreshingWeather.value = false
-            }
-        }
-    }
-
-    private val _scanErrorMessage = MutableStateFlow<String?>(null)
-    val scanErrorMessage: StateFlow<String?> = _scanErrorMessage.asStateFlow()
-
-    fun clearScanError() {
-        _scanErrorMessage.value = null
-    }
-
-    fun startBleScan() {
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                _isBleScanning.value = true
-                _scanErrorMessage.value = null
-                _bleResult.value = bleScanner.scanForMobiles(5000L)
-            } catch (e: Exception) {
-                Log.e("HomeViewModel", "BLE Scan error", e)
-                _scanErrorMessage.value = e.message ?: "Failed to start BLE scan. Check Bluetooth settings."
-            } finally {
-                _isBleScanning.value = false
             }
         }
     }
