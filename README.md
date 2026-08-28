@@ -82,20 +82,6 @@ Managing corporate hybrid work schedules (WFO / WFH) should be effortless, not a
 
 ---
 
-## ⚡ PingPin vs Traditional Solutions
-
-| Feature | PingPin 📍 | Standard HR Apps | Generic Calendar / Reminders |
-| :--- | :---: | :---: | :---: |
-| **100% On-Device Privacy** | ✅ Yes | ❌ Cloud Tracking | ⚠️ Varies |
-| **Local Wi-Fi Attendance Auto-Log** | ✅ Yes | ❌ No | ❌ No |
-| **Smart Makeup WFO Finder** | ✅ Yes | ❌ No | ❌ No |
-| **Commute Weather & Travel Advisory** | ✅ Live Hourly | ❌ No | ❌ No |
-| **Native PDF Statement Exporter** | ✅ 1-Tap PDF | ⚠️ Limited | ❌ No |
-| **OEM Battery Optimization Setup** | ✅ Step-by-Step Guides | ❌ No | ❌ No |
-| **High-Contrast E-Ink Theme** | ✅ Yes | ❌ No | ❌ No |
-
----
-
 ## 🏗️ Architecture & Technology Stack
 
 PingPin is architected according to **Modern Android Architecture (MVVM / Clean Architecture)** standards:
