@@ -14,7 +14,7 @@ PingPin is built strictly following Modern Android Architecture standards (MVVM 
 │                                 ▼                                      │
 │                      [Custom UI Components]                            │
 │  (CalendarView, ExpandableWeeklyCalendar, MakeupWfoCard,               │
-│   OfficeOccupancyCard, WeatherTravelCard, UpcomingHolidaysCard)        │
+│   WeatherTravelCard, UpcomingHolidaysCard)                             │
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │ Collects StateFlow / State
                                     ▼
@@ -22,8 +22,8 @@ PingPin is built strictly following Modern Android Architecture standards (MVVM 
 │                            BUSINESS LOGIC                              │
 │                                                                        │
 │  [AttendanceService]  ───  [MakeupWfoManager]  ───  [WifiService]      │
-│  [BleLaptopScanner]   ───  [WeatherService]    ───  [HolidayService]   │
-│  [NotificationService]───  [PdfExportService]  ───  [OemBatteryHelper] │
+│  [WeatherService]     ───  [HolidayService]    ───  [NotificationSvc]  │
+│  [PdfExportService]   ───  [OemBatteryHelper]  ───  [AppInstallManager]│
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │ Calls DAOs & Repositories
                                     ▼
@@ -34,7 +34,7 @@ PingPin is built strictly following Modern Android Architecture standards (MVVM 
 │  Room DAOs:     [AttendanceDao]  [MakeupWfoDao]  [OfficeConfigDao]     │
 │  Room Entities: [AttendanceRecordEntity] [MakeupWfoSuggestionEntity]  │
 │                 [OfficeConfigEntity]    [UserProfileEntity]            │
-└────────────────────────────────────────────────────────────────────────┘
+└───────────────────────────────────┬────────────────────────────────────┘
 ```
 
 ---
@@ -49,9 +49,9 @@ app/src/main/kotlin/com/urunkarpm/pingpin/
 ├── data/
 │   ├── local/
 │   │   ├── AppDatabase.kt        # Room database configuration & singleton instance
-│   │   ├── dao/                  # AttendanceRecord, MakeupWfoSuggestion, OfficeConfig, UserProfile, WfoScheduleHistory, NotificationLog DAOs
+│   │   ├── dao/                  # AttendanceRecord, MakeupWfoSuggestion, OfficeConfig, UserProfile DAOs
 │   │   └── entity/               # Room entities (SQLite schema definitions)
-│   ├── model/                    # Data models (WeatherState, IndianHoliday, BleLaptopScanResult, etc.)
+│   ├── model/                    # Data models (WeatherState, IndianHoliday, etc.)
 │   └── repository/               # Repositories exposing Kotlin Flow state streams
 ├── receiver/
 │   └── BootReceiver.kt           # Reschedules exact alarms after device reboot
@@ -59,7 +59,6 @@ app/src/main/kotlin/com/urunkarpm/pingpin/
 │   ├── AppInstallManager.kt      # App installation date tracking & streak baselines
 │   ├── AttendanceAutoService.kt  # Auto-attendance background service
 │   ├── AttendanceService.kt      # Core attendance rules (Present / Late logic)
-│   ├── BleMobileScannerService.kt# BLE scanner for nearby mobile phones (Android / iOS)
 │   ├── IndianHolidayService.kt   # 2026 Indian holiday directory & long weekend logic
 │   ├── MakeupWfoManager.kt       # WFO missed day detection & compensation algorithm
 │   ├── NotificationService.kt    # AlarmManager exact scheduling & notifications
@@ -67,8 +66,7 @@ app/src/main/kotlin/com/urunkarpm/pingpin/
 │   ├── PdfExportService.kt       # Native Android PdfDocument export engine
 │   ├── WeatherService.kt         # Open-Meteo live weather & travel advisory engine
 │   ├── WifiCheckWorker.kt        # WorkManager periodic Wi-Fi check worker
-│   └── WifiService.kt            # Wi-Fi SSID detection & network helpers
-└── ui/
+│└── ui/
     ├── MainShell.kt              # Main navigation shell & bottom bar wrapper
     ├── components/               # Custom UI components & dialogs
     │   ├── AdvancedTimePickerDialog.kt
@@ -126,54 +124,8 @@ if (wifiService.isConnectedToSSID(officeConfig.ssid)) {
     } else {
         AttendanceStatus.LATE
     }
-    // Saved ONLY to local Room SQLite DB (attendance_records table)
     attendanceRepo.insertRecord(todayDate, status, currentSsid)
 }
-```
-
-### 3.2 Company HR Portal Check-In Engine (`AlarmActivity.kt`, `PortalActivity.kt`, `PortalAutoCheckInEngine.kt`)
-
-Official HR portal check-in is strictly decoupled from Wi-Fi background scans and is **only** executed upon explicit user interaction with the Alarm Alert:
-
-```
-[AlarmManager Exact Trigger] ──► [AlarmActivity (Full Screen)]
-                                        │
-                                        ▼
-                           User clicks "CHECK-IN (OPEN PORTAL)"
-                                        │
-                    ┌───────────────────┴───────────────────┐
-                    ▼                                       ▼
-         [IN_APP_AUTO Portal Mode]             [EXTERNAL_BROWSER Mode]
-                    │                                       │
-                    ▼                                       ▼
-  Launches PortalActivity (WebView)           Launches default browser
-  (PortalAutoCheckInEngine auto-fills         with configured HR portal URL
-   credentials & triggers check-in)
-```
-
-1. **Alarm Trigger**: `AlarmManager.setExactAndAllowWhileIdle()` fires at the configured check-in time, launching the full-screen `AlarmActivity`.
-2. **User Interaction**: Tapping **"CHECK-IN (OPEN PORTAL)"** triggers portal execution:
-   - **`IN_APP_AUTO` Mode**: Launches `PortalActivity`, which uses an embedded Android `WebView` (`PortalAutoCheckInEngine.kt`) to inject JS, auto-fill login credentials, and submit official portal check-in.
-   - **`EXTERNAL_BROWSER` Mode**: Launches the system default browser opening the target portal URL.
-
-### 3.3 WFO Rescheduling & Compensation Engine (`MakeupWfoManager.kt`)
-
-Evaluates missed WFO days daily after 2:00 PM (14:00) or retroactively for yesterday:
-
-```
-                            [Check Today / Yesterday WFO]
-                                         │
-                         ┌───────────────┴───────────────┐
-                         ▼                               ▼
-                 Attendance Marked             Attendance NOT Marked
-                         │                               │
-                [No Action Needed]         [Attempt Wi-Fi Auto Check]
-                                                         │
-                                         ┌───────────────┴───────────────┐
-                                         ▼                               ▼
-                                  Check-in Success               Check-in Failed
-                                         │                               │
-                                 [Mark PRESENT/LATE]         [Execute Candidate Search]
 ```
 
 #### Candidate Compensation Day Rules:
@@ -183,16 +135,7 @@ Evaluates missed WFO days daily after 2:00 PM (14:00) or retroactively for yeste
 4. Must **NOT** be a public holiday (`IndianHolidayService`).
 5. Must **NOT** already have attendance logged in Room DB.
 
-### 3.4 Tactical Office Radar & Mobile BLE Scanner (`BleMobileScannerService.kt`)
-
-Scans Bluetooth Low Energy (BLE) advertisements to detect nearby mobile phones (Android and iOS):
-
-- **Android Phones**: Checks Manufacturer Specific Data for Google Vendor ID `0x00E0` and Samsung Vendor ID `0x0075`.
-- **Apple iPhones / iOS Devices**: Checks Manufacturer Specific Data for Apple Vendor ID `0x004C`.
-- **RSSI Proximity Thresholding**: Filters out faint signals below $-85\text{ dBm}$ to focus on nearby bay & floor occupancy.
-- **Tactical Radar UI**: [`OfficeOccupancyCard.kt`](file:///c:/Users/uprasenjeet/Documents/pingpin/app/src/main/kotlin/com/urunkarpm/pingpin/ui/components/OfficeOccupancyCard.kt) renders a tactical military radar HUD with electric neon green/cyan glow, 360° rotating sweep beam, range reticles, target blips, and sector density status.
-
-### 3.5 Commute Weather & Travel Insights (`WeatherService.kt`)
+### 3.4 Commute Weather & Travel Insights (`WeatherService.kt`)
 
 Fetches live weather data from Open-Meteo API:
 - Resolves location: **GPS Location** $\rightarrow$ **Office Config lat/lon** $\rightarrow$ **Default City (Bengaluru)**.
@@ -203,7 +146,7 @@ Fetches live weather data from Open-Meteo API:
   - `High Heat Warning` ($\ge 34^\circ\text{C}$) $\rightarrow$ AC transit advised.
 - Includes local time-based simulated weather fallback for offline operation.
 
-### 3.6 Exact Alarms & OEM Battery Optimization (`NotificationService.kt`, `OemBatteryHelper.kt`)
+### 3.5 Exact Alarms & OEM Battery Optimization (`NotificationService.kt`, `OemBatteryHelper.kt`)
 
 - Uses `AlarmManager.setExactAndAllowWhileIdle()` for guaranteed reminder delivery.
 - Launches full-screen `AlarmActivity` with chime (`beep.mp3`), vibration, and quick action controls.
