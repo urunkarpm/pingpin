@@ -1,21 +1,24 @@
-<div align="center">
+<p align="center">
+  <img src="logo.png" alt="PingPin Logo" width="140" height="140" />
+</p>
 
-  <img src="logo.png" alt="PingPin Logo" width="128" height="128" />
+<h1 align="center">📍 PingPin</h1>
 
-  # 📍 PingPin
-  ### *The Ultimate Privacy-First Hybrid Work & Attendance Assistant for Android*
+<p align="center">
+  <b>The Ultimate Privacy-First Hybrid Work & Attendance Assistant for Android</b>
+</p>
 
-  [![Platform](https://img.shields.io/badge/Platform-Android%208.0%2B%20%28API%2026%2B%29-brightgreen?logo=android&logoColor=white)](https://developer.android.com)
-  [![Kotlin](https://img.shields.io/badge/Language-Kotlin%202.0-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
-  [![Jetpack Compose](https://img.shields.io/badge/UI-Jetpack%20Compose%20%2B%20Material%203-4285F4?logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
-  [![Privacy First](https://img.shields.io/badge/Privacy-100%25%20On--Device%20Local-success?logo=shieldcheck&logoColor=white)](#-100-privacy-guarantee)
-  [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+<p align="center">
+  <a href="https://developer.android.com"><img src="https://img.shields.io/badge/Platform-Android%208.0%2B%20%28API%2026%2B%29-brightgreen?logo=android&logoColor=white" alt="Platform" /></a>
+  <a href="https://kotlinlang.org"><img src="https://img.shields.io/badge/Language-Kotlin%202.0-7F52FF?logo=kotlin&logoColor=white" alt="Kotlin" /></a>
+  <a href="https://developer.android.com/jetpack/compose"><img src="https://img.shields.io/badge/UI-Jetpack%20Compose%20%2B%20Material%203-4285F4?logo=jetpackcompose&logoColor=white" alt="UI" /></a>
+  <a href="#-100-privacy-guarantee"><img src="https://img.shields.io/badge/Privacy-100%25%20On--Device%20Local-success?logo=shieldcheck&logoColor=white" alt="Privacy" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License" /></a>
+</p>
 
-  <p align="center">
-    <b>Never miss a WFO mandate again. Effortlessly track attendance, auto-schedule makeup days, check live commute weather, and auto-punch HR portals — 100% on-device with zero cloud tracking.</b>
-  </p>
-
-</div>
+<p align="center">
+  Never miss a WFO mandate again. Effortlessly track attendance, auto-schedule makeup days, check live commute weather, and auto-punch HR portals — 100% on-device with zero cloud tracking.
+</p>
 
 ---
 
