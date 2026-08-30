@@ -5,9 +5,9 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Geocoder
 import android.location.Location
+import android.location.LocationManager
 import android.util.Log
 import androidx.core.content.ContextCompat
-import com.google.android.gms.location.LocationServices
 import com.urunkarpm.pingpin.data.local.AppDatabase
 import com.urunkarpm.pingpin.data.model.ForecastStatus
 import com.urunkarpm.pingpin.data.model.HourlyCommuteForecast
@@ -17,7 +17,6 @@ import com.urunkarpm.pingpin.data.model.TravelInsight
 import com.urunkarpm.pingpin.data.model.WeatherCondition
 import com.urunkarpm.pingpin.data.model.WeatherState
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -34,7 +33,7 @@ class WeatherService(private val context: Context) {
         private const val DEFAULT_CITY = "Bengaluru"
     }
 
-    private val fusedLocationClient by lazy { LocationServices.getFusedLocationProviderClient(context) }
+    private val locationManager by lazy { context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager }
     private var cachedState: WeatherState? = null
 
     private data class LocationResult(
@@ -227,16 +226,21 @@ class WeatherService(private val context: Context) {
 
         if (hasFine || hasCoarse) {
             try {
-                @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-                val loc: Location? = suspendCancellableCoroutine { continuation ->
-                    fusedLocationClient.lastLocation
-                        .addOnSuccessListener { location ->
-                            if (continuation.isActive) continuation.resume(location, onCancellation = null)
-                        }
-                        .addOnFailureListener {
-                            if (continuation.isActive) continuation.resume(null, onCancellation = null)
-                        }
+                val lm = locationManager
+                val gpsLoc = if (hasFine && lm?.isProviderEnabled(LocationManager.GPS_PROVIDER) == true) {
+                    lm.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+                } else null
+
+                val netLoc = if (lm?.isProviderEnabled(LocationManager.NETWORK_PROVIDER) == true) {
+                    lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+                } else null
+
+                val loc = when {
+                    gpsLoc != null && netLoc != null -> if (gpsLoc.time > netLoc.time) gpsLoc else netLoc
+                    gpsLoc != null -> gpsLoc
+                    else -> netLoc
                 }
+
                 if (loc != null && loc.latitude != 0.0 && loc.longitude != 0.0) {
                     val cityName = reverseGeocode(loc.latitude, loc.longitude) ?: DEFAULT_CITY
                     return LocationResult(loc.latitude, loc.longitude, cityName, LocationStatus.RESOLVED)

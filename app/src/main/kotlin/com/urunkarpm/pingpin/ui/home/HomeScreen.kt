@@ -72,8 +72,8 @@ fun HomeScreen(
 
     val acceptedMakeupDates by viewModel.acceptedMakeupDatesState.collectAsState()
 
-    val upcomingHolidays = viewModel.upcomingHolidays
-    val allIndianHolidays = viewModel.allIndianHolidays
+    val upcomingHolidays by viewModel.upcomingHolidaysState.collectAsState()
+    val allIndianHolidays by viewModel.allIndianHolidaysState.collectAsState()
 
     var hasExactAlarmPerm by remember { mutableStateOf(viewModel.notifService.canScheduleExactAlarms()) }
     var showWeatherDetailSheet by remember { mutableStateOf(false) }

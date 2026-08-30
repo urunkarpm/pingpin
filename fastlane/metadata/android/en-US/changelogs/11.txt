@@ -1,0 +1,5 @@
+• Initial F-Droid release (v2.1.0)
+• Removed proprietary Google Play Services dependency for 100% FOSS location support
+• Enhanced hybrid work attendance tracking with automated Wi-Fi verification
+• Interactive commute weather forecasts with hourly travel advisories
+• PDF report generation and corporate HR portal auto-punch integration

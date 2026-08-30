@@ -46,6 +46,6 @@ class AppUpdateViewModelTest {
     @Test
     fun testVersionNameFallback() {
         val version = viewModel.getCurrentVersionName()
-        assertEquals("2.1.0", version)
+        assertEquals("2.2.0", version)
     }
 }

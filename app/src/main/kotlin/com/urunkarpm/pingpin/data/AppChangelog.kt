@@ -3,16 +3,22 @@ package com.urunkarpm.pingpin.data
 object AppChangelog {
     const val CURRENT_VERSION_CHANGELOG = """
 ### Added & Enhanced
-- **High-Contrast Toggle Switches**: Redesigned all app toggle switches with custom `PingPinSwitch` featuring high-contrast track outlines, bright contrast thumb fills for AMOLED Dark & E-Ink Light themes, in-thumb icon indicators (sun/moon for theme switch, checkmark for feature toggles), tactile haptics, and spring animations.
-- **Android Accessibility Principles**: Full accessibility audit compliance including TalkBack screen reader support, explicit element content descriptions, custom accessibility action labels, semantic roles (`Role.Button`, `Role.Checkbox`, `Role.Tab`), merged legend descriptions, and minimum 48dp x 48dp touch target boundaries.
-- **High-Contrast Calendar Day Numbers**: Solid high-contrast black (white in dark mode) calendar numbers on non-WFO days for crisp readability across all light & dark themes.
-- **Weather & Commute Intelligence**: Integrated real-time weather forecasts (`WeatherService`), commute safety advisories, and Material 3 weather visuals into the daily home dashboard.
-- **In-App Update Checker**: Automated GitHub API release update notifications with 1-tap installation via `UpdateAvailableDialog`.
-- **PDF Attendance Export Engine**: Formatted PDF export capabilities allowing users to customize date ranges and save clean PDF attendance logs.
+- **Holiday2API Integration**: Integrated `holiday2api.vercel.app` for dynamic multi-year Indian holidays (2024–2036), state-specific holiday filtering across all 36 States/UTs, upcoming holidays, and automatic background synchronization.
+- **Offline-First Resilience**: Retained preloaded offline fallback datasets ensuring zero latency and 100% offline functionality.
+- **Reactive Holiday State**: Updated home dashboard to reactively observe and refresh holiday calendars and long weekend badges seamlessly.
 """
 
     const val FULL_CHANGELOG = """
-## [2.1.0] - Current Release
+## [2.2.0] - Current Release
+
+### Added & Enhanced
+- **Holiday2API Integration**: Integrated `holiday2api.vercel.app` for dynamic multi-year Indian holidays (2024–2036), state-specific holiday filtering across all 36 States/UTs, upcoming holidays, and automatic background synchronization.
+- **Offline-First Resilience**: Retained preloaded offline fallback datasets ensuring zero latency and 100% offline functionality.
+- **Reactive Holiday State**: Updated home dashboard to reactively observe and refresh holiday calendars and long weekend badges seamlessly.
+
+---
+
+## [2.1.0]
 
 ### Added & Enhanced
 - **High-Contrast Toggle Switches**: Redesigned all app toggle switches with custom `PingPinSwitch` featuring high-contrast track outlines, bright contrast thumb fills for AMOLED Dark & E-Ink Light themes, in-thumb icon indicators (sun/moon for theme switch, checkmark for feature toggles), tactile haptics, and spring animations.

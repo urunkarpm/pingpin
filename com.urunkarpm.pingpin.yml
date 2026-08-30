@@ -1,0 +1,38 @@
+Categories:
+  - Office
+  - Time
+License: Apache-2.0
+AuthorName: Urunkar PM
+WebSite: https://github.com/urunkarpm/pingpin
+SourceCode: https://github.com/urunkarpm/pingpin
+IssueTracker: https://github.com/urunkarpm/pingpin/issues
+
+AutoName: PingPin
+Summary: Privacy-first hybrid work & attendance assistant
+Description: |-
+  PingPin is the ultimate privacy-first hybrid work & attendance assistant for Android.
+  It simplifies managing your WFO (Work From Office) and WFH (Work From Home) schedules while
+  guaranteeing that 100% of your data stays private and stored locally on your device.
+
+RepoType: git
+Repo: https://github.com/urunkarpm/pingpin.git
+
+Builds:
+  - versionName: 2.1.0
+    versionCode: 11
+    commit: v2.1.0
+    subdir: app
+    gradle:
+      - yes
+
+  - versionName: 2.2.0
+    versionCode: 12
+    commit: v2.2.0
+    subdir: app
+    gradle:
+      - yes
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags
+CurrentVersion: 2.2.0
+CurrentVersionCode: 12

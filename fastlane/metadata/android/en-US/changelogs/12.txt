@@ -1,0 +1,4 @@
+• Integrated holiday2api for dynamic Indian holidays (2024-2036) with offline fallback
+• Multi-state / regional holiday support across all 36 Indian states & union territories
+• Reactive holiday calendar refresh & long weekend badge detection
+• Stability, performance, and accessibility enhancements

@@ -8,6 +8,8 @@ import com.urunkarpm.pingpin.data.local.AppDatabase
 import com.urunkarpm.pingpin.data.local.entity.AttendanceRecordEntity
 import com.urunkarpm.pingpin.data.local.entity.MakeupWfoSuggestionEntity
 import com.urunkarpm.pingpin.data.local.entity.OfficeConfigEntity
+import com.urunkarpm.pingpin.data.model.IndianHoliday
+import com.urunkarpm.pingpin.data.model.UpcomingHolidayData
 import com.urunkarpm.pingpin.data.model.WeatherState
 import com.urunkarpm.pingpin.data.repository.AttendanceRepository
 import com.urunkarpm.pingpin.data.repository.MakeupWfoRepository
@@ -60,12 +62,32 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val isConnectedToOffice = MutableStateFlow(false)
     private var isAutoChecking = false
 
-    val upcomingHolidays = holidayService.getUpcomingHolidays()
-    val allIndianHolidays = holidayService.getAllHolidays()
+    private val _upcomingHolidays = MutableStateFlow(holidayService.getUpcomingHolidays())
+    val upcomingHolidaysState: StateFlow<List<UpcomingHolidayData>> = _upcomingHolidays.asStateFlow()
+
+    private val _allIndianHolidays = MutableStateFlow(holidayService.getAllHolidays())
+    val allIndianHolidaysState: StateFlow<List<IndianHoliday>> = _allIndianHolidays.asStateFlow()
+
+    val upcomingHolidays: List<UpcomingHolidayData>
+        get() = _upcomingHolidays.value
+
+    val allIndianHolidays: List<IndianHoliday>
+        get() = _allIndianHolidays.value
 
     init {
         // Initial weather load
         refreshWeather()
+
+        // Sync holidays from holiday2api in background
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                holidayService.syncHolidays()
+                _allIndianHolidays.value = holidayService.getAllHolidays()
+                _upcomingHolidays.value = holidayService.getUpcomingHolidays()
+            } catch (e: Exception) {
+                Log.w("HomeViewModel", "Background holiday sync failed: ${e.message}")
+            }
+        }
 
         // Observe network state reactively via NetworkCallback Flow combined with office config
         viewModelScope.launch(Dispatchers.IO) {

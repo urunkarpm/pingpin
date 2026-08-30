@@ -1,0 +1,11 @@
+PingPin is the ultimate privacy-first hybrid work & attendance assistant for Android. It simplifies managing your WFO (Work From Office) and WFH (Work From Home) schedules while guaranteeing that 100% of your data stays private and stored locally on your device.
+
+Key Features:
+
+• Zero-Touch Local Wi-Fi Attendance: Automatically logs attendance on your local in-app calendar when connected to your office Wi-Fi network.
+• 100% Privacy-First & Offline: No user data or location history is ever sent to external servers or cloud analytics.
+• Smart HR Portal Auto-Punch: Embedded auto-fill engine for standard corporate HR portals with single-tap check-in capabilities.
+• Intelligent "Makeup WFO" Rescheduling: Automatically detects missed office days and suggests optimal compensation dates excluding holidays and weekends.
+• Commute Weather Advisories: Live local weather forecasts powered by Open-Meteo with commute-specific travel alerts (rain, heat, storm warnings).
+• Pre-loaded Holiday Directory: Built-in 2026 holiday calendar with long weekend badges.
+• Exportable PDF Reports: Generate formal monthly attendance summaries locally on your device.
