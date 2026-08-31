@@ -31,6 +31,23 @@ class NotificationService(private val context: Context) {
         const val MAKEUP_WFO_ALARM_ID = 201
 
         const val PREFS_NAME = "pingpin_native_alarm_prefs"
+
+        fun getAlarmPreferences(context: Context): SharedPreferences {
+            return try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    val dpContext = context.createDeviceProtectedStorageContext()
+                    if (!dpContext.moveSharedPreferencesFrom(context, PREFS_NAME)) {
+                        Log.d(TAG, "Device protected shared preferences migration not required or already done.")
+                    }
+                    dpContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                } else {
+                    context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Falling back to standard preferences: ${e.message}")
+                context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            }
+        }
     }
 
     private val notificationManager =
@@ -118,7 +135,7 @@ class NotificationService(private val context: Context) {
         portalUrl: String,
         enabled: Boolean = true
     ) {
-        val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val prefs: SharedPreferences = getAlarmPreferences(context)
         prefs.edit()
             .putString("checkInTime", checkInTime)
             .putString("checkOutTime", checkOutTime)
@@ -221,6 +238,7 @@ class NotificationService(private val context: Context) {
         )
         alarmManager.cancel(pendingIntent)
         notificationManager.cancel(alarmId)
+        AlarmSoundService.stopAlarmSound(context)
     }
 
     fun cancelCheckOutAlarm() {
@@ -234,8 +252,12 @@ class NotificationService(private val context: Context) {
         title: String,
         portalUrl: String
     ) {
+        val isCheckOut = alarmId == CHECK_OUT_ALARM_ID || alarmId == CHECK_OUT_SNOOZE_ID || title.contains("CHECK-OUT", ignoreCase = true)
+        val actionType = if (isCheckOut) "CHECK_OUT" else "CHECK_IN"
+
         val intent = Intent(context, AlarmReceiver::class.java).apply {
             putExtra("alarmId", alarmId)
+            putExtra("actionType", actionType)
             putExtra("title", title)
             putExtra("portalUrl", portalUrl)
         }
@@ -298,7 +320,7 @@ class NotificationService(private val context: Context) {
     }
 
     fun verifyAndRescheduleAlarmsIfNeeded() {
-        val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val prefs: SharedPreferences = getAlarmPreferences(context)
         val enabled = prefs.getBoolean("enabled", true)
         val checkInTime = prefs.getString("checkInTime", null)
         val checkOutTime = prefs.getString("checkOutTime", null)
@@ -359,7 +381,7 @@ class NotificationService(private val context: Context) {
      * Used from Settings to verify the full alarm → AlarmReceiver → AlarmActivity pipeline.
      */
     fun fireTestAlarm(delaySeconds: Int = 5) {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val prefs = getAlarmPreferences(context)
         val savedPortalUrl = prefs.getString("portalUrl", "") ?: ""
         val testAlarmId = 999
         val triggerAt = System.currentTimeMillis() + (delaySeconds * 1_000L)

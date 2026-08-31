@@ -6,6 +6,7 @@ import android.content.Intent
 import android.net.Uri
 import android.util.Log
 import com.urunkarpm.pingpin.MainActivity
+import com.urunkarpm.pingpin.service.AlarmSoundService
 import com.urunkarpm.pingpin.service.NotificationService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -33,6 +34,8 @@ class NotificationActionReceiver : BroadcastReceiver() {
         Log.d(TAG, "Notification action received: $action (alarmId=$alarmId, portalUrl=$portalUrl)")
 
         val notifService = NotificationService(context)
+        // Stop the alarm sound immediately on any user action
+        AlarmSoundService.stopAlarmSound(context)
 
         when (action) {
             ACTION_SNOOZE -> {
@@ -41,8 +44,9 @@ class NotificationActionReceiver : BroadcastReceiver() {
                 Log.d(TAG, "Snoozed alarm $alarmId for 10 minutes via notification button.")
             }
             ACTION_OPEN_PORTAL -> {
+                val actionTypeExtra = intent.getStringExtra("actionType") ?: ""
                 notifService.dismissNotification(alarmId)
-                openPortal(context, portalUrl, alarmId)
+                openPortal(context, portalUrl, alarmId, actionTypeExtra)
             }
             ACTION_DISMISS -> {
                 notifService.dismissNotification(alarmId)
@@ -51,7 +55,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun openPortal(context: Context, portalUrl: String, alarmId: Int = 101) {
+    private fun openPortal(context: Context, portalUrl: String, alarmId: Int = 101, actionTypeExtra: String = "") {
         val pendingResult = goAsync()
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
             try {
@@ -65,7 +69,9 @@ class NotificationActionReceiver : BroadcastReceiver() {
                     } else rawUrl
                 } else "https://google.com"
 
-                val actionType = if (alarmId == NotificationService.CHECK_OUT_ALARM_ID || alarmId == NotificationService.CHECK_OUT_SNOOZE_ID) {
+                val actionType = if (actionTypeExtra.isNotBlank()) {
+                    actionTypeExtra
+                } else if (alarmId == NotificationService.CHECK_OUT_ALARM_ID || alarmId == NotificationService.CHECK_OUT_SNOOZE_ID) {
                     com.urunkarpm.pingpin.ui.portal.PortalActivity.ACTION_CHECK_OUT
                 } else {
                     com.urunkarpm.pingpin.ui.portal.PortalActivity.ACTION_CHECK_IN

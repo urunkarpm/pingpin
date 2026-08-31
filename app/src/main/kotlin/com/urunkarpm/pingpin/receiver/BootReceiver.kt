@@ -40,9 +40,9 @@ class BootReceiver : BroadcastReceiver() {
     }
 
     private fun rescheduleAlarms(context: Context) {
-        // Fast DirectBoot-compatible reschedule using SharedPreferences
+        // Fast DirectBoot-compatible reschedule using Device-Protected SharedPreferences
         try {
-            val prefs = context.getSharedPreferences(NotificationService.PREFS_NAME, Context.MODE_PRIVATE)
+            val prefs = NotificationService.getAlarmPreferences(context)
             val checkInTime = prefs.getString("checkInTime", null)
             val checkOutTime = prefs.getString("checkOutTime", null)
             val workingDaysMask = prefs.getInt("workingDaysMask", 0x1F)
@@ -53,7 +53,7 @@ class BootReceiver : BroadcastReceiver() {
                 val notificationService = NotificationService(context)
                 notificationService.scheduleCheckInAlarm(checkInTime, workingDaysMask, portalUrl)
                 notificationService.scheduleCheckOutAlarm(checkOutTime, workingDaysMask, portalUrl)
-                Log.d(TAG, "Rescheduled alarms via SharedPreferences successfully")
+                Log.d(TAG, "Rescheduled alarms via DeviceProtected SharedPreferences successfully")
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error rescheduling alarms via prefs: ${e.message}", e)

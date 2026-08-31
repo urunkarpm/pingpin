@@ -2,14 +2,23 @@ package com.urunkarpm.pingpin.data
 
 object AppChangelog {
     const val CURRENT_VERSION_CHANGELOG = """
-### Added & Enhanced
-- **Holiday2API Integration**: Integrated `holiday2api.vercel.app` for dynamic multi-year Indian holidays (2024–2036), state-specific holiday filtering across all 36 States/UTs, upcoming holidays, and automatic background synchronization.
-- **Offline-First Resilience**: Retained preloaded offline fallback datasets ensuring zero latency and 100% offline functionality.
-- **Reactive Holiday State**: Updated home dashboard to reactively observe and refresh holiday calendars and long weekend badges seamlessly.
+### Fixed & Enhanced
+- **Check-Out Alarm Automation Resolution**: Resolved automation engine issue where check-out actions triggered a "searching for check in button" error message. Action type resolution (`CHECK_OUT` vs `CHECK_IN`) is now explicitly propagated across all alarms, background sound services, and quick actions, with expanded default check-out keywords (`"mark check-out"`, `"out punch"`, `"punch out now"`, `"end shift"`).
+- **Floating Mini-Window Maximization Fix**: Fixed race condition during full-screen maximization from mini floating portal window where `PortalActivity` rendered an uninitialized blank/black screen. Added synchronized `ConfigBundle` caching and guaranteed `WebView` initialization with active URL handoff.
+- **Dynamic Floating Overlay Notifications**: Updated floating overlay foreground service notifications to reflect specific active action ("check-in" or "check-out").
 """
 
     const val FULL_CHANGELOG = """
-## [2.2.0] - Current Release
+## [2.3.0] - Current Release
+
+### Fixed & Enhanced
+- **Check-Out Alarm Automation Resolution**: Resolved automation engine issue where check-out actions triggered a "searching for check in button" error message. Action type resolution (`CHECK_OUT` vs `CHECK_IN`) is now explicitly propagated across all alarms, background sound services, and quick actions, with expanded default check-out keywords (`"mark check-out"`, `"out punch"`, `"punch out now"`, `"end shift"`).
+- **Floating Mini-Window Maximization Fix**: Fixed race condition during full-screen maximization from mini floating portal window where `PortalActivity` rendered an uninitialized blank/black screen. Added synchronized `ConfigBundle` caching and guaranteed `WebView` initialization with active URL handoff.
+- **Dynamic Floating Overlay Notifications**: Updated floating overlay foreground service notifications to reflect specific active action ("check-in" or "check-out").
+
+---
+
+## [2.2.0]
 
 ### Added & Enhanced
 - **Holiday2API Integration**: Integrated `holiday2api.vercel.app` for dynamic multi-year Indian holidays (2024–2036), state-specific holiday filtering across all 36 States/UTs, upcoming holidays, and automatic background synchronization.

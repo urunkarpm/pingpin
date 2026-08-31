@@ -5,6 +5,15 @@ All notable changes to **PingPin** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-08-31
+
+### Fixed & Enhanced
+- **Check-Out Alarm Automation Resolution**: Resolved automation engine issue where check-out actions triggered a "searching for check in button" error message. Action type resolution (`CHECK_OUT` vs `CHECK_IN`) is now explicitly propagated across all alarms, background sound services, and quick actions, with expanded default check-out keywords (`"mark check-out"`, `"out punch"`, `"punch out now"`, `"end shift"`).
+- **Floating Mini-Window Maximization Fix**: Fixed race condition during full-screen maximization from mini floating portal window where `PortalActivity` rendered an uninitialized blank/black screen. Added synchronized `ConfigBundle` caching and guaranteed `WebView` initialization with active URL handoff.
+- **Dynamic Floating Overlay Notifications**: Updated floating overlay foreground service notifications to reflect specific active action ("check-in" or "check-out").
+
+---
+
 ## [2.2.0] - 2026-08-30
 
 ### Added & Enhanced

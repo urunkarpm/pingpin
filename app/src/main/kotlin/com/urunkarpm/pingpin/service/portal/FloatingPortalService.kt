@@ -105,7 +105,7 @@ class FloatingPortalService : Service(), PortalAutoCheckInEngine.PortalCallback 
         startAsForegroundService()
     }
 
-    private fun startAsForegroundService() {
+    private fun startAsForegroundService(currentActionType: String = actionType) {
         val channelId = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
@@ -119,9 +119,10 @@ class FloatingPortalService : Service(), PortalAutoCheckInEngine.PortalCallback 
             ""
         }
 
+        val actionLabel = if (currentActionType.equals("CHECK_IN", ignoreCase = true)) "check-in" else "check-out"
         val notification = NotificationCompat.Builder(this, channelId)
             .setContentTitle("PingPin Auto Portal Active")
-            .setContentText("Performing automated check-in in floating overlay...")
+            .setContentText("Performing automated $actionLabel in floating overlay...")
             .setSmallIcon(R.mipmap.ic_launcher)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
@@ -135,6 +136,8 @@ class FloatingPortalService : Service(), PortalAutoCheckInEngine.PortalCallback 
             actionType = intent.getStringExtra(EXTRA_ACTION_TYPE) ?: PortalActivity.ACTION_CHECK_IN
             portalUrl = intent.getStringExtra(EXTRA_PORTAL_URL) ?: ""
             alarmId = intent.getIntExtra(EXTRA_ALARM_ID, -1)
+            startAsForegroundService(actionType)
+            titleTextView?.text = if (actionType.equals("CHECK_IN", ignoreCase = true)) "📌 Check-In" else "📌 Check-Out"
         }
 
         if (floatingView == null) {
@@ -379,10 +382,11 @@ class FloatingPortalService : Service(), PortalAutoCheckInEngine.PortalCallback 
 
     private fun openFullScreen() {
         try {
+            val urlToOpen = webView?.url?.takeIf { it.isNotBlank() && !it.startsWith("about:") } ?: portalUrl
             val intent = PortalActivity.createIntent(
                 context = applicationContext,
                 actionType = actionType,
-                portalUrl = portalUrl,
+                portalUrl = urlToOpen,
                 alarmId = alarmId
             ).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
@@ -432,6 +436,7 @@ class FloatingPortalService : Service(), PortalAutoCheckInEngine.PortalCallback 
 
             val autoLogin = config?.autoLoginEnabled ?: false
             val autoCheckIn = config?.autoCheckInEnabled ?: false
+            portalUrl = fullTargetUrl
 
             withContext(Dispatchers.Main) {
                 if (fullTargetUrl.isBlank()) {

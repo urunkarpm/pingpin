@@ -1,0 +1,2 @@
+- Check-Out Alarm Automation Resolution: Fixed issue where check-out actions triggered a search for check-in button; expanded default check-out keywords.
+- Mini-Window Maximization Fix: Fixed blank/black screen when maximizing floating portal window with synchronized WebView initialization and URL handoff.

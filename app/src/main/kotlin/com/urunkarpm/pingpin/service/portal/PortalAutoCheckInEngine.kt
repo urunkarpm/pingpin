@@ -73,7 +73,8 @@ class PortalAutoCheckInEngine {
             } else {
                 listOf(
                     "check out", "check-out", "clock out", "clock-out", "punch out", "punch-out",
-                    "web-punch out", "web punch out", "checkout", "punchout", "clockout", "mark checkout"
+                    "web-punch out", "web punch out", "checkout", "punchout", "clockout", "mark checkout",
+                    "mark check-out", "out punch", "punch out now", "end shift"
                 )
             }
 
@@ -487,7 +488,8 @@ class PortalAutoCheckInEngine {
                     if (attempts >= maxAttempts) {
                         clearInterval(intervalTimer);
                         window.__pingpin_automation_active = false;
-                        notifyStatus("⚠️ Check-in button not found. You can interact with the portal manually or tap 'Open in Chrome'.");
+                        var btnLabel = isCheckIn ? "Check-in" : "Check-out";
+                        notifyStatus("⚠️ " + btnLabel + " button not found. You can interact with the portal manually or tap 'Open in Chrome'.");
                     }
                 }
 

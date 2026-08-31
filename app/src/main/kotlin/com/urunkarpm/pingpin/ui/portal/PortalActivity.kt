@@ -35,6 +35,7 @@ import android.app.KeyguardManager
 import android.os.Build
 import android.view.WindowManager
 import com.urunkarpm.pingpin.data.local.AppDatabase
+import com.urunkarpm.pingpin.service.AlarmSoundService
 import com.urunkarpm.pingpin.service.NotificationService
 import com.urunkarpm.pingpin.service.portal.PortalAutoCheckInEngine
 import com.urunkarpm.pingpin.service.portal.PortalCredentialManager
@@ -179,6 +180,10 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
         targetPortalUrl = intent.getStringExtra(EXTRA_PORTAL_URL) ?: ""
         alarmId = intent.getIntExtra(EXTRA_ALARM_ID, -1)
 
+        if (alarmId != -1) {
+            AlarmSoundService.stopAlarmSound(this)
+        }
+
         setContent {
             PortalScreenContent()
         }
@@ -201,6 +206,17 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
                     WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
         )
     }
+
+    private data class ConfigBundle(
+        val autoLogin: Boolean,
+        val autoCheckIn: Boolean,
+        val customCheckInKeywords: String,
+        val customCheckOutKeywords: String,
+        val targetUrl: String
+    )
+
+    private var cachedConfig: ConfigBundle? = null
+    private var isWebViewConfigured = false
 
     private fun loadConfigAndInit() {
         lifecycleScope.launch(Dispatchers.IO) {
@@ -226,29 +242,36 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
             val customCheckInKeywords = config?.customCheckInKeywords ?: ""
             val customCheckOutKeywords = config?.customCheckOutKeywords ?: ""
 
+            val bundle = ConfigBundle(
+                autoLogin = autoLogin,
+                autoCheckIn = safeAutoPunch,
+                customCheckInKeywords = customCheckInKeywords,
+                customCheckOutKeywords = customCheckOutKeywords,
+                targetUrl = targetPortalUrl
+            )
+
             withContext(Dispatchers.Main) {
-                initWebView(
-                    autoLogin = autoLogin,
-                    autoCheckIn = safeAutoPunch,
-                    customCheckInKeywords = customCheckInKeywords,
-                    customCheckOutKeywords = customCheckOutKeywords
-                )
+                cachedConfig = bundle
+                webViewRef?.let { webView ->
+                    initWebView(webView, bundle)
+                }
             }
         }
     }
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun initWebView(
-        autoLogin: Boolean,
-        autoCheckIn: Boolean,
-        customCheckInKeywords: String,
-        customCheckOutKeywords: String
+        webView: WebView,
+        config: ConfigBundle
     ) {
-        val webView = webViewRef ?: return
+        if (isWebViewConfigured) return
+        isWebViewConfigured = true
+
         val credManager = PortalCredentialManager(this)
         val username = credManager.getUsername()
         val password = credManager.getPassword()
 
+        webView.setBackgroundColor(android.graphics.Color.WHITE)
         webView.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
@@ -314,10 +337,10 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
                     actionType = actionType,
                     username = username,
                     password = password,
-                    autoLogin = autoLogin,
-                    autoPunch = autoCheckIn,
-                    customCheckInKeywords = customCheckInKeywords,
-                    customCheckOutKeywords = customCheckOutKeywords,
+                    autoLogin = config.autoLogin,
+                    autoPunch = config.autoCheckIn,
+                    customCheckInKeywords = config.customCheckInKeywords,
+                    customCheckOutKeywords = config.customCheckOutKeywords,
                     targetPortalUrl = targetPortalUrl
                 )
                 view?.evaluateJavascript(script, null)
@@ -438,6 +461,7 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
 
             // Dismiss alarm if applicable
             if (alarmId != -1) {
+                AlarmSoundService.stopAlarmSound(this@PortalActivity)
                 val notifService = NotificationService(this@PortalActivity)
                 notifService.dismissNotification(alarmId)
             }
@@ -619,7 +643,11 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
                                 android.view.ViewGroup.LayoutParams.MATCH_PARENT,
                                 android.view.ViewGroup.LayoutParams.MATCH_PARENT
                             )
+                            setBackgroundColor(android.graphics.Color.WHITE)
                             webViewRef = this
+                            cachedConfig?.let { bundle ->
+                                initWebView(this, bundle)
+                            }
                         }
                     },
                     modifier = Modifier.fillMaxSize()

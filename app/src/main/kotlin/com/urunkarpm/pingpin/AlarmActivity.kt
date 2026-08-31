@@ -42,6 +42,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.urunkarpm.pingpin.service.AlarmSoundService
 import com.urunkarpm.pingpin.service.NotificationService
 import com.urunkarpm.pingpin.ui.theme.PingPinTheme
 import kotlinx.coroutines.delay
@@ -52,31 +53,31 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import android.media.MediaPlayer
 
 class AlarmActivity : ComponentActivity() {
-
-    private var mediaPlayer: MediaPlayer? = null
-    private var ringtone: Ringtone? = null
-    private var vibrator: Vibrator? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         WindowCompat.setDecorFitsSystemWindows(window, false)
         super.onCreate(savedInstanceState)
         turnScreenOnAndKeyguard()
-        startAlarmSoundAndVibration()
 
         val alarmId = intent.getIntExtra("alarmId", 101)
         val intentActionType = intent.getStringExtra("actionType")
-        val intentTitle = intent.getStringExtra("title") ?: ""
+        val intentTitle = intent.getStringExtra("title") ?: "ATTENDANCE ALARM"
+        val intentPortalUrl = intent.getStringExtra("portalUrl") ?: ""
+
         val initialIsCheckIn = when {
             !intentActionType.isNullOrBlank() -> intentActionType == com.urunkarpm.pingpin.ui.portal.PortalActivity.ACTION_CHECK_IN
             alarmId == NotificationService.CHECK_OUT_ALARM_ID || alarmId == NotificationService.CHECK_OUT_SNOOZE_ID || intentTitle.contains("CHECK-OUT", ignoreCase = true) -> false
             else -> true
         }
 
-        val intentPortalUrl = intent.getStringExtra("portalUrl") ?: ""
-        val prefs = getSharedPreferences(NotificationService.PREFS_NAME, Context.MODE_PRIVATE)
+        val resolvedActionType = if (initialIsCheckIn) com.urunkarpm.pingpin.ui.portal.PortalActivity.ACTION_CHECK_IN else com.urunkarpm.pingpin.ui.portal.PortalActivity.ACTION_CHECK_OUT
+
+        // Ensure alarm sound service is actively playing
+        AlarmSoundService.startAlarmSound(this, alarmId, intentTitle, intentPortalUrl, resolvedActionType)
+
+        val prefs = NotificationService.getAlarmPreferences(this)
         val prefPortalUrl = prefs.getString("portalUrl", "") ?: ""
         val initialPortalUrl = if (intentPortalUrl.isNotBlank()) intentPortalUrl else prefPortalUrl
 
@@ -156,83 +157,8 @@ class AlarmActivity : ComponentActivity() {
         )
     }
 
-    private fun startAlarmSoundAndVibration() {
-        try {
-            val audioAttributes = AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_ALARM)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .build()
-
-            // Pass audioAttributes to MediaPlayer.create so attributes are applied BEFORE prepare()
-            val player = MediaPlayer.create(applicationContext, R.raw.beep, audioAttributes, 0)
-            if (player != null) {
-                mediaPlayer = player.apply {
-                    isLooping = true
-                    setLooping(true)
-                    setOnCompletionListener { mp ->
-                        // Safety net: restart if looping flag didn't take effect
-                        try {
-                            mp.seekTo(0)
-                            mp.start()
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
-                    }
-                    start()
-                }
-            } else {
-                // Fallback to system default alarm uri if MediaPlayer fails
-                val alarmUri: Uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-                    ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-                ringtone = RingtoneManager.getRingtone(applicationContext, alarmUri)?.apply {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                        this.audioAttributes = audioAttributes
-                    }
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                        isLooping = true
-                    }
-                    play()
-                }
-            }
-
-            vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                val vm = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
-                vm.defaultVibrator
-            } else {
-                @Suppress("DEPRECATION")
-                getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-            }
-
-            val pattern = longArrayOf(0, 500, 500)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                vibrator?.vibrate(VibrationEffect.createWaveform(pattern, 0))
-            } else {
-                @Suppress("DEPRECATION")
-                vibrator?.vibrate(pattern, 0)
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
     private fun stopAlarmSound() {
-        try {
-            mediaPlayer?.let {
-                if (it.isPlaying) {
-                    it.stop()
-                }
-                it.release()
-            }
-            mediaPlayer = null
-
-            ringtone?.stop()
-            ringtone = null
-
-            vibrator?.cancel()
-            vibrator = null
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        AlarmSoundService.stopAlarmSound(this)
     }
 
     override fun onDestroy() {

@@ -13,6 +13,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.urunkarpm.pingpin.AlarmActivity
 import com.urunkarpm.pingpin.R
+import com.urunkarpm.pingpin.service.AlarmSoundService
 import com.urunkarpm.pingpin.service.NotificationService
 
 class AlarmReceiver : BroadcastReceiver() {
@@ -41,8 +42,15 @@ class AlarmReceiver : BroadcastReceiver() {
             Log.e(TAG, "Error acquiring wake lock: ${e.message}", e)
         }
 
+        val intentActionType = intent.getStringExtra("actionType")
+        val isCheckOutType = alarmId == NotificationService.CHECK_OUT_ALARM_ID || alarmId == NotificationService.CHECK_OUT_SNOOZE_ID || title.contains("CHECK-OUT", ignoreCase = true)
+        val actionType = if (!intentActionType.isNullOrBlank()) intentActionType else {
+            if (isCheckOutType) com.urunkarpm.pingpin.ui.portal.PortalActivity.ACTION_CHECK_OUT else com.urunkarpm.pingpin.ui.portal.PortalActivity.ACTION_CHECK_IN
+        }
+
         val alarmIntent = Intent(context, AlarmActivity::class.java).apply {
             putExtra("alarmId", alarmId)
+            putExtra("actionType", actionType)
             putExtra("title", title)
             putExtra("portalUrl", portalUrl)
             addFlags(
@@ -65,6 +73,7 @@ class AlarmReceiver : BroadcastReceiver() {
             action = NotificationActionReceiver.ACTION_SNOOZE
             putExtra(NotificationActionReceiver.EXTRA_ALARM_ID, alarmId)
             putExtra(NotificationActionReceiver.EXTRA_PORTAL_URL, portalUrl)
+            putExtra("actionType", actionType)
         }
         val snoozePendingIntent = PendingIntent.getBroadcast(
             context,
@@ -77,6 +86,7 @@ class AlarmReceiver : BroadcastReceiver() {
             action = NotificationActionReceiver.ACTION_OPEN_PORTAL
             putExtra(NotificationActionReceiver.EXTRA_ALARM_ID, alarmId)
             putExtra(NotificationActionReceiver.EXTRA_PORTAL_URL, portalUrl)
+            putExtra("actionType", actionType)
         }
 
         val openPortalPendingIntent = PendingIntent.getBroadcast(
@@ -140,6 +150,15 @@ class AlarmReceiver : BroadcastReceiver() {
 
         notificationManager?.notify(alarmId, notification)
 
+        // Start continuous foreground alarm playback & vibration
+        AlarmSoundService.startAlarmSound(
+            context = context,
+            alarmId = alarmId,
+            title = title,
+            portalUrl = portalUrl,
+            actionType = actionType
+        )
+
         // Direct launch to bring AlarmActivity into foreground instantly even when phone is actively in use
         val options = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             ActivityOptions.makeBasic().apply {
@@ -165,11 +184,10 @@ class AlarmReceiver : BroadcastReceiver() {
 
         // Reschedule next occurrence for recurring daily alarms (handles regular & snoozed triggers)
         val isCheckInType = alarmId == NotificationService.CHECK_IN_ALARM_ID || alarmId == NotificationService.CHECK_IN_SNOOZE_ID
-        val isCheckOutType = alarmId == NotificationService.CHECK_OUT_ALARM_ID || alarmId == NotificationService.CHECK_OUT_SNOOZE_ID
 
         if (isCheckInType || isCheckOutType) {
             try {
-                val prefs = context.getSharedPreferences(NotificationService.PREFS_NAME, Context.MODE_PRIVATE)
+                val prefs = NotificationService.getAlarmPreferences(context)
                 val checkInTime = prefs.getString("checkInTime", null)
                 val checkOutTime = prefs.getString("checkOutTime", null)
                 val workingDaysMask = prefs.getInt("workingDaysMask", 0x1F)
