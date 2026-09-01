@@ -3,16 +3,20 @@ package com.urunkarpm.pingpin.data
 object AppChangelog {
     const val CURRENT_VERSION_CHANGELOG = """
 ### Added & Enhanced
-- **In-House Holiday2API Dynamic Integration**: Fully migrated holiday fetching to PingPin's dedicated in-house built API (`https://holiday2api.vercel.app`), ensuring live, accurate Indian gazetted, national, and regional holiday schedules across years.
-- **Complete Elimination of Hardcoded Holiday Fallbacks**: Stripped out legacy static holiday lists in favor of dynamic API fetching and in-memory synchronization, ensuring always up-to-date calendar radar, countdowns, and long weekend calculations without code modifications.
-- **Dynamic Multi-Year Calendar UI**: Enhanced holiday calendar bottom sheets, filters, and dashboard cards to dynamically adapt to any selected or current calendar year.
+- **Alarm Reliability & Continuous Playback**: Fixed premature keyguard dismissal so alarms stay on screen without disappearing after 1 second. Decoupled sound playback from activity lifecycle to ensure audio & vibration loop continuously until explicitly acted upon (Check-In, Check-Out, Snooze, or Dismiss).
+- **Monday Morning & Deep Doze Protection**: Added foreground CPU WakeLock (`PowerManager.PARTIAL_WAKE_LOCK`) to `AlarmSoundService` to guarantee alarms fire and continue ringing after long weekend idle periods.
+- **Task Affinity Isolation**: Isolated `AlarmActivity` to its own dedicated task (`com.urunkarpm.pingpin.alarm`) so alarm popups never corrupt or interfere with `MainActivity`.
+- **In-House Holiday2API Integration**: Fully migrated holiday fetching to PingPin's dedicated in-house built API (`https://holiday2api.vercel.app`), ensuring live, accurate Indian gazetted, national, and regional holiday schedules across years.
 """
 
     const val FULL_CHANGELOG = """
 ## [2.4.0] - Current Release
 
 ### Added & Enhanced
-- **In-House Holiday2API Dynamic Integration**: Fully migrated holiday fetching to PingPin's dedicated in-house built API (`https://holiday2api.vercel.app`), ensuring live, accurate Indian gazetted, national, and regional holiday schedules across years.
+- **Alarm Reliability & Continuous Playback**: Fixed premature keyguard dismissal so alarms stay on screen without disappearing after 1 second. Decoupled sound playback from activity lifecycle to ensure audio & vibration loop continuously until explicitly acted upon (Check-In, Check-Out, Snooze, or Dismiss).
+- **Monday Morning & Deep Doze Protection**: Added foreground CPU WakeLock (`PowerManager.PARTIAL_WAKE_LOCK`) to `AlarmSoundService` to guarantee alarms fire and continue ringing after long weekend idle periods.
+- **Task Affinity Isolation**: Isolated `AlarmActivity` to its own dedicated task (`com.urunkarpm.pingpin.alarm`) so alarm popups never corrupt or interfere with `MainActivity`.
+- **In-House Holiday2API Integration**: Fully migrated holiday fetching to PingPin's dedicated in-house built API (`https://holiday2api.vercel.app`), ensuring live, accurate Indian gazetted, national, and regional holiday schedules across years.
 - **Complete Elimination of Hardcoded Holiday Fallbacks**: Stripped out legacy static holiday lists in favor of dynamic API fetching and in-memory synchronization, ensuring always up-to-date calendar radar, countdowns, and long weekend calculations without code modifications.
 - **Dynamic Multi-Year Calendar UI**: Enhanced holiday calendar bottom sheets, filters, and dashboard cards to dynamically adapt to any selected or current calendar year.
 
