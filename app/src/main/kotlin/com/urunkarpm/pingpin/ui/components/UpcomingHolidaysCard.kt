@@ -181,8 +181,9 @@ fun UpcomingHolidaysCard(
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
+                    val currentYear = remember { Calendar.getInstance().get(Calendar.YEAR) }
                     Text(
-                        text = "View 2026 Full Radar & Long Weekends",
+                        text = "View $currentYear Full Radar & Long Weekends",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.primary
@@ -198,7 +199,7 @@ fun UpcomingHolidaysCard(
         }
     }
 
-    // Full 2026 Indian Holiday Calendar Bottom Sheet
+    // Full Indian Holiday Calendar Bottom Sheet
     if (showFullCalendarSheet) {
         FullHolidayCalendarBottomSheet(
             allHolidays = allHolidays,
@@ -407,10 +408,11 @@ fun FullHolidayCalendarBottomSheet(
                         )
                     }
 
+                    val currentYear = remember { Calendar.getInstance().get(Calendar.YEAR) }
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(
-                            text = "Holiday Radar 2026",
+                            text = "Holiday Radar $currentYear",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Black,
                             color = MaterialTheme.colorScheme.onSurface
@@ -431,6 +433,7 @@ fun FullHolidayCalendarBottomSheet(
             Spacer(modifier = Modifier.height(12.dp))
 
             // Filter Chips Row
+            val currentYear = remember { Calendar.getInstance().get(Calendar.YEAR) }
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -452,7 +455,7 @@ fun FullHolidayCalendarBottomSheet(
                     FilterChip(
                         selected = !showUpcomingOnly,
                         onClick = { showUpcomingOnly = false },
-                        label = { Text("All 2026 (${allHolidays.size})", fontSize = 12.sp) }
+                        label = { Text("All $currentYear (${allHolidays.size})", fontSize = 12.sp) }
                     )
                 }
 
@@ -503,7 +506,7 @@ fun FullHolidayCalendarBottomSheet(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = if (showUpcomingOnly) "No remaining upcoming holidays for 2026." else "No holidays found matching filters.",
+                            text = if (showUpcomingOnly) "No remaining upcoming holidays for $currentYear." else "No holidays found matching filters.",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -511,7 +514,7 @@ fun FullHolidayCalendarBottomSheet(
                         if (showUpcomingOnly) {
                             Spacer(modifier = Modifier.height(8.dp))
                             TextButton(onClick = { showUpcomingOnly = false }) {
-                                Text("View All 2026 Holidays", fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
+                                Text("View All $currentYear Holidays", fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
                             }
                         }
                     }

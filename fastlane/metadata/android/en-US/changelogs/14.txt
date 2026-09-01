@@ -1,0 +1,2 @@
+- In-House Holiday2API Dynamic Integration: Migrated to PingPin's dedicated in-house built API (holiday2api.vercel.app) for real-time multi-year Indian holidays.
+- Dynamic Calendar Radar: Completely removed hardcoded holiday fallbacks in favor of live dynamic synchronization and multi-year calendar support.

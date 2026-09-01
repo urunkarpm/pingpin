@@ -220,4 +220,16 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             makeupRepo.updateStatus(suggestionId, "DECLINED")
         }
     }
+
+    fun refreshHolidays(year: Int = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR), stateCode: String? = null) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                holidayService.syncHolidays(year, stateCode)
+                _allIndianHolidays.value = holidayService.getAllHolidays()
+                _upcomingHolidays.value = holidayService.getUpcomingHolidays()
+            } catch (e: Exception) {
+                Log.w("HomeViewModel", "Holiday refresh failed: ${e.message}")
+            }
+        }
+    }
 }

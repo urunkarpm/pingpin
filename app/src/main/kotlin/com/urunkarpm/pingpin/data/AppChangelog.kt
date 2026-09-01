@@ -2,14 +2,23 @@ package com.urunkarpm.pingpin.data
 
 object AppChangelog {
     const val CURRENT_VERSION_CHANGELOG = """
-### Fixed & Enhanced
-- **Check-Out Alarm Automation Resolution**: Resolved automation engine issue where check-out actions triggered a "searching for check in button" error message. Action type resolution (`CHECK_OUT` vs `CHECK_IN`) is now explicitly propagated across all alarms, background sound services, and quick actions, with expanded default check-out keywords (`"mark check-out"`, `"out punch"`, `"punch out now"`, `"end shift"`).
-- **Floating Mini-Window Maximization Fix**: Fixed race condition during full-screen maximization from mini floating portal window where `PortalActivity` rendered an uninitialized blank/black screen. Added synchronized `ConfigBundle` caching and guaranteed `WebView` initialization with active URL handoff.
-- **Dynamic Floating Overlay Notifications**: Updated floating overlay foreground service notifications to reflect specific active action ("check-in" or "check-out").
+### Added & Enhanced
+- **In-House Holiday2API Dynamic Integration**: Fully migrated holiday fetching to PingPin's dedicated in-house built API (`https://holiday2api.vercel.app`), ensuring live, accurate Indian gazetted, national, and regional holiday schedules across years.
+- **Complete Elimination of Hardcoded Holiday Fallbacks**: Stripped out legacy static holiday lists in favor of dynamic API fetching and in-memory synchronization, ensuring always up-to-date calendar radar, countdowns, and long weekend calculations without code modifications.
+- **Dynamic Multi-Year Calendar UI**: Enhanced holiday calendar bottom sheets, filters, and dashboard cards to dynamically adapt to any selected or current calendar year.
 """
 
     const val FULL_CHANGELOG = """
-## [2.3.0] - Current Release
+## [2.4.0] - Current Release
+
+### Added & Enhanced
+- **In-House Holiday2API Dynamic Integration**: Fully migrated holiday fetching to PingPin's dedicated in-house built API (`https://holiday2api.vercel.app`), ensuring live, accurate Indian gazetted, national, and regional holiday schedules across years.
+- **Complete Elimination of Hardcoded Holiday Fallbacks**: Stripped out legacy static holiday lists in favor of dynamic API fetching and in-memory synchronization, ensuring always up-to-date calendar radar, countdowns, and long weekend calculations without code modifications.
+- **Dynamic Multi-Year Calendar UI**: Enhanced holiday calendar bottom sheets, filters, and dashboard cards to dynamically adapt to any selected or current calendar year.
+
+---
+
+## [2.3.0]
 
 ### Fixed & Enhanced
 - **Check-Out Alarm Automation Resolution**: Resolved automation engine issue where check-out actions triggered a "searching for check in button" error message. Action type resolution (`CHECK_OUT` vs `CHECK_IN`) is now explicitly propagated across all alarms, background sound services, and quick actions, with expanded default check-out keywords (`"mark check-out"`, `"out punch"`, `"punch out now"`, `"end shift"`).
