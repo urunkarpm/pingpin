@@ -75,7 +75,7 @@ class AlarmReceiver : BroadcastReceiver() {
             actionType = actionType
         )
 
-        // Direct launch to bring AlarmActivity into foreground instantly even when phone is actively in use
+        // Directly launch AlarmActivity into foreground
         val options = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             ActivityOptions.makeBasic().apply {
                 setPendingIntentBackgroundActivityStartMode(ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)
@@ -83,18 +83,18 @@ class AlarmReceiver : BroadcastReceiver() {
         } else null
 
         try {
-            fullScreenPendingIntent.send(context, 0, null, null, null, null, options)
-            Log.d(TAG, "Triggered AlarmActivity full-screen launch via fullScreenPendingIntent.send()")
+            if (options != null) {
+                context.startActivity(alarmIntent, options)
+            } else {
+                context.startActivity(alarmIntent)
+            }
+            Log.d(TAG, "Directly started AlarmActivity in foreground")
         } catch (e: Exception) {
-            Log.w(TAG, "fullScreenPendingIntent.send() failed (${e.message}), falling back to startActivity")
+            Log.w(TAG, "startActivity failed (${e.message}), trying pendingIntent send fallback")
             try {
-                if (options != null) {
-                    context.startActivity(alarmIntent, options)
-                } else {
-                    context.startActivity(alarmIntent)
-                }
+                fullScreenPendingIntent.send(context, 0, null, null, null, null, options)
             } catch (ex: Exception) {
-                Log.e(TAG, "Failed to start AlarmActivity directly: ${ex.message}", ex)
+                Log.e(TAG, "Failed to launch AlarmActivity: ${ex.message}", ex)
             }
         }
 
