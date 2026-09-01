@@ -67,7 +67,8 @@
         <activity
             android:name=".AlarmActivity"
             android:exported="true"
-            android:launchMode="singleTop"
+            android:launchMode="singleTask"
+            android:taskAffinity="com.urunkarpm.pingpin.alarm"
             android:showOnLockScreen="true"
             android:showWhenLocked="true"
             android:theme="@style/Theme.PingPin.Alarm"

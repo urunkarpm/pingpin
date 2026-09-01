@@ -8,6 +8,7 @@ import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.MediaPlayer
+import android.media.Ringtone
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.*
@@ -73,6 +74,7 @@ class AlarmSoundService : Service() {
         }
     }
 
+    private var ringtone: Ringtone? = null
     private var mediaPlayer: MediaPlayer? = null
     private var vibrator: Vibrator? = null
     private var audioManager: AudioManager? = null
@@ -86,6 +88,14 @@ class AlarmSoundService : Service() {
     override fun onCreate() {
         super.onCreate()
         audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+    }
+
+    private fun isAudioPlaying(): Boolean {
+        return try {
+            (ringtone?.isPlaying == true) || (mediaPlayer?.isPlaying == true)
+        } catch (_: Exception) {
+            false
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -137,7 +147,7 @@ class AlarmSoundService : Service() {
         }
 
         // Only start audio/vibration if not already playing to prevent restart stutter/glitches
-        if (mediaPlayer == null || mediaPlayer?.isPlaying != true) {
+        if (!isAudioPlaying()) {
             startAudioAndVibration()
         }
         if (timeoutJob == null || timeoutJob?.isActive != true) {
@@ -156,47 +166,43 @@ class AlarmSoundService : Service() {
                 .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                 .build()
 
+            // Stop any previous instance
+            try {
+                ringtone?.let { if (it.isPlaying) it.stop() }
+                ringtone = null
+            } catch (_: Exception) {}
+
             try {
                 mediaPlayer?.release()
                 mediaPlayer = null
             } catch (_: Exception) {}
 
-            var player: MediaPlayer? = null
+            // 1. Primary: Native Ringtone (framework audio, handles OEM permissions & looping)
+            var playedWithRingtone = false
             try {
                 val alarmUri: Uri? = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                    ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
                     ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+
                 if (alarmUri != null) {
-                    player = MediaPlayer().apply {
-                        setDataSource(applicationContext, alarmUri)
-                        setAudioAttributes(audioAttributes)
-                        setWakeMode(applicationContext, PowerManager.PARTIAL_WAKE_LOCK)
-                        isLooping = true
-                        setOnCompletionListener {
-                            try {
-                                if (mediaPlayer != null) {
-                                    it.start()
-                                }
-                            } catch (e: Exception) {
-                                Log.e(TAG, "Error in onCompletion restart: ${e.message}")
-                            }
+                    val r = RingtoneManager.getRingtone(applicationContext, alarmUri)
+                    if (r != null) {
+                        r.audioAttributes = audioAttributes
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                            r.isLooping = true
                         }
-                        setOnErrorListener { _, what, extra ->
-                            Log.e(TAG, "MediaPlayer error in alarm loop (what=$what, extra=$extra).")
-                            fallbackToResourceBeep(audioAttributes)
-                            true
-                        }
-                        prepare()
-                        start()
+                        r.play()
+                        ringtone = r
+                        playedWithRingtone = true
+                        Log.d(TAG, "Alarm sound running via native Ringtone.")
                     }
-                    mediaPlayer = player
-                    Log.d(TAG, "Alarm sound running via system alarm ringtone.")
                 }
             } catch (e: Exception) {
-                Log.w(TAG, "Failed initializing default alarm ringtone: ${e.message}, falling back to beep.")
-                player = null
+                Log.w(TAG, "Native Ringtone failed: ${e.message}, falling back to MediaPlayer.", e)
             }
 
-            if (player == null) {
+            // 2. Fallback: MediaPlayer if Ringtone not available
+            if (!playedWithRingtone) {
                 fallbackToResourceBeep(audioAttributes)
             }
         } catch (e: Exception) {
@@ -212,7 +218,7 @@ class AlarmSoundService : Service() {
                 getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
             }
 
-            val pattern = longArrayOf(0, 500, 500)
+            val pattern = longArrayOf(0, 800, 400, 800, 400)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 vibrator?.vibrate(VibrationEffect.createWaveform(pattern, 0))
             } else {
@@ -401,6 +407,19 @@ class AlarmSoundService : Service() {
 
     private fun stopAlarm() {
         timeoutJob?.cancel()
+        abandonAudioFocus()
+
+        try {
+            ringtone?.let {
+                if (it.isPlaying) {
+                    it.stop()
+                }
+            }
+            ringtone = null
+        } catch (e: Exception) {
+            Log.e(TAG, "Error stopping ringtone: ${e.message}")
+        }
+
         try {
             mediaPlayer?.let {
                 if (it.isPlaying) {
@@ -419,8 +438,6 @@ class AlarmSoundService : Service() {
         } catch (e: Exception) {
             Log.e(TAG, "Error cancelling vibrator: ${e.message}")
         }
-
-        abandonAudioFocus()
 
         try {
             if (wakeLock?.isHeld == true) {

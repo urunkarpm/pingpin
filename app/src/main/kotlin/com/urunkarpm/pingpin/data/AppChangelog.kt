@@ -3,12 +3,20 @@ package com.urunkarpm.pingpin.data
 object AppChangelog {
     const val CURRENT_VERSION_CHANGELOG = """
 ### Fixed & Hardened
-- **Alarm Activity & Screen Persistence**: Resolved auto-minimizing / task-switching bug where `AlarmActivity` dropped to background after 1 second. Cleaned task affinity and launch mode configurations to maintain solid on-screen presence until explicitly acted upon.
-- **Continuous Non-Interruptible Sound Engine**: Fixed audio stutter/cancellation by ensuring `AlarmSoundService` runs seamless, non-interrupted ringtone looping with `OnCompletionListener` restart fallback and full-screen foreground persistence.
+- **Vivo / OriginOS & In-App Alarm Isolation**: Resolved task collision on Vivo & custom Android ROMs where alarms launched while inside the app were dismissed by MainActivity. Separated `AlarmActivity` to an independent `singleTask` with isolated taskAffinity so it remains permanently on screen.
+- **Native Android Ringtone Engine**: Upgraded `AlarmSoundService` to native `Ringtone` framework audio looping with fallback to embedded media, guaranteeing continuous alarm ringing without permission denials or playback termination.
 """
 
     const val FULL_CHANGELOG = """
-## [2.4.1] - Current Release
+## [2.4.2] - Current Release
+
+### Fixed & Hardened
+- **Vivo / OriginOS & In-App Alarm Isolation**: Resolved task collision on Vivo & custom Android ROMs where alarms launched while inside the app were dismissed by MainActivity. Separated `AlarmActivity` to an independent `singleTask` with isolated taskAffinity so it remains permanently on screen.
+- **Native Android Ringtone Engine**: Upgraded `AlarmSoundService` to native `Ringtone` framework audio looping with fallback to embedded media, guaranteeing continuous alarm ringing without permission denials or playback termination.
+
+---
+
+## [2.4.1]
 
 ### Fixed & Hardened
 - **Alarm Activity & Screen Persistence**: Resolved auto-minimizing / task-switching bug where `AlarmActivity` dropped to background after 1 second. Cleaned task affinity and launch mode configurations to maintain solid on-screen presence until explicitly acted upon.

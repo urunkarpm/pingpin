@@ -5,6 +5,14 @@ All notable changes to **PingPin** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.2] - 2026-09-01
+
+### Fixed & Hardened
+- **Vivo / OriginOS & In-App Alarm Isolation**: Resolved task collision on Vivo & custom Android ROMs where alarms launched while inside the app were dismissed by MainActivity. Separated `AlarmActivity` to an independent `singleTask` with isolated taskAffinity so it remains permanently on screen.
+- **Native Android Ringtone Engine**: Upgraded `AlarmSoundService` to native `Ringtone` framework audio looping with fallback to embedded media, guaranteeing continuous alarm ringing without permission denials or playback termination.
+
+---
+
 ## [2.4.1] - 2026-09-01
 
 ### Fixed & Hardened
