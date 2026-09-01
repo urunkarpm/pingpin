@@ -14,9 +14,10 @@
         android:orientation="horizontal"
         android:gravity="center_vertical">
 
-        <View
+        <ImageView
             android:layout_width="8dp"
             android:layout_height="8dp"
+            android:contentDescription="@null"
             android:background="@drawable/notification_primary_btn_bg" />
 
         <TextView
@@ -100,7 +101,6 @@
 
         <Button
             android:id="@+id/btn_notif_dismiss"
-            style="?android:attr/borderlessButtonStyle"
             android:layout_width="wrap_content"
             android:layout_height="34dp"
             android:background="@drawable/notification_secondary_btn_bg"
@@ -114,7 +114,6 @@
 
         <Button
             android:id="@+id/btn_notif_snooze"
-            style="?android:attr/borderlessButtonStyle"
             android:layout_width="wrap_content"
             android:layout_height="34dp"
             android:layout_marginStart="8dp"
@@ -129,7 +128,6 @@
 
         <Button
             android:id="@+id/btn_notif_open"
-            style="?android:attr/borderlessButtonStyle"
             android:layout_width="wrap_content"
             android:layout_height="34dp"
             android:layout_marginStart="8dp"

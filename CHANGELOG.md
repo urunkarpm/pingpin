@@ -5,6 +5,14 @@ All notable changes to **PingPin** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.3] - 2026-09-01
+
+### Fixed & Hardened
+- **RemoteViews Inflation Crash Fix**: Eliminated `BadForegroundServiceNotificationException` crash caused by unsupported `<View>` tags and theme attributes in custom notification layouts when foreground service started. Replaced with `<ImageView>` elements for 100% crash-free inflation across all Android versions and OEMs.
+- **Alarm Stability on Physical Devices**: Fixed the root cause of the alarm process crashing and closing after 1 second when triggered on physical devices.
+
+---
+
 ## [2.4.2] - 2026-09-01
 
 ### Fixed & Hardened

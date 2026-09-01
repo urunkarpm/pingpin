@@ -3,12 +3,20 @@ package com.urunkarpm.pingpin.data
 object AppChangelog {
     const val CURRENT_VERSION_CHANGELOG = """
 ### Fixed & Hardened
-- **Vivo / OriginOS & In-App Alarm Isolation**: Resolved task collision on Vivo & custom Android ROMs where alarms launched while inside the app were dismissed by MainActivity. Separated `AlarmActivity` to an independent `singleTask` with isolated taskAffinity so it remains permanently on screen.
-- **Native Android Ringtone Engine**: Upgraded `AlarmSoundService` to native `Ringtone` framework audio looping with fallback to embedded media, guaranteeing continuous alarm ringing without permission denials or playback termination.
+- **RemoteViews Inflation Crash Fix**: Eliminated `BadForegroundServiceNotificationException` crash caused by unsupported `<View>` tags in custom notification layouts when foreground service started.
+- **Alarm Screen & Process Persistence**: Fixed process crash that caused alarms to drop and sound to stop after 1 second on physical devices.
 """
 
     const val FULL_CHANGELOG = """
-## [2.4.2] - Current Release
+## [2.4.3] - Current Release
+
+### Fixed & Hardened
+- **RemoteViews Inflation Crash Fix**: Eliminated `BadForegroundServiceNotificationException` crash caused by unsupported `<View>` tags in custom notification layouts when foreground service started.
+- **Alarm Screen & Process Persistence**: Fixed process crash that caused alarms to drop and sound to stop after 1 second on physical devices.
+
+---
+
+## [2.4.2]
 
 ### Fixed & Hardened
 - **Vivo / OriginOS & In-App Alarm Isolation**: Resolved task collision on Vivo & custom Android ROMs where alarms launched while inside the app were dismissed by MainActivity. Separated `AlarmActivity` to an independent `singleTask` with isolated taskAffinity so it remains permanently on screen.
