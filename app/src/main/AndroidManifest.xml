@@ -68,11 +68,13 @@
             android:name=".AlarmActivity"
             android:excludeFromRecents="true"
             android:exported="true"
-            android:launchMode="singleTask"
+            android:launchMode="singleInstance"
+            android:taskAffinity="com.urunkarpm.pingpin.alarm"
             android:showOnLockScreen="true"
             android:showWhenLocked="true"
             android:theme="@style/Theme.PingPin.Alarm"
-            android:turnScreenOn="true" />
+            android:turnScreenOn="true"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden" />
 
         <activity
             android:name=".ui.portal.PortalActivity"

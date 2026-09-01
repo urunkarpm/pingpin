@@ -1,88 +1,108 @@
 const { test, expect } = require('@playwright/test');
 
-test.describe('AlarmActivity Full-Screen UI Component Specs', () => {
+test.describe('AlarmActivity Full-Screen UI Specs', () => {
 
-  test('should render Check-In alarm full-screen layout with time, title, and action buttons', async ({ page }) => {
+  test('should render Check-In alarm AMOLED full-screen layout with electric blue accents and actions', async ({ page }) => {
     await page.setContent(`
-      <div id="alarm-activity-screen" style="width: 100vw; height: 100vh; background: #0f172a; color: white; display: flex; flex-direction: column; align-items: center; justify-content: space-around; padding: 32px;">
-        <div id="alarm-header" style="text-align: center;">
-          <span id="alarm-badge" style="background: rgba(59, 130, 246, 0.2); color: #3b82f6; padding: 6px 16px; border-radius: 20px; font-weight: bold;">CHECK-IN REMINDER</span>
-          <h1 id="alarm-time-display" style="font-size: 64px; margin: 16px 0;">09:00 AM</h1>
-          <p id="alarm-title">Time to reach Office! Tap to open check-in portal.</p>
+      <div id="alarm-activity-screen" style="width: 100vw; height: 100vh; background: linear-gradient(to bottom, #000000, #06080F); color: #F8FAFC; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 28px 24px; box-sizing: border-box; font-family: -apple-system, sans-serif;">
+        <!-- Top Status -->
+        <div id="alarm-top-section" style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
+          <div id="alarm-status-chip" style="background: rgba(255,255,255,0.07); border: 1px solid rgba(59,130,246,0.4); padding: 8px 16px; border-radius: 50px; display: flex; align-items: center; gap: 8px;">
+            <div id="status-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #3B82F6;"></div>
+            <span style="font-size: 12px; font-weight: bold; letter-spacing: 1.5px; color: #F8FAFC;">CHECK-IN ALARM</span>
+          </div>
+          <div id="portal-url-pill" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); padding: 6px 14px; border-radius: 20px; font-size: 12px; color: #94A3B8;">
+            https://hrms.company.com
+          </div>
         </div>
-        <div id="alarm-actions" style="display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 320px;">
-          <button id="snooze-alarm-btn" style="background: #334155; color: white; padding: 16px; border-radius: 16px; font-size: 18px; border: none; cursor: pointer;">
-            ⏰ Snooze (5 Mins)
+
+        <!-- Center Sonar Orb & Giant Time -->
+        <div id="alarm-center-hero" style="display: flex; flex-direction: column; align-items: center; width: 100%;">
+          <div id="sonar-ring" style="width: 110px; height: 110px; border-radius: 50%; border: 2px solid #3B82F6; background: radial-gradient(circle, rgba(59,130,246,0.35), rgba(0,0,0,0.5)); display: flex; align-items: center; justify-content: center; margin-bottom: 16px;">
+            <span style="font-size: 36px;">🔔</span>
+          </div>
+          <div id="clock-row" style="display: flex; align-items: baseline; justify-content: center; gap: 8px;">
+            <span id="alarm-time-display" style="font-size: 72px; font-weight: bold; letter-spacing: -2px; color: #F8FAFC;">09:30</span>
+            <span id="alarm-ampm-badge" style="font-size: 16px; font-weight: 900; color: #3B82F6; background: rgba(59,130,246,0.2); padding: 4px 8px; border-radius: 8px;">AM</span>
+          </div>
+          <span id="alarm-date-display" style="font-size: 16px; color: #94A3B8; font-weight: 500; margin-top: 6px;">Monday, September 7</span>
+        </div>
+
+        <!-- Bottom Actions -->
+        <div id="alarm-actions-column" style="display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 400px;">
+          <button id="btn-check-in" style="height: 60px; border-radius: 20px; border: none; background: linear-gradient(to right, #3B82F6, #06B6D4); color: white; font-weight: 800; font-size: 15px; cursor: pointer;">
+            CHECK-IN (OPEN PORTAL) →
           </button>
-          <button id="open-portal-btn" style="background: #3b82f6; color: white; padding: 16px; border-radius: 16px; font-size: 18px; border: none; cursor: pointer;">
-            🚀 Open Attendance Portal
+          <button id="btn-snooze" style="height: 54px; border-radius: 18px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.1); color: #F8FAFC; font-weight: bold; font-size: 14px; cursor: pointer;">
+            SNOOZE FOR 10 MINS
           </button>
-          <button id="dismiss-alarm-btn" style="background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid #ef4444; padding: 14px; border-radius: 16px; font-size: 16px; cursor: pointer;">
-            ✖ Dismiss
+          <button id="btn-leave" style="height: 54px; border-radius: 18px; border: 1px solid rgba(248,113,113,0.35); background: transparent; color: #F87171; font-weight: bold; font-size: 14px; cursor: pointer;">
+            APPLY FOR LEAVE
           </button>
         </div>
       </div>
     `);
 
-    const badge = page.locator('#alarm-badge');
-    await expect(badge).toHaveText('CHECK-IN REMINDER');
-
-    const timeDisplay = page.locator('#alarm-time-display');
-    await expect(timeDisplay).toHaveText('09:00 AM');
-
-    const snoozeBtn = page.locator('#snooze-alarm-btn');
-    const portalBtn = page.locator('#open-portal-btn');
-    const dismissBtn = page.locator('#dismiss-alarm-btn');
-
-    await expect(snoozeBtn).toBeVisible();
-    await expect(portalBtn).toBeVisible();
-    await expect(dismissBtn).toBeVisible();
+    await expect(page.locator('#alarm-status-chip')).toContainText('CHECK-IN ALARM');
+    await expect(page.locator('#alarm-time-display')).toHaveText('09:30');
+    await expect(page.locator('#alarm-ampm-badge')).toHaveText('AM');
+    await expect(page.locator('#btn-check-in')).toBeVisible();
+    await expect(page.locator('#btn-snooze')).toHaveText('SNOOZE FOR 10 MINS');
+    await expect(page.locator('#btn-leave')).toBeVisible();
   });
 
-  test('should render Check-Out alarm variant layout', async ({ page }) => {
+  test('should render Check-Out alarm layout with emerald/teal theme', async ({ page }) => {
     await page.setContent(`
-      <div id="alarm-activity-screen">
-        <span id="alarm-badge">CHECK-OUT REMINDER</span>
-        <h1 id="alarm-time-display">06:00 PM</h1>
-        <p id="alarm-title">Completed working hours! Don't forget to mark check-out.</p>
+      <div id="alarm-activity-screen" style="width: 100vw; height: 100vh; background: #000000; color: #F8FAFC;">
+        <div id="alarm-status-chip">
+          <span>CHECK-OUT ALARM</span>
+        </div>
+        <span id="alarm-time-display">06:00</span>
+        <span id="alarm-ampm-badge">PM</span>
+        <button id="btn-check-out" style="background: linear-gradient(to right, #10B981, #34D399);">
+          CHECK-OUT (OPEN PORTAL) →
+        </button>
+        <button id="btn-snooze">SNOOZE FOR 10 MINS</button>
       </div>
     `);
 
-    await expect(page.locator('#alarm-badge')).toHaveText('CHECK-OUT REMINDER');
-    await expect(page.locator('#alarm-time-display')).toHaveText('06:00 PM');
+    await expect(page.locator('#alarm-status-chip')).toContainText('CHECK-OUT ALARM');
+    await expect(page.locator('#alarm-time-display')).toHaveText('06:00');
+    await expect(page.locator('#alarm-ampm-badge')).toHaveText('PM');
+    await expect(page.locator('#btn-check-out')).toBeVisible();
   });
 
-  test('should execute Snooze action and reschedule alarm by 5 minutes', async ({ page }) => {
+  test('should handle Snooze for 10 Mins button click', async ({ page }) => {
     await page.setContent(`
-      <div id="alarm-activity-screen">
-        <button id="snooze-alarm-btn">Snooze (5 Mins)</button>
-        <div id="snooze-status">Active</div>
+      <div id="alarm-screen">
+        <button id="btn-snooze">SNOOZE FOR 10 MINS</button>
+        <div id="status-text">Ringing</div>
       </div>
       <script>
-        document.getElementById('snooze-alarm-btn').addEventListener('click', () => {
-          document.getElementById('snooze-status').textContent = 'Snoozed for 5 minutes (Rescheduled)';
+        document.getElementById('btn-snooze').addEventListener('click', () => {
+          document.getElementById('status-text').textContent = 'Snoozed for 10 minutes';
         });
       </script>
     `);
 
-    await page.locator('#snooze-alarm-btn').click();
-    await expect(page.locator('#snooze-status')).toHaveText('Snoozed for 5 minutes (Rescheduled)');
+    await page.locator('#btn-snooze').click();
+    await expect(page.locator('#status-text')).toHaveText('Snoozed for 10 minutes');
   });
 
-  test('should execute Dismiss action and clear ringtone/vibration', async ({ page }) => {
+  test('should handle Check-In button click and dispatch portal opening', async ({ page }) => {
     await page.setContent(`
-      <div id="alarm-activity-screen">
-        <button id="dismiss-alarm-btn">Dismiss</button>
-        <div id="alarm-state">Ringing</div>
+      <div id="alarm-screen">
+        <button id="btn-check-in">CHECK-IN (OPEN PORTAL) →</button>
+        <div id="portal-launch-status">Idle</div>
       </div>
       <script>
-        document.getElementById('dismiss-alarm-btn').addEventListener('click', () => {
-          document.getElementById('alarm-state').textContent = 'Dismissed and Stopped';
+        document.getElementById('btn-check-in').addEventListener('click', () => {
+          document.getElementById('portal-launch-status').textContent = 'Opening Portal with ACTION_CHECK_IN';
         });
       </script>
     `);
 
-    await page.locator('#dismiss-alarm-btn').click();
-    await expect(page.locator('#alarm-state')).toHaveText('Dismissed and Stopped');
+    await page.locator('#btn-check-in').click();
+    await expect(page.locator('#portal-launch-status')).toHaveText('Opening Portal with ACTION_CHECK_IN');
   });
 });

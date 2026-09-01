@@ -63,10 +63,10 @@ object AppChangelog {
 
 ## [1.9.0]
 
-### Fixed
-- **Alarm Alert Check-In & Check-Out Action Execution**: Replaced task stack termination (`finishAndRemoveTask()`) with standard activity finish (`finish()`) when launching portal or browser actions from `AlarmActivity`. Prevents the app from abruptly closing or going to background when tapping Check-In or Check-Out.
-- **Dynamic Notification Action Resolution**: Resolved `ACTION_CHECK_IN` vs `ACTION_CHECK_OUT` dynamically based on alarm IDs (`CHECK_OUT_ALARM_ID`/`CHECK_OUT_SNOOZE_ID`), intent extras, and alarm titles across both `AlarmActivity` and `NotificationActionReceiver`.
-- **Structured Coroutine Concurrency**: Bound portal action database operations to `lifecycleScope` in `AlarmActivity` for safe concurrency.
+- **Alarm Lifecycle & Keyguard Isolation**: Removed premature `requestDismissKeyguard` call from `AlarmActivity.onCreate()` which caused OS lockscreen transitions to immediately minimize/dismiss the alarm after 1 second. Keyguard dismissal is now correctly deferred until the user initiates an explicit portal action.
+- **Dedicated Alarm Task Affinity**: Assigned `AlarmActivity` to its own independent `taskAffinity` (`com.urunkarpm.pingpin.alarm`) and `singleInstance` launch mode, preventing alarm popups from interfering with or corrupting `MainActivity`'s task stack.
+- **Persistent Alarm Foreground Audio**: Decoupled `AlarmSoundService` teardown from `AlarmActivity.onDestroy()`, guaranteeing continuous ringtone and vibration playback until the user explicitly marks Check-In, Check-Out, Snooze, or Dismiss.
+- **Resilient Audio Fallback**: Added `MediaPlayer` error recovery with automatic fallback to the system default alarm ringtone if custom audio playback encounters an issue.
 
 ---
 

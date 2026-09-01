@@ -77,6 +77,7 @@ class AlarmSoundService : Service() {
     private var vibrator: Vibrator? = null
     private var audioManager: AudioManager? = null
     private var audioFocusRequest: AudioFocusRequest? = null
+    private var wakeLock: PowerManager.WakeLock? = null
     private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
     private var timeoutJob: Job? = null
 
@@ -92,6 +93,20 @@ class AlarmSoundService : Service() {
         if (action == ACTION_STOP_ALARM) {
             stopAlarm()
             return START_NOT_STICKY
+        }
+
+        // Keep CPU awake while alarm sound is ringing
+        try {
+            val pm = getSystemService(Context.POWER_SERVICE) as? PowerManager
+            if (wakeLock == null) {
+                wakeLock = pm?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "PingPin:AlarmSoundWakeLock")
+            }
+            if (wakeLock?.isHeld != true) {
+                wakeLock?.acquire(AUTO_STOP_DELAY_MS)
+                Log.d(TAG, "Acquired WakeLock for AlarmSoundService")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error acquiring WakeLock in AlarmSoundService: ${e.message}", e)
         }
 
         val alarmId = intent?.getIntExtra(EXTRA_ALARM_ID, NotificationService.CHECK_IN_ALARM_ID)
@@ -137,34 +152,27 @@ class AlarmSoundService : Service() {
                 .build()
 
             mediaPlayer?.release()
-            val player = MediaPlayer.create(applicationContext, R.raw.beep, audioAttributes, 0)
-            if (player != null) {
-                mediaPlayer = player.apply {
-                    isLooping = true
-                    setLooping(true)
-                    setOnCompletionListener { mp ->
-                        try {
-                            mp.seekTo(0)
-                            mp.start()
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Error restarting beep loop: ${e.message}")
-                        }
+            mediaPlayer = null
+
+            try {
+                val player = MediaPlayer.create(applicationContext, R.raw.beep, audioAttributes, 0)
+                if (player != null) {
+                    player.setWakeMode(applicationContext, PowerManager.PARTIAL_WAKE_LOCK)
+                    player.isLooping = true
+                    player.setOnErrorListener { _, what, extra ->
+                        Log.e(TAG, "MediaPlayer error in beep loop (what=$what, extra=$extra). Falling back to system ringtone.")
+                        fallbackToSystemAlarmRingtone(audioAttributes)
+                        true
                     }
-                    start()
+                    player.start()
+                    mediaPlayer = player
+                    Log.d(TAG, "Alarm sound started via MediaPlayer beep loop.")
+                } else {
+                    fallbackToSystemAlarmRingtone(audioAttributes)
                 }
-                Log.d(TAG, "Alarm sound started via MediaPlayer loop.")
-            } else {
-                // Fallback to default alarm ringtone uri
-                val alarmUri: Uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-                    ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-                mediaPlayer = MediaPlayer().apply {
-                    setDataSource(applicationContext, alarmUri)
-                    setAudioAttributes(audioAttributes)
-                    isLooping = true
-                    prepare()
-                    start()
-                }
-                Log.d(TAG, "Alarm sound started via RingtoneManager fallback.")
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed initializing R.raw.beep: ${e.message}, attempting fallback.")
+                fallbackToSystemAlarmRingtone(audioAttributes)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error starting alarm audio: ${e.message}", e)
@@ -188,6 +196,26 @@ class AlarmSoundService : Service() {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error starting vibration: ${e.message}", e)
+        }
+    }
+
+    private fun fallbackToSystemAlarmRingtone(audioAttributes: AudioAttributes) {
+        try {
+            mediaPlayer?.release()
+            val alarmUri: Uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            val player = MediaPlayer().apply {
+                setDataSource(applicationContext, alarmUri)
+                setAudioAttributes(audioAttributes)
+                setWakeMode(applicationContext, PowerManager.PARTIAL_WAKE_LOCK)
+                isLooping = true
+                prepare()
+                start()
+            }
+            mediaPlayer = player
+            Log.d(TAG, "Alarm sound running via system ringtone fallback.")
+        } catch (ex: Exception) {
+            Log.e(TAG, "Failed starting ringtone fallback: ${ex.message}", ex)
         }
     }
 
@@ -364,6 +392,15 @@ class AlarmSoundService : Service() {
         }
 
         abandonAudioFocus()
+
+        try {
+            if (wakeLock?.isHeld == true) {
+                wakeLock?.release()
+            }
+            wakeLock = null
+        } catch (e: Exception) {
+            Log.e(TAG, "Error releasing wakeLock: ${e.message}", e)
+        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             stopForeground(STOP_FOREGROUND_REMOVE)

@@ -32,6 +32,49 @@ class NotificationService(private val context: Context) {
 
         const val PREFS_NAME = "pingpin_native_alarm_prefs"
 
+        fun parseTime(timeStr: String): Pair<Int, Int>? {
+            val parts = timeStr.trim().split(":")
+            if (parts.size < 2) return null
+            return try {
+                val hour = parts[0].toInt()
+                val minute = parts[1].toInt()
+                if (hour in 0..23 && minute in 0..59) Pair(hour, minute) else null
+            } catch (_: Exception) {
+                null
+            }
+        }
+
+        fun getNextOccurrence(hour: Int, minute: Int, workingDaysMask: Int, baseTimeMillis: Long = System.currentTimeMillis()): Calendar {
+            val cal = Calendar.getInstance().apply { timeInMillis = baseTimeMillis }
+            cal.set(Calendar.HOUR_OF_DAY, hour)
+            cal.set(Calendar.MINUTE, minute)
+            cal.set(Calendar.SECOND, 0)
+            cal.set(Calendar.MILLISECOND, 0)
+
+            // If target time is already past or equal to base time, move to next day
+            if (cal.timeInMillis <= baseTimeMillis) {
+                cal.add(Calendar.DAY_OF_YEAR, 1)
+            }
+
+            // Guard: if no working days are configured, skip the loop to avoid scheduling on random days
+            if (workingDaysMask == 0) {
+                Log.w(TAG, "workingDaysMask is 0 — no working days configured. Alarm will not be scheduled.")
+                return cal
+            }
+
+            var safetyLimit = 0
+            while (!WorkingDays.isWorkingDay(cal, workingDaysMask) && safetyLimit < 14) {
+                cal.add(Calendar.DAY_OF_YEAR, 1)
+                safetyLimit++
+            }
+
+            if (safetyLimit >= 14) {
+                Log.e(TAG, "getNextOccurrence: no valid working day found in 14 days for mask=$workingDaysMask")
+            }
+
+            return cal
+        }
+
         fun getAlarmPreferences(context: Context): SharedPreferences {
             return try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -237,6 +280,7 @@ class NotificationService(private val context: Context) {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         alarmManager.cancel(pendingIntent)
+        pendingIntent.cancel()
         notificationManager.cancel(alarmId)
         AlarmSoundService.stopAlarmSound(context)
     }
@@ -332,47 +376,6 @@ class NotificationService(private val context: Context) {
             scheduleCheckOutAlarm(checkOutTime, workingDaysMask, portalUrl)
             Log.d(TAG, "verifyAndRescheduleAlarmsIfNeeded: Alarms re-verified and scheduled.")
         }
-    }
-
-    private fun parseTime(timeStr: String): Pair<Int, Int>? {
-        val parts = timeStr.split(":")
-        if (parts.size < 2) return null
-        return try {
-            Pair(parts[0].toInt(), parts[1].toInt())
-        } catch (_: Exception) {
-            null
-        }
-    }
-
-    private fun getNextOccurrence(hour: Int, minute: Int, workingDaysMask: Int): Calendar {
-        val cal = Calendar.getInstance()
-        cal.set(Calendar.HOUR_OF_DAY, hour)
-        cal.set(Calendar.MINUTE, minute)
-        cal.set(Calendar.SECOND, 0)
-        cal.set(Calendar.MILLISECOND, 0)
-
-        // If target time is in the past, move to tomorrow
-        if (cal.timeInMillis <= System.currentTimeMillis()) {
-            cal.add(Calendar.DAY_OF_YEAR, 1)
-        }
-
-        // Guard: if no working days are configured, skip the loop to avoid scheduling on random days
-        if (workingDaysMask == 0) {
-            Log.w(TAG, "workingDaysMask is 0 — no working days configured. Alarm will not be scheduled.")
-            return cal
-        }
-
-        var safetyLimit = 0
-        while (!WorkingDays.isWorkingDay(cal, workingDaysMask) && safetyLimit < 14) {
-            cal.add(Calendar.DAY_OF_YEAR, 1)
-            safetyLimit++
-        }
-
-        if (safetyLimit >= 14) {
-            Log.e(TAG, "getNextOccurrence: no valid working day found in 14 days for mask=$workingDaysMask")
-        }
-
-        return cal
     }
 
     /**

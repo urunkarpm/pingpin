@@ -77,6 +77,14 @@ class AlarmActivity : ComponentActivity() {
         // Ensure alarm sound service is actively playing
         AlarmSoundService.startAlarmSound(this, alarmId, intentTitle, intentPortalUrl, resolvedActionType)
 
+        // Handle back button press safely
+        onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                // Finish activity without killing the background alarm sound/notification
+                finish()
+            }
+        })
+
         val prefs = NotificationService.getAlarmPreferences(this)
         val prefPortalUrl = prefs.getString("portalUrl", "") ?: ""
         val initialPortalUrl = if (intentPortalUrl.isNotBlank()) intentPortalUrl else prefPortalUrl
@@ -140,19 +148,33 @@ class AlarmActivity : ComponentActivity() {
         }
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        turnScreenOnAndKeyguard()
+        val alarmId = intent.getIntExtra("alarmId", 101)
+        val intentActionType = intent.getStringExtra("actionType")
+        val intentTitle = intent.getStringExtra("title") ?: "ATTENDANCE ALARM"
+        val intentPortalUrl = intent.getStringExtra("portalUrl") ?: ""
+        val resolvedActionType = if (intentActionType.isNullOrBlank()) {
+            if (alarmId == NotificationService.CHECK_OUT_ALARM_ID || alarmId == NotificationService.CHECK_OUT_SNOOZE_ID) "CHECK_OUT" else "CHECK_IN"
+        } else intentActionType
+        AlarmSoundService.startAlarmSound(this, alarmId, intentTitle, intentPortalUrl, resolvedActionType)
+    }
+
     private fun turnScreenOnAndKeyguard() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true)
             setTurnScreenOn(true)
-            val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
-            keyguardManager.requestDismissKeyguard(this, null)
+        } else {
+            @Suppress("DEPRECATION")
+            window.addFlags(
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                        WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+            )
         }
-        @Suppress("DEPRECATION")
         window.addFlags(
-            WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                    WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
-                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
-                    WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
+            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
                     WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON
         )
     }
@@ -162,7 +184,6 @@ class AlarmActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
-        stopAlarmSound()
         super.onDestroy()
     }
 
