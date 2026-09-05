@@ -23,8 +23,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -538,12 +540,20 @@ private fun WeeklyDayItem(
                 )
             }
 
-            if (!data.isFuture) {
-                circleModifier = circleModifier.combinedClickable(
-                    onClick = onDayClick,
-                    onLongClick = onDayLongClick
-                )
+    val haptic = LocalHapticFeedback.current
+
+    if (!data.isFuture) {
+        circleModifier = circleModifier.combinedClickable(
+            onClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                onDayClick()
+            },
+            onLongClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                onDayLongClick()
             }
+        )
+    }
 
             Box(
                 modifier = circleModifier,

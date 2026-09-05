@@ -22,6 +22,8 @@ import com.urunkarpm.pingpin.ui.onboarding.OnboardingScreen
 import com.urunkarpm.pingpin.ui.theme.PingPinTheme
 import com.urunkarpm.pingpin.ui.theme.ThemePreference
 
+import com.urunkarpm.pingpin.ui.theme.optimizeDisplayRefreshRate
+
 class MainActivity : ComponentActivity() {
 
     private val requestPermissionLauncher = registerForActivityResult(
@@ -39,6 +41,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         WindowCompat.setDecorFitsSystemWindows(window, false)
         super.onCreate(savedInstanceState)
+        optimizeDisplayRefreshRate()
         requestAppPermissions()
 
         setContent {

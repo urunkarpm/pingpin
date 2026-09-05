@@ -179,7 +179,8 @@ class FloatingPortalService : Service(), PortalAutoCheckInEngine.PortalCallback 
             layoutType,
             WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                     WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH or
-                    WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
+                    WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
+                    WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
@@ -259,11 +260,13 @@ class FloatingPortalService : Service(), PortalAutoCheckInEngine.PortalCallback 
         headerBar.addView(minimizeBtn)
         headerBar.addView(closeBtn)
 
-        // Drag listener on Header Bar
+        // Drag listener on Header Bar with smooth displacement filtering
         var initialX = 0
         var initialY = 0
         var initialTouchX = 0f
         var initialTouchY = 0f
+        var lastUpdatedX = 0
+        var lastUpdatedY = 0
 
         headerBar.setOnTouchListener { _, event ->
             when (event.action) {
@@ -272,12 +275,20 @@ class FloatingPortalService : Service(), PortalAutoCheckInEngine.PortalCallback 
                     initialY = windowParams?.y ?: 0
                     initialTouchX = event.rawX
                     initialTouchY = event.rawY
+                    lastUpdatedX = initialX
+                    lastUpdatedY = initialY
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
-                    windowParams?.x = initialX + (event.rawX - initialTouchX).toInt()
-                    windowParams?.y = initialY + (event.rawY - initialTouchY).toInt()
-                    windowManager?.updateViewLayout(rootLayout, windowParams)
+                    val targetX = initialX + (event.rawX - initialTouchX).toInt()
+                    val targetY = initialY + (event.rawY - initialTouchY).toInt()
+                    if (kotlin.math.abs(targetX - lastUpdatedX) >= 2 || kotlin.math.abs(targetY - lastUpdatedY) >= 2) {
+                        windowParams?.x = targetX
+                        windowParams?.y = targetY
+                        lastUpdatedX = targetX
+                        lastUpdatedY = targetY
+                        windowManager?.updateViewLayout(rootLayout, windowParams)
+                    }
                     true
                 }
                 else -> false
@@ -315,6 +326,7 @@ class FloatingPortalService : Service(), PortalAutoCheckInEngine.PortalCallback 
         }
 
         webView = WebView(this).apply {
+            setLayerType(View.LAYER_TYPE_HARDWARE, null)
             layoutParams = FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT

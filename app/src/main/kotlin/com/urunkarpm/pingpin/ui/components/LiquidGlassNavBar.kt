@@ -147,12 +147,12 @@ fun LiquidGlassBottomBar(
                     .padding(horizontal = 6.dp, vertical = 6.dp)
                     .onSizeChanged { containerWidthPx = it.width }
             ) {
-                // High-contrast selection pill (Zero recompositions during movement)
+                // High-contrast selection pill (Zero recompositions & layout passes during movement)
                 Box(
                     modifier = Modifier
                         .fillMaxHeight()
                         .fillMaxWidth(1f / itemCount)
-                        .offset { IntOffset(x = indicatorOffsetPxState.value.roundToInt(), y = 0) }
+                        .graphicsLayer { translationX = indicatorOffsetPxState.value }
                         .padding(horizontal = 4.dp)
                         .clip(indicatorShape)
                         .background(

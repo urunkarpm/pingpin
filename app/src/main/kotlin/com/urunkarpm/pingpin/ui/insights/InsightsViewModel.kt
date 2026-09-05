@@ -72,8 +72,9 @@ class InsightsViewModel(application: Application) : AndroidViewModel(application
         val month = selectedMonth.value
         val profile = profileRepo.getProfile() ?: profileState.value ?: UserProfileEntity()
         val records = monthlyRecords.value
-        val workingDaysMask = configState.value?.workingDaysMask ?: 31
-        val wfoDaysMask = configState.value?.wfoDaysMask ?: 31
+        val config = configState.value
+        val workingDaysMask = config?.workingDaysMask ?: 31
+        val wfoDaysMask = config?.wfoDaysMask ?: 31
 
         return pdfExportService.generateAttendancePdf(
             year = year,
@@ -81,7 +82,8 @@ class InsightsViewModel(application: Application) : AndroidViewModel(application
             profile = profile,
             records = records,
             workingDaysMask = workingDaysMask,
-            wfoDaysMask = wfoDaysMask
+            wfoDaysMask = wfoDaysMask,
+            officeConfig = config
         )
     }
 }

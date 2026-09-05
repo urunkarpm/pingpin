@@ -222,24 +222,22 @@ fun UpdateAvailableDialog(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                     Surface(
-                                        shape = RoundedCornerShape(12.dp),
+                                        shape = RoundedCornerShape(14.dp),
                                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
                                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .heightIn(max = 160.dp)
+                                            .heightIn(max = 180.dp)
                                     ) {
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .verticalScroll(rememberScrollState())
-                                                .padding(12.dp)
+                                                .padding(10.dp)
                                         ) {
-                                            Text(
-                                                text = info.releaseNotes,
-                                                fontSize = 12.5.sp,
-                                                lineHeight = 17.sp,
-                                                color = MaterialTheme.colorScheme.onSurface
+                                            SophisticatedChangelogContent(
+                                                releaseNotes = info.releaseNotes,
+                                                currentAppVersion = info.versionName
                                             )
                                         }
                                     }

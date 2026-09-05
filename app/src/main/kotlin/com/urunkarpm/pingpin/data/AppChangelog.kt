@@ -2,13 +2,25 @@ package com.urunkarpm.pingpin.data
 
 object AppChangelog {
     const val CURRENT_VERSION_CHANGELOG = """
-### Fixed & Hardened
-- **RemoteViews Inflation Crash Fix**: Eliminated `BadForegroundServiceNotificationException` crash caused by unsupported `<View>` tags in custom notification layouts when foreground service started.
-- **Alarm Screen & Process Persistence**: Fixed process crash that caused alarms to drop and sound to stop after 1 second on physical devices.
+### Optimized & Enhanced
+- **120Hz High Refresh Rate Engine**: Enforced peak native display refresh rates (120Hz / 90Hz / 144Hz) across MainActivity, PortalActivity, and AlarmActivity for butter-smooth interactions.
+- **GPU Hardware Accelerated Ponytail Overlay**: Enabled GPU composition (`FLAG_HARDWARE_ACCELERATED`) and smooth displacement delta touch pacing on the Floating Portal overlay, eliminating drag lag and IPC thrashing.
+- **Zero-Layout-Pass Navigation Animations**: Converted LiquidGlassNavBar selection indicator movements to hardware-accelerated GPU graphicsLayer translations.
+- **Streamlined Settings**: Cleaned up test section UI and removed obsolete preview controls.
 """
 
     const val FULL_CHANGELOG = """
-## [2.4.3] - Current Release
+## [2.4.4] - Current Release
+
+### Optimized & Enhanced
+- **120Hz High Refresh Rate Engine**: Enforced peak native display refresh rates (120Hz / 90Hz / 144Hz) across MainActivity, PortalActivity, and AlarmActivity for butter-smooth interactions.
+- **GPU Hardware Accelerated Ponytail Overlay**: Enabled GPU composition (`FLAG_HARDWARE_ACCELERATED`) and smooth displacement delta touch pacing on the Floating Portal overlay, eliminating drag lag and IPC thrashing.
+- **Zero-Layout-Pass Navigation Animations**: Converted LiquidGlassNavBar selection indicator movements to hardware-accelerated GPU graphicsLayer translations.
+- **Streamlined Settings**: Cleaned up test section UI and removed obsolete preview controls.
+
+---
+
+## [2.4.3]
 
 ### Fixed & Hardened
 - **RemoteViews Inflation Crash Fix**: Eliminated `BadForegroundServiceNotificationException` crash caused by unsupported `<View>` tags in custom notification layouts when foreground service started.

@@ -38,6 +38,7 @@ import com.urunkarpm.pingpin.data.local.AppDatabase
 import com.urunkarpm.pingpin.service.AlarmSoundService
 import com.urunkarpm.pingpin.service.NotificationService
 import com.urunkarpm.pingpin.service.portal.PortalAutoCheckInEngine
+import com.urunkarpm.pingpin.ui.theme.optimizeDisplayRefreshRate
 import com.urunkarpm.pingpin.service.portal.PortalCredentialManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -174,6 +175,7 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        optimizeDisplayRefreshRate()
         turnScreenOnAndKeyguard()
 
         actionType = intent.getStringExtra(EXTRA_ACTION_TYPE) ?: ACTION_CHECK_IN

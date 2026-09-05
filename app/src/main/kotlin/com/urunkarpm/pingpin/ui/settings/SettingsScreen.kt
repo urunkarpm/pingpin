@@ -4,6 +4,7 @@ import android.content.Intent
 import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -22,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -46,6 +48,8 @@ import com.urunkarpm.pingpin.data.repository.UserProfileRepository
 import com.urunkarpm.pingpin.service.NotificationService
 import com.urunkarpm.pingpin.service.OemBatteryHelper
 import com.urunkarpm.pingpin.service.WorkingDays
+import com.urunkarpm.pingpin.ui.components.AppChangelogDialog
+import com.urunkarpm.pingpin.ui.components.ChangelogView
 import com.urunkarpm.pingpin.ui.components.GlassCard
 import com.urunkarpm.pingpin.ui.components.PingPinSwitch
 import com.urunkarpm.pingpin.ui.components.TimeFormatUtils
@@ -172,9 +176,32 @@ fun SettingsScreen(
             .fillMaxSize()
             .imePadding()
             .verticalScroll(rememberScrollState())
-            .padding(start = 18.dp, end = 18.dp, top = 16.dp, bottom = 120.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 120.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
+        // 0. Expressive Screen Header (1:1 Insights Pattern Match)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = "Settings",
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Black,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    letterSpacing = (-0.8).sp,
+                    modifier = Modifier.semantics { heading() }
+                )
+                Text(
+                    text = "Preferences, automation & account setup",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
         // 1. Hero User Profile Card
         GlassCard(modifier = Modifier.fillMaxWidth()) {
             Column(
@@ -1431,45 +1458,70 @@ fun SettingsScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
-                            .size(38.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                            .size(42.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(
+                                Brush.linearGradient(
+                                    colors = listOf(
+                                        MaterialTheme.colorScheme.primaryContainer,
+                                        MaterialTheme.colorScheme.tertiaryContainer
+                                    )
+                                )
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.Info,
+                            imageVector = Icons.Outlined.RocketLaunch,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(22.dp)
                         )
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = "PingPin v$currentAppVersion",
+                                fontSize = 14.5.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Surface(
+                                shape = RoundedCornerShape(20.dp),
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                            ) {
+                                Text(
+                                    text = "LATEST",
+                                    fontSize = 9.5.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
+                                )
+                            }
+                        }
                         Text(
-                            text = "PingPin v$currentAppVersion",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "Tap to view applied changes & release notes",
+                            text = "Tap to explore detailed changelogs & release history",
                             fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
 
                 Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                    shape = RoundedCornerShape(20.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                     ) {
                         Text(
-                            text = "WHAT'S NEW",
+                            text = "CHANGELOG",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = MaterialTheme.colorScheme.primary
@@ -1486,66 +1538,9 @@ fun SettingsScreen(
         }
 
         if (showAppChangelogDialog) {
-            var showFullHistory by remember { mutableStateOf(false) }
-
-            AlertDialog(
-                onDismissRequest = { showAppChangelogDialog = false },
-                title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Description,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(22.dp)
-                        )
-                        Column {
-                            Text(
-                                text = if (showFullHistory) "All Version Releases" else "What's New in v$currentAppVersion",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = if (showFullHistory) "Full version release history" else "Recent changes applied to this app",
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                },
-                text = {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 380.dp)
-                            .verticalScroll(rememberScrollState())
-                    ) {
-                        FormattedChangelogText(
-                            if (showFullHistory) com.urunkarpm.pingpin.data.AppChangelog.FULL_CHANGELOG
-                            else com.urunkarpm.pingpin.data.AppChangelog.CURRENT_VERSION_CHANGELOG
-                        )
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showFullHistory = !showFullHistory }) {
-                        Text(
-                            text = if (showFullHistory) "Show Current Only" else "Full History",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                },
-                confirmButton = {
-                    Button(
-                        onClick = { showAppChangelogDialog = false },
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                    ) {
-                        Text("CLOSE", fontWeight = FontWeight.Bold)
-                    }
-                }
+            AppChangelogDialog(
+                currentAppVersion = currentAppVersion,
+                onDismiss = { showAppChangelogDialog = false }
             )
         }
 
@@ -1611,11 +1606,16 @@ private fun SectionHeader(
         label = "chevron_rotation"
     )
 
+    val haptic = LocalHapticFeedback.current
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .then(
-                if (onToggle != null) Modifier.clickable(onClick = onToggle)
+                if (onToggle != null) Modifier.clickable(onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onToggle()
+                })
                 else Modifier
             )
             .padding(vertical = 2.dp),
@@ -1876,147 +1876,4 @@ private fun calculateShiftDuration(checkIn: String, checkOut: String): String {
     return TimeFormatUtils.calculateShiftDuration(checkIn, checkOut)
 }
 
-@Composable
-private fun ChangelogView(
-    releaseNotes: String,
-    modifier: Modifier = Modifier
-) {
-    var showFullDialog by remember { mutableStateOf(false) }
 
-    Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
-        modifier = modifier.fillMaxWidth()
-    ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Description,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Text(
-                        text = "Changelog & Release Notes",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-
-                TextButton(
-                    onClick = { showFullDialog = true },
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                    modifier = Modifier.height(26.dp)
-                ) {
-                    Text("Expand", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                }
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 160.dp)
-                    .verticalScroll(rememberScrollState())
-            ) {
-                FormattedChangelogText(releaseNotes)
-            }
-        }
-    }
-
-    if (showFullDialog) {
-        AlertDialog(
-            onDismissRequest = { showFullDialog = false },
-            title = {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Description,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(22.dp)
-                    )
-                    Text("Release Notes & Changelog", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                }
-            },
-            text = {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 360.dp)
-                        .verticalScroll(rememberScrollState())
-                ) {
-                    FormattedChangelogText(releaseNotes)
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showFullDialog = false }) {
-                    Text("CLOSE", fontWeight = FontWeight.Bold)
-                }
-            }
-        )
-    }
-}
-
-@Composable
-private fun FormattedChangelogText(notes: String) {
-    val lines = remember(notes) {
-        notes.lines().filter { it.isNotBlank() }
-    }
-
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        lines.forEach { line ->
-            val trimmed = line.trim()
-            when {
-                trimmed.startsWith("#") -> {
-                    val headerText = trimmed.replace("^#+\\s*".toRegex(), "")
-                    Text(
-                        text = headerText,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(top = 4.dp, bottom = 2.dp)
-                    )
-                }
-                trimmed.startsWith("-") || trimmed.startsWith("*") -> {
-                    val bulletText = trimmed.substring(1).trim()
-                        .replace("\\*\\*(.*?)\\*\\*".toRegex(), "$1")
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.padding(start = 4.dp)
-                    ) {
-                        Text("•", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                        Text(
-                            text = bulletText,
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            lineHeight = 16.sp
-                        )
-                    }
-                }
-                else -> {
-                    val cleaned = trimmed.replace("\\*\\*(.*?)\\*\\*".toRegex(), "$1")
-                    Text(
-                        text = cleaned,
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        lineHeight = 16.sp
-                    )
-                }
-            }
-        }
-    }
-}

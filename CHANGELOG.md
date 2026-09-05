@@ -5,6 +5,16 @@ All notable changes to **PingPin** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.4] - 2026-09-06
+
+### Optimized & Enhanced
+- **120Hz High Refresh Rate Engine**: Enforced peak native display refresh rates (120Hz / 90Hz / 144Hz) across MainActivity, PortalActivity, and AlarmActivity for butter-smooth interactions.
+- **GPU Hardware Accelerated Ponytail Overlay**: Enabled GPU composition (`FLAG_HARDWARE_ACCELERATED`) and smooth displacement delta touch pacing on the Floating Portal overlay, eliminating drag lag and IPC thrashing.
+- **Zero-Layout-Pass Navigation Animations**: Converted LiquidGlassNavBar selection indicator movements to hardware-accelerated GPU graphicsLayer translations.
+- **Streamlined Settings**: Cleaned up test section UI and removed obsolete preview controls.
+
+---
+
 ## [2.4.3] - 2026-09-01
 
 ### Fixed & Hardened
