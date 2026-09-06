@@ -5,6 +5,14 @@ All notable changes to **PingPin** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.5] - 2026-09-06
+
+### Optimized & Streamlined
+- **Ponytail Over-Engineering Cleanups**: Simplified `AppInstallManager` by removing duplicate in-memory `@Volatile` cache layers over Android's native `SharedPreferences`. Streamlined LaunchedEffect auto-save state checks in `SettingsScreen`.
+- **UI & Calendar Polish**: Upgraded calendar date cells to sleek 12.dp squircles, integrated dynamic status filter chips with live counts, and refined expand/collapse transition animations.
+
+---
+
 ## [2.4.4] - 2026-09-06
 
 ### Optimized & Enhanced

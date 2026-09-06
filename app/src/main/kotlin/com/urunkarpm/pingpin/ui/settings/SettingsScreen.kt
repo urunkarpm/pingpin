@@ -8,6 +8,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -22,20 +24,16 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -59,13 +57,15 @@ import com.urunkarpm.pingpin.ui.components.WifiSsidPickerField
 import com.urunkarpm.pingpin.ui.components.WorkingDaysSelector
 import kotlinx.coroutines.delay
 
-private enum class SettingsSection {
-    PROFILE,
-    WORKSPACE,
-    PORTAL_AUTOMATION,
-    ALARM,
-    OEM,
-    APP_UPDATE
+private enum class SettingsCategory(
+    val title: String,
+    val subtitle: String,
+    val icon: ImageVector
+) {
+    PROFILE_SHIFT("Profile & Shift", "Personal profile, Wi-Fi & working hours", Icons.Outlined.Badge),
+    AUTOMATION("Automation", "Portal auto-checkin & credential auto-fill", Icons.Outlined.AutoAwesome),
+    RELIABILITY("System Health", "Permissions, battery & alarm precision", Icons.Outlined.Shield),
+    UPDATES("Updates & About", "GitHub releases & app changelogs", Icons.Outlined.RocketLaunch)
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -90,15 +90,10 @@ fun SettingsScreen(
         }
     }
 
-    val db = remember { AppDatabase.getInstance(context) }
-    val officeConfigRepo = remember { OfficeConfigRepository(db.officeConfigDao()) }
-    val profileRepo = remember { UserProfileRepository(db.userProfileDao()) }
-
-    val configState by officeConfigRepo.configFlow.collectAsState(initial = null)
-    val profileState by profileRepo.profileFlow.collectAsState(initial = null)
+    val configState by viewModel.configState.collectAsState()
+    val profileState by viewModel.profileState.collectAsState()
 
     var fullName by remember { mutableStateOf("") }
-
     var ssid by remember { mutableStateOf("") }
     var checkInTime by remember { mutableStateOf("09:30") }
     var checkOutTime by remember { mutableStateOf("17:30") }
@@ -120,14 +115,8 @@ fun SettingsScreen(
     var testAlarmFired by remember { mutableStateOf(false) }
     var showAppChangelogDialog by remember { mutableStateOf(false) }
 
-    // Accordion expansion state: null means all collapsed by default
-    var expandedSection by rememberSaveable { mutableStateOf<SettingsSection?>(null) }
-    val profileExpanded = expandedSection == SettingsSection.PROFILE
-    val workspaceExpanded = expandedSection == SettingsSection.WORKSPACE
-    val portalAutomationExpanded = expandedSection == SettingsSection.PORTAL_AUTOMATION
-    val alarmExpanded = expandedSection == SettingsSection.ALARM
-    val oemExpanded = expandedSection == SettingsSection.OEM
-    val appUpdateExpanded = expandedSection == SettingsSection.APP_UPDATE
+    // Active Category Tab: Default to PROFILE_SHIFT
+    var selectedCategory by rememberSaveable { mutableStateOf(SettingsCategory.PROFILE_SHIFT) }
 
     val oemGuidance = remember { OemBatteryHelper.getGuidance() }
     val fieldShape = remember { RoundedCornerShape(16.dp) }
@@ -150,8 +139,14 @@ fun SettingsScreen(
         profileState?.let { prof ->
             fullName = prof.fullName
         }
-        portalUsername = credManager.getUsername()
-        portalPassword = credManager.getPassword()
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            val user = credManager.getUsername()
+            val pass = credManager.getPassword()
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                portalUsername = user
+                portalPassword = pass
+            }
+        }
     }
 
     val avatarInitials = remember(fullName) {
@@ -160,7 +155,7 @@ fun SettingsScreen(
     }
 
     val shiftDurationText = remember(checkInTime, checkOutTime) {
-        calculateShiftDuration(checkInTime, checkOutTime)
+        TimeFormatUtils.calculateShiftDuration(checkInTime, checkOutTime)
     }
 
     val activeDaysCount = remember(workingDaysMask) {
@@ -171,15 +166,38 @@ fun SettingsScreen(
         fullName.isNotBlank() && ssid.isNotBlank()
     }
 
+    // System Permissions lifecycle polling
+    val notifService = remember { NotificationService(context) }
+    var hasExactAlarmPerm by remember { mutableStateOf(notifService.canScheduleExactAlarms()) }
+    var isBatteryIgnored by remember { mutableStateOf(notifService.isIgnoringBatteryOptimizations()) }
+    var hasOverlayPerm by remember { mutableStateOf(notifService.canDrawOverlays()) }
+    var hasFullScreenIntentPerm by remember { mutableStateOf(notifService.canUseFullScreenIntent()) }
+
+    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                hasExactAlarmPerm = notifService.canScheduleExactAlarms()
+                isBatteryIgnored = notifService.isIgnoringBatteryOptimizations()
+                hasOverlayPerm = notifService.canDrawOverlays()
+                hasFullScreenIntentPerm = notifService.canUseFullScreenIntent()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
             .imePadding()
             .verticalScroll(rememberScrollState())
             .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 120.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // 0. Expressive Screen Header (1:1 Insights Pattern Match)
+        // 0. Expressive Screen Header
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -202,7 +220,7 @@ fun SettingsScreen(
             }
         }
 
-        // 1. Hero User Profile Card
+        // 1. Sleek Compact Profile Hero & Theme Bar
         GlassCard(modifier = Modifier.fillMaxWidth()) {
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -210,78 +228,105 @@ fun SettingsScreen(
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // Avatar Box with Flat Material 3 Container Color
-                    Box(
-                        modifier = Modifier
-                            .size(60.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primaryContainer)
-                            .border(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f), CircleShape),
-                        contentAlignment = Alignment.Center
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
                     ) {
-                        Text(
-                            text = avatarInitials,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Black
-                        )
+                        // Avatar Box
+                        Box(
+                            modifier = Modifier
+                                .size(54.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primaryContainer)
+                                .border(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = avatarInitials,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Black
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(14.dp))
+
+                        Column {
+                            Text(
+                                text = fullName.ifBlank { "Setup Profile" },
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+
+                            Spacer(modifier = Modifier.height(2.dp))
+
+                            // Status Pill
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isProfileComplete) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.tertiaryContainer
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(6.dp)
+                                            .clip(CircleShape)
+                                            .background(if (isProfileComplete) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary)
+                                    )
+                                    Text(
+                                        text = if (isProfileComplete) "AUTOMATION READY" else "SETUP PENDING",
+                                        fontSize = 9.5.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = if (isProfileComplete) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onTertiaryContainer,
+                                        letterSpacing = 0.5.sp
+                                    )
+                                }
+                            }
+                        }
                     }
 
-                    Spacer(modifier = Modifier.width(16.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = fullName.ifBlank { "Setup Profile" },
-                            fontSize = 19.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-
-                        Spacer(modifier = Modifier.height(2.dp))
-
-                        Text(
-                            text = if (fullName.isBlank()) "Tap profile card to configure" else "PingPin Attendance Profile",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-
-                        Spacer(modifier = Modifier.height(6.dp))
-
-                        // Status pill with pulse dot
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = if (isProfileComplete) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.tertiaryContainer
+                    // Integrated Theme Switch
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(5.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(6.dp)
-                                        .clip(CircleShape)
-                                        .background(if (isProfileComplete) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary)
-                                )
-                                Text(
-                                    text = if (isProfileComplete) "AUTOMATION READY" else "CONFIGURATION PENDING",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = if (isProfileComplete) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onTertiaryContainer,
-                                    letterSpacing = 0.5.sp
-                                )
-                            }
+                            Icon(
+                                imageVector = if (isDarkTheme) Icons.Outlined.DarkMode else Icons.Outlined.LightMode,
+                                contentDescription = null,
+                                tint = if (isDarkTheme) MaterialTheme.colorScheme.primary else Color(0xFFD97706),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            PingPinSwitch(
+                                checked = isDarkTheme,
+                                onCheckedChange = { onToggleTheme(it) },
+                                checkedIcon = Icons.Outlined.DarkMode,
+                                uncheckedIcon = Icons.Outlined.LightMode,
+                                checkedTrackColor = MaterialTheme.colorScheme.primary,
+                                uncheckedTrackColor = Color(0xFFFEF3C7),
+                                uncheckedThumbColor = Color(0xFFD97706),
+                                uncheckedBorderColor = Color(0xFFF59E0B),
+                                iconTintUnchecked = Color.White
+                            )
                         }
                     }
                 }
 
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f))
 
                 // Stat Summary Chips Row
                 Row(
@@ -307,1077 +352,786 @@ fun SettingsScreen(
             }
         }
 
-        // 2. Modern Theme Switcher Bar Card
-        GlassCard(modifier = Modifier.fillMaxWidth()) {
+        // 2. Segmented Pill Tab Bar (Category Selector - No Black Box Ripples!)
+        Surface(
+            shape = RoundedCornerShape(18.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
+            modifier = Modifier.fillMaxWidth()
+        ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.secondaryContainer),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = if (isDarkTheme) Icons.Outlined.DarkMode else Icons.Outlined.LightMode,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    Column {
-                        Text(
-                            text = if (isDarkTheme) "Dark Theme Active" else "Light Theme Active",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = if (isDarkTheme) "Switch to clean e-ink light mode" else "Switch to amoled dark mode",
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-                PingPinSwitch(
-                    checked = isDarkTheme,
-                    onCheckedChange = {
-                        onToggleTheme(it)
-                    },
-                    checkedIcon = Icons.Outlined.DarkMode,
-                    uncheckedIcon = Icons.Outlined.LightMode,
-                    checkedTrackColor = MaterialTheme.colorScheme.primary,
-                    uncheckedTrackColor = Color(0xFFFEF3C7),
-                    uncheckedThumbColor = Color(0xFFD97706),
-                    uncheckedBorderColor = Color(0xFFF59E0B),
-                    iconTintUnchecked = Color.White
-                )
-            }
-        }
-
-        // 3. Employee Profile Card
-        GlassCard(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                SectionHeader(
-                    icon = Icons.Outlined.Badge,
-                    title = "EMPLOYEE PROFILE",
-                    subtitle = "Personal identity & organization profile",
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    iconTint = MaterialTheme.colorScheme.primary,
-                    summaryBadge = if (!profileExpanded && fullName.isNotBlank()) fullName else null,
-                    expanded = profileExpanded,
-                    onToggle = { expandedSection = if (profileExpanded) null else SettingsSection.PROFILE }
-                )
-
-                AnimatedVisibility(
-                    visible = profileExpanded,
-                    enter = expandVertically(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) + fadeIn(),
-                    exit = shrinkVertically(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) + fadeOut()
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = fullName,
-                            onValueChange = { fullName = it },
-                            label = { Text("Full Name") },
-                            leadingIcon = { Icon(Icons.Outlined.Person, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = fieldShape,
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
-                            )
-                        )
-                    }
-                }
-            }
-        }
-
-        // 4. Workspace & Shift Timings Card
-        GlassCard(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                SectionHeader(
-                    icon = Icons.Outlined.Business,
-                    title = "WORKSPACE & TIMINGS",
-                    subtitle = "Office Wi-Fi network & shift schedule",
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    iconTint = MaterialTheme.colorScheme.secondary,
-                    summaryBadge = if (!workspaceExpanded && ssid.isNotBlank()) "$ssid • $shiftDurationText" else null,
-                    expanded = workspaceExpanded,
-                    onToggle = { expandedSection = if (workspaceExpanded) null else SettingsSection.WORKSPACE }
-                )
-
-                AnimatedVisibility(
-                    visible = workspaceExpanded,
-                    enter = expandVertically(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) + fadeIn(),
-                    exit = shrinkVertically(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) + fadeOut()
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        // Wi-Fi SSID Picker
-                        WifiSsidPickerField(
-                            value = ssid,
-                            onValueChange = { ssid = it },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        // Check-In & Check-Out Time Pickers
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            TimePickerField(
-                                label = "Check-In Time",
-                                time24 = checkInTime,
-                                onTimeSelected = { checkInTime = it },
-                                modifier = Modifier.weight(1f)
-                            )
-                            TimePickerField(
-                                label = "Check-Out Time",
-                                time24 = checkOutTime,
-                                onTimeSelected = { checkOutTime = it },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-
-                        // Shift Duration Tint Badge
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f)),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 14.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Bolt,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.secondary,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "Calculated Shift Horizon",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
-                                Text(
-                                    text = shiftDurationText,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.secondary
-                                )
-                            }
-                        }
-
-                        // Company Portal URL
-                        OutlinedTextField(
-                            value = portalUrl,
-                            onValueChange = { portalUrl = it },
-                            label = { Text("Company HR Portal URL (Optional)") },
-                            placeholder = { Text("e.g. hr.mycompany.com") },
-                            leadingIcon = { Icon(Icons.Outlined.Language, contentDescription = null, tint = MaterialTheme.colorScheme.secondary) },
-                            trailingIcon = {
-                                if (portalUrl.isNotBlank()) {
-                                    IconButton(onClick = {
-                                        val target = if (portalUrl.startsWith("http://") || portalUrl.startsWith("https://")) {
-                                            portalUrl
-                                        } else {
-                                            "https://$portalUrl"
-                                        }
-                                        try {
-                                            uriHandler.openUri(target)
-                                        } catch (e: Exception) {
-                                            Toast.makeText(context, "Cannot open URL", Toast.LENGTH_SHORT).show()
-                                        }
-                                    }) {
-                                        Icon(Icons.AutoMirrored.Outlined.OpenInNew, contentDescription = "Open Portal URL", tint = MaterialTheme.colorScheme.secondary)
-                                    }
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = fieldShape,
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.secondary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
-                            )
-                        )
-
-                        // Working Days Selector
-                        WorkingDaysSelector(
-                            workingDaysMask = workingDaysMask,
-                            onMaskChanged = { workingDaysMask = it }
-                        )
-
-                        // WFO Days Selector
-                        WfoDaysSelector(
-                            wfoDaysMask = wfoDaysMask,
-                            onMaskChanged = { wfoDaysMask = it }
-                        )
-                    }
-                }
-            }
-        }
-
-        // 5. HR Portal Automation Card
-        GlassCard(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                SectionHeader(
-                    icon = Icons.Outlined.VpnKey,
-                    title = "HR PORTAL AUTOMATION",
-                    subtitle = "Auto-login & automated check-in execution",
-                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                    iconTint = MaterialTheme.colorScheme.tertiary,
-                    summaryBadge = if (!portalAutomationExpanded) if (portalMode == "IN_APP_AUTO") "In-App Auto: ON" else "In-App Auto: OFF" else null,
-                    expanded = portalAutomationExpanded,
-                    onToggle = { expandedSection = if (portalAutomationExpanded) null else SettingsSection.PORTAL_AUTOMATION }
-                )
-
-                AnimatedVisibility(
-                    visible = portalAutomationExpanded,
-                    enter = expandVertically(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) + fadeIn(),
-                    exit = shrinkVertically(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) + fadeOut()
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Text(
-                            text = "Execution Mode",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            FilterChip(
-                                selected = portalMode == "IN_APP_AUTO",
-                                onClick = { portalMode = "IN_APP_AUTO" },
-                                label = { Text("In-App Auto Portal", fontSize = 12.sp) },
-                                leadingIcon = {
-                                    if (portalMode == "IN_APP_AUTO") {
-                                        Icon(Icons.Outlined.Check, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    }
-                                },
-                                modifier = Modifier.weight(1f)
-                            )
-                            FilterChip(
-                                selected = portalMode == "EXTERNAL_BROWSER",
-                                onClick = { portalMode = "EXTERNAL_BROWSER" },
-                                label = { Text("Chrome Browser", fontSize = 12.sp) },
-                                leadingIcon = {
-                                    if (portalMode == "EXTERNAL_BROWSER") {
-                                        Icon(Icons.Outlined.Check, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    }
-                                },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-
-                        if (portalMode == "IN_APP_AUTO") {
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
-
-                            // Floating Mini Window Switch Row
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Use Floating Mini Window",
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Text(
-                                        text = "Opens browser in a non-disruptive floating window over other apps",
-                                        fontSize = 11.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                PingPinSwitch(
-                                    checked = useFloatingPortal,
-                                    onCheckedChange = { useFloatingPortal = it },
-                                    checkedTrackColor = MaterialTheme.colorScheme.tertiary
-                                )
-                            }
-
-                            if (useFloatingPortal) {
-                                val canDrawOverlays = remember(useFloatingPortal) {
-                                    android.provider.Settings.canDrawOverlays(context)
-                                }
-                                if (!canDrawOverlays) {
-                                    Card(
-                                        colors = CardDefaults.cardColors(
-                                            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f)
-                                        ),
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(12.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Outlined.Warning,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.error
-                                            )
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                Text(
-                                                    text = "Overlay Permission Required",
-                                                    fontSize = 12.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = MaterialTheme.colorScheme.onErrorContainer
-                                                )
-                                                Text(
-                                                    text = "PingPin needs 'Display over other apps' permission for the floating window.",
-                                                    fontSize = 11.sp,
-                                                    color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
-                                                )
-                                            }
-                                            Button(
-                                                onClick = {
-                                                    val intent = Intent(
-                                                        android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                                        android.net.Uri.parse("package:${context.packageName}")
-                                                    )
-                                                    context.startActivity(intent)
-                                                },
-                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-                                            ) {
-                                                Text("Grant", fontSize = 11.sp)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
-
-                            // Auto Check-In Switch Row
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Auto Check-In / Punch Action",
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Text(
-                                        text = "Auto-clicks Punch button on portal load",
-                                        fontSize = 11.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                PingPinSwitch(
-                                    checked = autoCheckInEnabled,
-                                    onCheckedChange = { autoCheckInEnabled = it },
-                                    checkedTrackColor = com.urunkarpm.pingpin.ui.theme.EmeraldGreen
-                                )
-                            }
-
-                            if (autoCheckInEnabled) {
-                                Text(
-                                    text = "Trigger Keywords (Removable Tags)",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-
-                                // Interactive Keyword Chips Display
-                                KeywordChipsGroup(
-                                    label = "Check-In Keywords:",
-                                    keywordsString = customCheckInKeywords,
-                                    onKeywordsChanged = { customCheckInKeywords = it }
-                                )
-
-                                KeywordChipsGroup(
-                                    label = "Check-Out Keywords:",
-                                    keywordsString = customCheckOutKeywords,
-                                    onKeywordsChanged = { customCheckOutKeywords = it }
-                                )
-                            }
-
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
-
-                            // Auto Login Switch Row
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Auto-Fill Credentials",
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Text(
-                                        text = "Fills username & password into portal form",
-                                        fontSize = 11.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                PingPinSwitch(
-                                    checked = autoLoginEnabled,
-                                    onCheckedChange = { autoLoginEnabled = it },
-                                    checkedTrackColor = MaterialTheme.colorScheme.tertiary
-                                )
-                            }
-
-                            if (autoLoginEnabled) {
-                                OutlinedTextField(
-                                    value = portalUsername,
-                                    onValueChange = { portalUsername = it },
-                                    label = { Text("Portal Username / Email / Emp ID") },
-                                    leadingIcon = { Icon(Icons.Outlined.Person, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = fieldShape,
-                                    singleLine = true,
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedBorderColor = MaterialTheme.colorScheme.tertiary,
-                                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
-                                    )
-                                )
-
-                                OutlinedTextField(
-                                    value = portalPassword,
-                                    onValueChange = { portalPassword = it },
-                                    label = { Text("Portal Password") },
-                                    leadingIcon = { Icon(Icons.Outlined.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary) },
-                                    trailingIcon = {
-                                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                                            Icon(
-                                                imageVector = if (passwordVisible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
-                                                contentDescription = null
-                                            )
-                                        }
-                                    },
-                                    visualTransformation = if (passwordVisible) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = fieldShape,
-                                    singleLine = true,
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedBorderColor = MaterialTheme.colorScheme.tertiary,
-                                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
-                                    )
-                                )
-                            }
-
-                            Button(
-                                onClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    val intent = com.urunkarpm.pingpin.ui.portal.PortalActivity.createIntent(
-                                        context = context,
-                                        actionType = com.urunkarpm.pingpin.ui.portal.PortalActivity.ACTION_CHECK_IN,
-                                        portalUrl = portalUrl
-                                    )
-                                    context.startActivity(intent)
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = fieldShape,
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.tertiary,
-                                    contentColor = MaterialTheme.colorScheme.onTertiary
-                                )
-                            ) {
-                                Icon(Icons.Outlined.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Test In-App Auto Portal Now", fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // 6. Alarm Reliability & Precision Card
-        val notifService = remember { NotificationService(context) }
-        var hasExactAlarmPerm by remember { mutableStateOf(notifService.canScheduleExactAlarms()) }
-        var isBatteryIgnored by remember { mutableStateOf(notifService.isIgnoringBatteryOptimizations()) }
-        var hasOverlayPerm by remember { mutableStateOf(notifService.canDrawOverlays()) }
-        var hasFullScreenIntentPerm by remember { mutableStateOf(notifService.canUseFullScreenIntent()) }
-
-        val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
-        DisposableEffect(lifecycleOwner) {
-            val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
-                if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
-                    hasExactAlarmPerm = notifService.canScheduleExactAlarms()
-                    isBatteryIgnored = notifService.isIgnoringBatteryOptimizations()
-                    hasOverlayPerm = notifService.canDrawOverlays()
-                    hasFullScreenIntentPerm = notifService.canUseFullScreenIntent()
-                }
-            }
-            lifecycleOwner.lifecycle.addObserver(observer)
-            onDispose {
-                lifecycleOwner.lifecycle.removeObserver(observer)
-            }
-        }
-
-        GlassCard(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                SectionHeader(
-                    icon = Icons.Outlined.AlarmOn,
-                    title = "ALARM PRECISION & RELIABILITY",
-                    subtitle = "System permissions for punctual alert execution",
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    iconTint = MaterialTheme.colorScheme.primary,
-                    summaryBadge = if (!alarmExpanded) if (hasExactAlarmPerm) "Exact Alarm: Ready" else "Exact Alarm: Action Req." else null,
-                    expanded = alarmExpanded,
-                    onToggle = { expandedSection = if (alarmExpanded) null else SettingsSection.ALARM }
-                )
-
-                AnimatedVisibility(
-                    visible = alarmExpanded,
-                    enter = expandVertically(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) + fadeIn(),
-                    exit = shrinkVertically(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) + fadeOut()
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 14.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        // Exact Alarm Status Tile
-                        StatusPermissionRow(
-                            icon = if (hasExactAlarmPerm) Icons.Outlined.CheckCircle else Icons.Outlined.Warning,
-                            title = "Exact Alarm Execution",
-                            subtitle = if (hasExactAlarmPerm) "Granted • Guaranteed precise second timing" else "Restricted by OS • Tap to enable exact alarm permission",
-                            isGranted = hasExactAlarmPerm,
-                            actionText = "ENABLE",
-                            onActionClick = {
-                                try {
-                                    val intent = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                                        android.content.Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, android.net.Uri.parse("package:${context.packageName}"))
-                                    } else {
-                                        android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${context.packageName}"))
-                                    }
-                                    context.startActivity(intent)
-                                } catch (e: Exception) {
-                                    Toast.makeText(context, "Open Settings -> Permissions to grant exact alarm permission", Toast.LENGTH_SHORT).show()
-                                }
-                            }
-                        )
-
-                        // Battery Exemption Status Tile
-                        StatusPermissionRow(
-                            icon = if (isBatteryIgnored) Icons.Outlined.BatteryFull else Icons.Outlined.BatterySaver,
-                            title = "Unrestricted Battery Mode",
-                            subtitle = if (isBatteryIgnored) "Unrestricted • Immune to background app killer" else "Optimized • Tap to allow unrestricted background alarm execution",
-                            isGranted = isBatteryIgnored,
-                            actionText = "UNRESTRICT",
-                            onActionClick = {
-                                try {
-                                    val intent = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-                                        android.content.Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, android.net.Uri.parse("package:${context.packageName}"))
-                                    } else {
-                                        android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${context.packageName}"))
-                                    }
-                                    context.startActivity(intent)
-                                } catch (e: Exception) {
-                                    Toast.makeText(context, "Open Settings -> Battery to allow unrestricted execution", Toast.LENGTH_SHORT).show()
-                                }
-                            }
-                        )
-
-                        // Full Screen Intent Status Tile
-                        val hasFullScreenAccess = hasOverlayPerm && hasFullScreenIntentPerm
-                        StatusPermissionRow(
-                            icon = if (hasFullScreenAccess) Icons.Outlined.Fullscreen else Icons.Outlined.Layers,
-                            title = "Full-Screen Alert Display",
-                            subtitle = if (hasFullScreenAccess) "Granted • Alarm pops up full-screen when screen is on" else "Restricted • Tap to allow full-screen alerts when screen is on",
-                            isGranted = hasFullScreenAccess,
-                            actionText = "GRANT",
-                            onActionClick = {
-                                try {
-                                    val intent = if (!hasOverlayPerm && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-                                        android.content.Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:${context.packageName}"))
-                                    } else if (!hasFullScreenIntentPerm && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                                        android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, android.net.Uri.parse("package:${context.packageName}"))
-                                    } else {
-                                        android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${context.packageName}"))
-                                    }
-                                    context.startActivity(intent)
-                                } catch (e: Exception) {
-                                    Toast.makeText(context, "Open Settings -> Permissions to grant display over apps", Toast.LENGTH_SHORT).show()
-                                }
-                            }
-                        )
-
-                        // Test Alarm Button
-                        Button(
-                            onClick = {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                notifService.fireTestAlarm(delaySeconds = 5)
-                                testAlarmFired = true
-                                Toast.makeText(
-                                    context,
-                                    "🔔 Test alarm will fire in 5 seconds!",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = fieldShape,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary
-                            )
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Alarm,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = if (testAlarmFired) "Test Alarm Scheduled (−5s)" else "Fire Test Alarm in 5 Seconds",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 13.sp
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // 7. OEM Battery Optimization Section Card
-        if (oemGuidance != null) {
-            GlassCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    SectionHeader(
-                        icon = Icons.Outlined.BatteryAlert,
-                        title = "BATTERY & SYSTEM HEALTH",
-                        subtitle = "Device specific optimization settings for ${oemGuidance.oemName}",
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        iconTint = MaterialTheme.colorScheme.secondary,
-                        summaryBadge = if (!oemExpanded) oemGuidance.oemName else null,
-                        expanded = oemExpanded,
-                        onToggle = { expandedSection = if (oemExpanded) null else SettingsSection.OEM }
+                SettingsCategory.values().forEach { category ->
+                    val isSelected = selectedCategory == category
+                    val containerColor by animateColorAsState(
+                        targetValue = if (isSelected) MaterialTheme.colorScheme.surface else Color.Transparent,
+                        animationSpec = tween(durationMillis = 200),
+                        label = "tab_bg"
+                    )
+                    val contentColor by animateColorAsState(
+                        targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        animationSpec = tween(durationMillis = 200),
+                        label = "tab_content"
                     )
 
-                    AnimatedVisibility(
-                        visible = oemExpanded,
-                        enter = expandVertically(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) + fadeIn(),
-                        exit = shrinkVertically(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) + fadeOut()
+                    val interactionSource = remember { MutableInteractionSource() }
+                    val isPressed by interactionSource.collectIsPressedAsState()
+                    val scale by animateFloatAsState(
+                        targetValue = if (isPressed) 0.94f else 1.0f,
+                        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                        label = "tab_scale"
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .graphicsLayer {
+                                scaleX = scale
+                                scaleY = scale
+                            }
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(containerColor)
+                            .border(
+                                width = 1.dp,
+                                color = if (isSelected) MaterialTheme.colorScheme.outline.copy(alpha = 0.2f) else Color.Transparent,
+                                shape = RoundedCornerShape(14.dp)
+                            )
+                            .clickable(
+                                interactionSource = interactionSource,
+                                indication = null
+                            ) {
+                                selectedCategory = category
+                            }
+                            .padding(vertical = 10.dp, horizontal = 4.dp),
+                        contentAlignment = Alignment.Center
                     ) {
                         Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 14.dp),
-                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
                         ) {
-                            Surface(
-                                shape = RoundedCornerShape(14.dp),
-                                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f)),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(14.dp),
-                                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                                ) {
-                                    oemGuidance.steps.forEachIndexed { idx, step ->
-                                        Row(
-                                            verticalAlignment = Alignment.Top,
-                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                        ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(20.dp)
-                                                    .clip(CircleShape)
-                                                    .background(MaterialTheme.colorScheme.secondary),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Text(
-                                                    text = "${idx + 1}",
-                                                    fontSize = 11.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = MaterialTheme.colorScheme.onSecondary
-                                                )
-                                            }
-                                            Text(
-                                                text = step,
-                                                fontSize = 12.sp,
-                                                color = MaterialTheme.colorScheme.onSurface,
-                                                modifier = Modifier.weight(1f)
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-
-                            OutlinedButton(
-                                onClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    OemBatteryHelper.launchOemSettings(context, oemGuidance)
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = fieldShape,
-                                border = androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.secondary),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.secondary)
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.Center
-                                ) {
-                                    Icon(Icons.Outlined.Settings, contentDescription = null, modifier = Modifier.size(18.dp))
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Open ${oemGuidance.oemName} Battery Settings", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                }
-                            }
+                            Icon(
+                                imageVector = category.icon,
+                                contentDescription = null,
+                                tint = contentColor,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = category.title,
+                                fontSize = 10.5.sp,
+                                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
+                                color = contentColor,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
                     }
                 }
             }
         }
 
-        // 8. App Updates Section
-        GlassCard(modifier = Modifier.fillMaxWidth()) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                SectionHeader(
-                    icon = Icons.Outlined.SystemUpdate,
-                    title = "APP UPDATES & RELEASES",
-                    subtitle = "Check GitHub for app updates and install latest release",
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    iconTint = MaterialTheme.colorScheme.primary,
-                    summaryBadge = when (updateState) {
-                        is com.urunkarpm.pingpin.service.UpdateState.UpdateAvailable -> "NEW UPDATE"
-                        is com.urunkarpm.pingpin.service.UpdateState.UpToDate -> "UP TO DATE"
-                        is com.urunkarpm.pingpin.service.UpdateState.Downloading -> "DOWNLOADING"
-                        is com.urunkarpm.pingpin.service.UpdateState.ReadyToInstall -> "READY"
-                        else -> "v$currentAppVersion"
-                    },
-                    expanded = appUpdateExpanded,
-                    onToggle = { expandedSection = if (appUpdateExpanded) null else SettingsSection.APP_UPDATE }
-                )
-
-                AnimatedVisibility(
-                    visible = appUpdateExpanded,
-                    enter = expandVertically() + fadeIn(),
-                    exit = shrinkVertically() + fadeOut()
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 4.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column {
-                                Text(
-                                    text = "Current Installed Version",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+        // 3. Category Content Container (Instant & Smooth)
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            when (selectedCategory) {
+                    SettingsCategory.PROFILE_SHIFT -> {
+                        // Personal Identity Section
+                        GlassCard(modifier = Modifier.fillMaxWidth()) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(14.dp)
+                            ) {
+                                CategorySectionHeader(
+                                    icon = Icons.Outlined.Person,
+                                    title = "EMPLOYEE IDENTITY",
+                                    subtitle = "Personal details & display name",
+                                    iconBgColor = MaterialTheme.colorScheme.primaryContainer,
+                                    iconTint = MaterialTheme.colorScheme.primary
                                 )
+
+                                OutlinedTextField(
+                                    value = fullName,
+                                    onValueChange = { fullName = it },
+                                    label = { Text("Full Name") },
+                                    leadingIcon = { Icon(Icons.Outlined.Person, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = fieldShape,
+                                    singleLine = true,
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                                    )
+                                )
+                            }
+                        }
+
+                        // Workspace & Shift Timings Section
+                        GlassCard(modifier = Modifier.fillMaxWidth()) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                CategorySectionHeader(
+                                    icon = Icons.Outlined.Business,
+                                    title = "WORKSPACE & TIMINGS",
+                                    subtitle = "Wi-Fi network & shift schedule",
+                                    iconBgColor = MaterialTheme.colorScheme.secondaryContainer,
+                                    iconTint = MaterialTheme.colorScheme.secondary
+                                )
+
+                                // Wi-Fi SSID Picker
+                                WifiSsidPickerField(
+                                    value = ssid,
+                                    onValueChange = { ssid = it },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+
+                                // Check-In & Check-Out Time Pickers
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    TimePickerField(
+                                        label = "Check-In Time",
+                                        time24 = checkInTime,
+                                        onTimeSelected = { checkInTime = it },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    TimePickerField(
+                                        label = "Check-Out Time",
+                                        time24 = checkOutTime,
+                                        onTimeSelected = { checkOutTime = it },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+
+                                // Shift Horizon Badge
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f)),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(
+                                                imageVector = Icons.Outlined.Bolt,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.secondary,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = "Calculated Shift Horizon",
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                        }
+                                        Text(
+                                            text = shiftDurationText,
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.secondary
+                                        )
+                                    }
+                                }
+
+                                // Company Portal URL
+                                OutlinedTextField(
+                                    value = portalUrl,
+                                    onValueChange = { portalUrl = it },
+                                    label = { Text("Company HR Portal URL (Optional)") },
+                                    placeholder = { Text("e.g. hr.mycompany.com") },
+                                    leadingIcon = { Icon(Icons.Outlined.Language, contentDescription = null, tint = MaterialTheme.colorScheme.secondary) },
+                                    trailingIcon = {
+                                        if (portalUrl.isNotBlank()) {
+                                            IconButton(onClick = {
+                                                val target = if (portalUrl.startsWith("http://") || portalUrl.startsWith("https://")) {
+                                                    portalUrl
+                                                } else {
+                                                    "https://$portalUrl"
+                                                }
+                                                try {
+                                                    uriHandler.openUri(target)
+                                                } catch (e: Exception) {
+                                                    Toast.makeText(context, "Cannot open URL", Toast.LENGTH_SHORT).show()
+                                                }
+                                            }) {
+                                                Icon(Icons.AutoMirrored.Outlined.OpenInNew, contentDescription = "Open Portal URL", tint = MaterialTheme.colorScheme.secondary)
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = fieldShape,
+                                    singleLine = true,
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = MaterialTheme.colorScheme.secondary,
+                                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                                    )
+                                )
+
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+
+                                // Working Days & WFO Days Selectors
+                                WorkingDaysSelector(
+                                    workingDaysMask = workingDaysMask,
+                                    onMaskChanged = { workingDaysMask = it }
+                                )
+
+                                WfoDaysSelector(
+                                    wfoDaysMask = wfoDaysMask,
+                                    onMaskChanged = { wfoDaysMask = it }
+                                )
+                            }
+                        }
+                    }
+
+                    SettingsCategory.AUTOMATION -> {
+                        GlassCard(modifier = Modifier.fillMaxWidth()) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                CategorySectionHeader(
+                                    icon = Icons.Outlined.VpnKey,
+                                    title = "HR PORTAL AUTOMATION",
+                                    subtitle = "Auto-login & automated check-in execution",
+                                    iconBgColor = MaterialTheme.colorScheme.tertiaryContainer,
+                                    iconTint = MaterialTheme.colorScheme.tertiary
+                                )
+
                                 Text(
-                                    text = "v$currentAppVersion",
-                                    fontSize = 15.sp,
+                                    text = "Execution Mode",
+                                    fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
-                            }
 
-                            if (updateState is com.urunkarpm.pingpin.service.UpdateState.Idle ||
-                                updateState is com.urunkarpm.pingpin.service.UpdateState.UpToDate ||
-                                updateState is com.urunkarpm.pingpin.service.UpdateState.Error
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    FilterChip(
+                                        selected = portalMode == "IN_APP_AUTO",
+                                        onClick = { portalMode = "IN_APP_AUTO" },
+                                        label = { Text("In-App Auto Portal", fontSize = 12.sp) },
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                                            selectedLabelColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                        ),
+                                        border = FilterChipDefaults.filterChipBorder(
+                                            enabled = true,
+                                            selected = portalMode == "IN_APP_AUTO",
+                                            borderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
+                                            selectedBorderColor = MaterialTheme.colorScheme.tertiary
+                                        ),
+                                        shape = RoundedCornerShape(12.dp),
+                                        leadingIcon = {
+                                            if (portalMode == "IN_APP_AUTO") {
+                                                Icon(Icons.Outlined.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                            }
+                                        },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    FilterChip(
+                                        selected = portalMode == "EXTERNAL_BROWSER",
+                                        onClick = { portalMode = "EXTERNAL_BROWSER" },
+                                        label = { Text("Chrome Browser", fontSize = 12.sp) },
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                                            selectedLabelColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                        ),
+                                        border = FilterChipDefaults.filterChipBorder(
+                                            enabled = true,
+                                            selected = portalMode == "EXTERNAL_BROWSER",
+                                            borderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
+                                            selectedBorderColor = MaterialTheme.colorScheme.tertiary
+                                        ),
+                                        shape = RoundedCornerShape(12.dp),
+                                        leadingIcon = {
+                                            if (portalMode == "EXTERNAL_BROWSER") {
+                                                Icon(Icons.Outlined.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                            }
+                                        },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+
+                                if (portalMode == "IN_APP_AUTO") {
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+
+                                    // Floating Mini Window Switch
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = "Use Floating Mini Window",
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                            Text(
+                                                text = "Opens browser in a non-disruptive floating window",
+                                                fontSize = 11.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        PingPinSwitch(
+                                            checked = useFloatingPortal,
+                                            onCheckedChange = { useFloatingPortal = it },
+                                            checkedTrackColor = MaterialTheme.colorScheme.tertiary
+                                        )
+                                    }
+
+                                    if (useFloatingPortal) {
+                                        val canDrawOverlays = remember(useFloatingPortal) {
+                                            android.provider.Settings.canDrawOverlays(context)
+                                        }
+                                        if (!canDrawOverlays) {
+                                            Card(
+                                                colors = CardDefaults.cardColors(
+                                                    containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f)
+                                                ),
+                                                shape = RoundedCornerShape(14.dp),
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.padding(12.dp),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Outlined.Warning,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.error
+                                                    )
+                                                    Column(modifier = Modifier.weight(1f)) {
+                                                        Text(
+                                                            text = "Overlay Permission Required",
+                                                            fontSize = 12.sp,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = MaterialTheme.colorScheme.onErrorContainer
+                                                        )
+                                                        Text(
+                                                            text = "Grant 'Display over other apps' permission for the floating window.",
+                                                            fontSize = 11.sp,
+                                                            color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
+                                                        )
+                                                    }
+                                                    Button(
+                                                        onClick = {
+                                                            val intent = Intent(
+                                                                android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                                                android.net.Uri.parse("package:${context.packageName}")
+                                                            )
+                                                            context.startActivity(intent)
+                                                        },
+                                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                                                    ) {
+                                                        Text("Grant", fontSize = 11.sp)
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+
+                                    // Auto Check-In Switch Row
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = "Auto Check-In / Punch Action",
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                            Text(
+                                                text = "Auto-clicks Punch button on portal load",
+                                                fontSize = 11.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        PingPinSwitch(
+                                            checked = autoCheckInEnabled,
+                                            onCheckedChange = { autoCheckInEnabled = it },
+                                            checkedTrackColor = com.urunkarpm.pingpin.ui.theme.EmeraldGreen
+                                        )
+                                    }
+
+                                    if (autoCheckInEnabled) {
+                                        // Interactive Keyword Chips Display
+                                        KeywordChipsGroup(
+                                            label = "Check-In Keywords:",
+                                            keywordsString = customCheckInKeywords,
+                                            onKeywordsChanged = { customCheckInKeywords = it }
+                                        )
+
+                                        KeywordChipsGroup(
+                                            label = "Check-Out Keywords:",
+                                            keywordsString = customCheckOutKeywords,
+                                            onKeywordsChanged = { customCheckOutKeywords = it }
+                                        )
+                                    }
+
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+
+                                    // Auto Login Switch Row
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = "Auto-Fill Credentials",
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                            Text(
+                                                text = "Fills username & password into portal form",
+                                                fontSize = 11.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        PingPinSwitch(
+                                            checked = autoLoginEnabled,
+                                            onCheckedChange = { autoLoginEnabled = it },
+                                            checkedTrackColor = MaterialTheme.colorScheme.tertiary
+                                        )
+                                    }
+
+                                    if (autoLoginEnabled) {
+                                        OutlinedTextField(
+                                            value = portalUsername,
+                                            onValueChange = { portalUsername = it },
+                                            label = { Text("Portal Username / Email / Emp ID") },
+                                            leadingIcon = { Icon(Icons.Outlined.Person, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary) },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            shape = fieldShape,
+                                            singleLine = true,
+                                            colors = OutlinedTextFieldDefaults.colors(
+                                                focusedBorderColor = MaterialTheme.colorScheme.tertiary,
+                                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                                            )
+                                        )
+
+                                        OutlinedTextField(
+                                            value = portalPassword,
+                                            onValueChange = { portalPassword = it },
+                                            label = { Text("Portal Password") },
+                                            leadingIcon = { Icon(Icons.Outlined.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary) },
+                                            trailingIcon = {
+                                                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                                    Icon(
+                                                        imageVector = if (passwordVisible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                                                        contentDescription = null
+                                                    )
+                                                }
+                                            },
+                                            visualTransformation = if (passwordVisible) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                                            modifier = Modifier.fillMaxWidth(),
+                                            shape = fieldShape,
+                                            singleLine = true,
+                                            colors = OutlinedTextFieldDefaults.colors(
+                                                focusedBorderColor = MaterialTheme.colorScheme.tertiary,
+                                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                                            )
+                                        )
+                                    }
+
+                                    Button(
+                                        onClick = {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            val intent = com.urunkarpm.pingpin.ui.portal.PortalActivity.createIntent(
+                                                context = context,
+                                                actionType = com.urunkarpm.pingpin.ui.portal.PortalActivity.ACTION_CHECK_IN,
+                                                portalUrl = portalUrl
+                                            )
+                                            context.startActivity(intent)
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = fieldShape,
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = MaterialTheme.colorScheme.tertiary,
+                                            contentColor = MaterialTheme.colorScheme.onTertiary
+                                        )
+                                    ) {
+                                        Icon(Icons.Outlined.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Test In-App Auto Portal Now", fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    SettingsCategory.RELIABILITY -> {
+                        // System Permissions Health
+                        GlassCard(modifier = Modifier.fillMaxWidth()) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(14.dp)
                             ) {
+                                CategorySectionHeader(
+                                    icon = Icons.Outlined.AlarmOn,
+                                    title = "ALARM PRECISION & RELIABILITY",
+                                    subtitle = "System permissions for punctual alerts",
+                                    iconBgColor = MaterialTheme.colorScheme.primaryContainer,
+                                    iconTint = MaterialTheme.colorScheme.primary
+                                )
+
+                                // Exact Alarm Status Tile
+                                StatusPermissionRow(
+                                    icon = if (hasExactAlarmPerm) Icons.Outlined.CheckCircle else Icons.Outlined.Warning,
+                                    title = "Exact Alarm Execution",
+                                    subtitle = if (hasExactAlarmPerm) "Granted • Guaranteed second precision" else "Restricted • Tap to enable exact alarm permission",
+                                    isGranted = hasExactAlarmPerm,
+                                    actionText = "ENABLE",
+                                    onActionClick = {
+                                        try {
+                                            val intent = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                                                android.content.Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, android.net.Uri.parse("package:${context.packageName}"))
+                                            } else {
+                                                android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${context.packageName}"))
+                                            }
+                                            context.startActivity(intent)
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, "Open Settings -> Permissions to grant exact alarm permission", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                )
+
+                                // Battery Exemption Status Tile
+                                StatusPermissionRow(
+                                    icon = if (isBatteryIgnored) Icons.Outlined.BatteryFull else Icons.Outlined.BatterySaver,
+                                    title = "Unrestricted Battery Mode",
+                                    subtitle = if (isBatteryIgnored) "Unrestricted • Immune to OS background killer" else "Optimized • Tap to allow unrestricted background execution",
+                                    isGranted = isBatteryIgnored,
+                                    actionText = "UNRESTRICT",
+                                    onActionClick = {
+                                        try {
+                                            val intent = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                                                android.content.Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, android.net.Uri.parse("package:${context.packageName}"))
+                                            } else {
+                                                android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${context.packageName}"))
+                                            }
+                                            context.startActivity(intent)
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, "Open Settings -> Battery to allow unrestricted execution", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                )
+
+                                // Full Screen Intent Status Tile
+                                val hasFullScreenAccess = hasOverlayPerm && hasFullScreenIntentPerm
+                                StatusPermissionRow(
+                                    icon = if (hasFullScreenAccess) Icons.Outlined.Fullscreen else Icons.Outlined.Layers,
+                                    title = "Full-Screen Alert Display",
+                                    subtitle = if (hasFullScreenAccess) "Granted • Alarm pops up full-screen" else "Restricted • Tap to allow full-screen overlay alerts",
+                                    isGranted = hasFullScreenAccess,
+                                    actionText = "GRANT",
+                                    onActionClick = {
+                                        try {
+                                            val intent = if (!hasOverlayPerm && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                                                android.content.Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:${context.packageName}"))
+                                            } else if (!hasFullScreenIntentPerm && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                                                android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, android.net.Uri.parse("package:${context.packageName}"))
+                                            } else {
+                                                android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${context.packageName}"))
+                                            }
+                                            context.startActivity(intent)
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, "Open Settings -> Permissions to grant display over apps", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                )
+
+                                // Test Alarm Button
                                 Button(
                                     onClick = {
                                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        appUpdateViewModel.checkForUpdates(isAutoCheck = false)
+                                        notifService.fireTestAlarm(delaySeconds = 5)
+                                        testAlarmFired = true
+                                        Toast.makeText(
+                                            context,
+                                            "🔔 Test alarm will fire in 5 seconds!",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
                                     },
+                                    modifier = Modifier.fillMaxWidth(),
                                     shape = fieldShape,
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = MaterialTheme.colorScheme.primary,
                                         contentColor = MaterialTheme.colorScheme.onPrimary
                                     )
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Refresh,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Check for Update", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Alarm,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = if (testAlarmFired) "Test Alarm Scheduled (−5s)" else "Fire Test Alarm in 5 Seconds",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp
+                                        )
+                                    }
                                 }
                             }
                         }
 
-                        when (val state = updateState) {
-                            is com.urunkarpm.pingpin.service.UpdateState.Checking -> {
-                                Surface(
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                                    modifier = Modifier.fillMaxWidth()
+                        // OEM Battery Guidance Card
+                        if (oemGuidance != null) {
+                            GlassCard(modifier = Modifier.fillMaxWidth()) {
+                                Column(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalArrangement = Arrangement.spacedBy(14.dp)
                                 ) {
-                                    Row(
-                                        modifier = Modifier.padding(14.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    CategorySectionHeader(
+                                        icon = Icons.Outlined.BatteryAlert,
+                                        title = "BATTERY & SYSTEM HEALTH",
+                                        subtitle = "Device specific settings for ${oemGuidance.oemName}",
+                                        iconBgColor = MaterialTheme.colorScheme.secondaryContainer,
+                                        iconTint = MaterialTheme.colorScheme.secondary
+                                    )
+
+                                    Surface(
+                                        shape = RoundedCornerShape(14.dp),
+                                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
+                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f)),
+                                        modifier = Modifier.fillMaxWidth()
                                     ) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(20.dp),
-                                            strokeWidth = 2.dp,
-                                            color = MaterialTheme.colorScheme.primary
+                                        Column(
+                                            modifier = Modifier.padding(14.dp),
+                                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                                        ) {
+                                            oemGuidance.steps.forEachIndexed { idx, step ->
+                                                Row(
+                                                    verticalAlignment = Alignment.Top,
+                                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                                ) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(20.dp)
+                                                            .clip(CircleShape)
+                                                            .background(MaterialTheme.colorScheme.secondary),
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Text(
+                                                            text = "${idx + 1}",
+                                                            fontSize = 11.sp,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = MaterialTheme.colorScheme.onSecondary
+                                                        )
+                                                    }
+                                                    Text(
+                                                        text = step,
+                                                        fontSize = 12.sp,
+                                                        color = MaterialTheme.colorScheme.onSurface,
+                                                        modifier = Modifier.weight(1f)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    OutlinedButton(
+                                        onClick = {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            OemBatteryHelper.launchOemSettings(context, oemGuidance)
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = fieldShape,
+                                        border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.secondary),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.secondary)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.Center
+                                        ) {
+                                            Icon(Icons.Outlined.Settings, contentDescription = null, modifier = Modifier.size(18.dp))
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text("Open ${oemGuidance.oemName} Battery Settings", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    SettingsCategory.UPDATES -> {
+                        GlassCard(modifier = Modifier.fillMaxWidth()) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(14.dp)
+                            ) {
+                                CategorySectionHeader(
+                                    icon = Icons.Outlined.SystemUpdate,
+                                    title = "APP UPDATES & RELEASES",
+                                    subtitle = "Check GitHub for updates & installed build",
+                                    iconBgColor = MaterialTheme.colorScheme.primaryContainer,
+                                    iconTint = MaterialTheme.colorScheme.primary
+                                )
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column {
+                                        Text(
+                                            text = "Current Installed Version",
+                                            fontSize = 12.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                         Text(
-                                            text = "Checking GitHub Releases...",
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.Medium,
+                                            text = "v$currentAppVersion",
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.onSurface
                                         )
                                     }
-                                }
-                            }
 
-                            is com.urunkarpm.pingpin.service.UpdateState.UpToDate -> {
-                                Surface(
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(14.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    if (updateState is com.urunkarpm.pingpin.service.UpdateState.Idle ||
+                                        updateState is com.urunkarpm.pingpin.service.UpdateState.UpToDate ||
+                                        updateState is com.urunkarpm.pingpin.service.UpdateState.Error
                                     ) {
-                                        Icon(
-                                            imageVector = Icons.Outlined.CheckCircle,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(22.dp)
-                                        )
-                                        Column {
-                                            Text(
-                                                text = "PingPin is up to date!",
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            )
-                                            Text(
-                                                text = "You are running the latest release (v${state.currentVersion}).",
-                                                fontSize = 11.sp,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-
-                            is com.urunkarpm.pingpin.service.UpdateState.UpdateAvailable -> {
-                                val info = state.updateInfo
-                                Surface(
-                                    shape = RoundedCornerShape(14.dp),
-                                    color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f),
-                                    border = androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.5f)),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Column(
-                                        modifier = Modifier.padding(14.dp),
-                                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Outlined.NewReleases,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.tertiary,
-                                                modifier = Modifier.size(22.dp)
-                                            )
-                                            Text(
-                                                text = "New Update Available: v${info.versionName}",
-                                                fontSize = 14.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            )
-                                        }
-
-                                        if (info.apkSize > 0) {
-                                            Text(
-                                                text = "Download size: ${String.format("%.1f", info.apkSize / (1024f * 1024f))} MB",
-                                                fontSize = 11.sp,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-
-                                        if (info.releaseNotes.isNotBlank()) {
-                                            ChangelogView(releaseNotes = info.releaseNotes)
-                                        }
-
                                         Button(
                                             onClick = {
                                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                appUpdateViewModel.downloadAndInstallUpdate(info)
+                                                appUpdateViewModel.checkForUpdates(isAutoCheck = false)
                                             },
-                                            modifier = Modifier.fillMaxWidth(),
-                                            shape = fieldShape,
-                                            colors = ButtonDefaults.buttonColors(
-                                                containerColor = MaterialTheme.colorScheme.tertiary,
-                                                contentColor = MaterialTheme.colorScheme.onTertiary
-                                            )
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Outlined.Download,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Text("Download & Install Update", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                        }
-                                    }
-                                }
-                            }
-
-                            is com.urunkarpm.pingpin.service.UpdateState.Downloading -> {
-                                Surface(
-                                    shape = RoundedCornerShape(14.dp),
-                                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Column(
-                                        modifier = Modifier.padding(14.dp),
-                                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                text = "Downloading Update...",
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            )
-                                            Text(
-                                                text = "${(state.progress * 100).toInt()}%",
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.ExtraBold,
-                                                color = MaterialTheme.colorScheme.primary
-                                            )
-                                        }
-
-                                        LinearProgressIndicator(
-                                            progress = { state.progress },
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .height(8.dp)
-                                                .clip(RoundedCornerShape(4.dp)),
-                                            color = MaterialTheme.colorScheme.primary,
-                                            trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-                                        )
-
-                                        if (state.totalBytes > 0) {
-                                            Text(
-                                                text = "${String.format("%.1f", state.downloadedBytes / (1024f * 1024f))} MB / ${String.format("%.1f", state.totalBytes / (1024f * 1024f))} MB",
-                                                fontSize = 11.sp,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-
-                            is com.urunkarpm.pingpin.service.UpdateState.ReadyToInstall -> {
-                                Surface(
-                                    shape = RoundedCornerShape(14.dp),
-                                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                                    border = androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Column(
-                                        modifier = Modifier.padding(14.dp),
-                                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Outlined.SystemUpdate,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(22.dp)
-                                            )
-                                            Text(
-                                                text = "APK Downloaded & Ready!",
-                                                fontSize = 14.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            )
-                                        }
-
-                                        Text(
-                                            text = "Tap below to launch the Android Package Installer for v${state.updateInfo.versionName}.",
-                                            fontSize = 11.sp,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-
-                                        if (state.updateInfo.releaseNotes.isNotBlank()) {
-                                            ChangelogView(releaseNotes = state.updateInfo.releaseNotes)
-                                        }
-
-                                        Button(
-                                            onClick = {
-                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                appUpdateViewModel.installDownloadedApk(state.apkFile)
-                                            },
-                                            modifier = Modifier.fillMaxWidth(),
                                             shape = fieldShape,
                                             colors = ButtonDefaults.buttonColors(
                                                 containerColor = MaterialTheme.colorScheme.primary,
@@ -1385,153 +1139,395 @@ fun SettingsScreen(
                                             )
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Outlined.SystemUpdate,
+                                                imageVector = Icons.Outlined.Refresh,
                                                 contentDescription = null,
-                                                modifier = Modifier.size(18.dp)
+                                                modifier = Modifier.size(16.dp)
                                             )
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Text("Install Update Now", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text("Check for Update", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                         }
                                     }
                                 }
-                            }
 
-                            is com.urunkarpm.pingpin.service.UpdateState.Error -> {
-                                Surface(
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
-                                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.3f)),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(12.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween
+                                when (val state = updateState) {
+                                    is com.urunkarpm.pingpin.service.UpdateState.Checking -> {
+                                        Surface(
+                                            shape = RoundedCornerShape(12.dp),
+                                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(14.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                            ) {
+                                                CircularProgressIndicator(
+                                                    modifier = Modifier.size(20.dp),
+                                                    strokeWidth = 2.dp,
+                                                    color = MaterialTheme.colorScheme.primary
+                                                )
+                                                Text(
+                                                    text = "Checking GitHub Releases...",
+                                                    fontSize = 13.sp,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    is com.urunkarpm.pingpin.service.UpdateState.UpToDate -> {
+                                        Surface(
+                                            shape = RoundedCornerShape(12.dp),
+                                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(14.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Outlined.CheckCircle,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.size(22.dp)
+                                                )
+                                                Column {
+                                                    Text(
+                                                        text = "PingPin is up to date!",
+                                                        fontSize = 13.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = MaterialTheme.colorScheme.onSurface
+                                                    )
+                                                    Text(
+                                                        text = "You are running the latest release (v${state.currentVersion}).",
+                                                        fontSize = 11.sp,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    is com.urunkarpm.pingpin.service.UpdateState.UpdateAvailable -> {
+                                        val info = state.updateInfo
+                                        Surface(
+                                            shape = RoundedCornerShape(14.dp),
+                                            color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f),
+                                            border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.5f)),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Column(
+                                                modifier = Modifier.padding(14.dp),
+                                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                                            ) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Outlined.NewReleases,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.tertiary,
+                                                        modifier = Modifier.size(22.dp)
+                                                    )
+                                                    Text(
+                                                        text = "New Update Available: v${info.versionName}",
+                                                        fontSize = 14.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = MaterialTheme.colorScheme.onSurface
+                                                    )
+                                                }
+
+                                                if (info.apkSize > 0) {
+                                                    Text(
+                                                        text = "Download size: ${String.format("%.1f", info.apkSize / (1024f * 1024f))} MB",
+                                                        fontSize = 11.sp,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                }
+
+                                                if (info.releaseNotes.isNotBlank()) {
+                                                    ChangelogView(releaseNotes = info.releaseNotes)
+                                                }
+
+                                                Button(
+                                                    onClick = {
+                                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                        appUpdateViewModel.downloadAndInstallUpdate(info)
+                                                    },
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    shape = fieldShape,
+                                                    colors = ButtonDefaults.buttonColors(
+                                                        containerColor = MaterialTheme.colorScheme.tertiary,
+                                                        contentColor = MaterialTheme.colorScheme.onTertiary
+                                                    )
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Outlined.Download,
+                                                        contentDescription = null,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    Text("Download & Install Update", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    is com.urunkarpm.pingpin.service.UpdateState.Downloading -> {
+                                        Surface(
+                                            shape = RoundedCornerShape(14.dp),
+                                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Column(
+                                                modifier = Modifier.padding(14.dp),
+                                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Text(
+                                                        text = "Downloading Update...",
+                                                        fontSize = 13.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = MaterialTheme.colorScheme.onSurface
+                                                    )
+                                                    Text(
+                                                        text = "${(state.progress * 100).toInt()}%",
+                                                        fontSize = 13.sp,
+                                                        fontWeight = FontWeight.ExtraBold,
+                                                        color = MaterialTheme.colorScheme.primary
+                                                    )
+                                                }
+
+                                                LinearProgressIndicator(
+                                                    progress = { state.progress },
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .height(8.dp)
+                                                        .clip(RoundedCornerShape(4.dp)),
+                                                    color = MaterialTheme.colorScheme.primary,
+                                                    trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                                                )
+
+                                                if (state.totalBytes > 0) {
+                                                    Text(
+                                                        text = "${String.format("%.1f", state.downloadedBytes / (1024f * 1024f))} MB / ${String.format("%.1f", state.totalBytes / (1024f * 1024f))} MB",
+                                                        fontSize = 11.sp,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    is com.urunkarpm.pingpin.service.UpdateState.ReadyToInstall -> {
+                                        Surface(
+                                            shape = RoundedCornerShape(14.dp),
+                                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                                            border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Column(
+                                                modifier = Modifier.padding(14.dp),
+                                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                                            ) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Outlined.SystemUpdate,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(22.dp)
+                                                    )
+                                                    Text(
+                                                        text = "APK Downloaded & Ready!",
+                                                        fontSize = 14.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = MaterialTheme.colorScheme.onSurface
+                                                    )
+                                                }
+
+                                                Text(
+                                                    text = "Tap below to launch the Android Package Installer for v${state.updateInfo.versionName}.",
+                                                    fontSize = 11.sp,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+
+                                                if (state.updateInfo.releaseNotes.isNotBlank()) {
+                                                    ChangelogView(releaseNotes = state.updateInfo.releaseNotes)
+                                                }
+
+                                                Button(
+                                                    onClick = {
+                                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                        appUpdateViewModel.installDownloadedApk(state.apkFile)
+                                                    },
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    shape = fieldShape,
+                                                    colors = ButtonDefaults.buttonColors(
+                                                        containerColor = MaterialTheme.colorScheme.primary,
+                                                        contentColor = MaterialTheme.colorScheme.onPrimary
+                                                    )
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Outlined.SystemUpdate,
+                                                        contentDescription = null,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    Text("Install Update Now", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    is com.urunkarpm.pingpin.service.UpdateState.Error -> {
+                                        Surface(
+                                            shape = RoundedCornerShape(12.dp),
+                                            color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
+                                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.3f)),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(12.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.SpaceBetween
+                                            ) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                    modifier = Modifier.weight(1f)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Outlined.Warning,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.error,
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                    Text(
+                                                        text = state.message,
+                                                        fontSize = 12.sp,
+                                                        color = MaterialTheme.colorScheme.onErrorContainer
+                                                    )
+                                                }
+                                                TextButton(onClick = { viewModel.checkForUpdates() }) {
+                                                    Text("Retry", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    is com.urunkarpm.pingpin.service.UpdateState.Idle -> {
+                                        // Default state before check
+                                    }
+                                }
+                            }
+                        }
+
+                        // App Release History & Detailed Changelogs Trigger Card
+                        GlassCard(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    showAppChangelogDialog = true
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(42.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(
+                                                Brush.linearGradient(
+                                                    colors = listOf(
+                                                        MaterialTheme.colorScheme.primaryContainer,
+                                                        MaterialTheme.colorScheme.tertiaryContainer
+                                                    )
+                                                )
+                                            ),
+                                        contentAlignment = Alignment.Center
                                     ) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.RocketLaunch,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column {
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                            modifier = Modifier.weight(1f)
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                                         ) {
-                                            Icon(
-                                                imageVector = Icons.Outlined.Warning,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.error,
-                                                modifier = Modifier.size(20.dp)
-                                            )
                                             Text(
-                                                text = state.message,
-                                                fontSize = 12.sp,
-                                                color = MaterialTheme.colorScheme.onErrorContainer
+                                                text = "PingPin v$currentAppVersion",
+                                                fontSize = 14.5.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                color = MaterialTheme.colorScheme.onSurface
                                             )
+                                            Surface(
+                                                shape = RoundedCornerShape(20.dp),
+                                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                            ) {
+                                                Text(
+                                                    text = "INSTALLED",
+                                                    fontSize = 9.5.sp,
+                                                    fontWeight = FontWeight.ExtraBold,
+                                                    color = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
+                                                )
+                                            }
                                         }
-                                        TextButton(onClick = { viewModel.checkForUpdates() }) {
-                                            Text("Retry", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                                        }
+                                        Text(
+                                            text = "Tap to view release notes & changelogs",
+                                            fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
                                     }
                                 }
-                            }
 
-                            is com.urunkarpm.pingpin.service.UpdateState.Idle -> {
-                                // Default state before button click
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // 9. App Version & Applied Changes Card
-        GlassCard(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    showAppChangelogDialog = true
-                }
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(42.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(
-                                Brush.linearGradient(
-                                    colors = listOf(
-                                        MaterialTheme.colorScheme.primaryContainer,
-                                        MaterialTheme.colorScheme.tertiaryContainer
-                                    )
-                                )
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.RocketLaunch,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Text(
-                                text = "PingPin v$currentAppVersion",
-                                fontSize = 14.5.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Surface(
-                                shape = RoundedCornerShape(20.dp),
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                            ) {
-                                Text(
-                                    text = "LATEST",
-                                    fontSize = 9.5.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
-                                )
+                                Surface(
+                                    shape = RoundedCornerShape(20.dp),
+                                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                                    ) {
+                                        Text(
+                                            text = "CHANGELOG",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        Icon(
+                                            imageVector = Icons.Outlined.ChevronRight,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                }
                             }
                         }
-                        Text(
-                            text = "Tap to explore detailed changelogs & release history",
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
-                    ) {
-                        Text(
-                            text = "CHANGELOG",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Icon(
-                            imageVector = Icons.Outlined.ChevronRight,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(12.dp)
-                        )
                     }
                 }
             }
@@ -1545,87 +1541,71 @@ fun SettingsScreen(
         }
 
         // Auto-save effect: debounced 600ms after any field change
-        val isFirstLoad = remember { mutableStateOf(true) }
         LaunchedEffect(
             fullName, ssid, checkInTime, checkOutTime, portalUrl,
             workingDaysMask, wfoDaysMask, portalMode, useFloatingPortal, autoLoginEnabled,
             autoCheckInEnabled, customCheckInKeywords, customCheckOutKeywords,
             portalUsername, portalPassword
         ) {
-            if (isFirstLoad.value) {
-                isFirstLoad.value = false
-                return@LaunchedEffect
+            val cfg = configState
+            val prof = profileState
+            if (cfg != null && prof != null) {
+                val isChanged = fullName.trim() != prof.fullName ||
+                        ssid.trim() != cfg.ssid ||
+                        checkInTime.trim() != cfg.checkInTime ||
+                        checkOutTime.trim() != cfg.checkOutTime ||
+                        portalUrl.trim() != cfg.portalUrl ||
+                        workingDaysMask != cfg.workingDaysMask ||
+                        wfoDaysMask != cfg.wfoDaysMask ||
+                        portalMode != cfg.portalMode ||
+                        useFloatingPortal != cfg.useFloatingPortal ||
+                        autoLoginEnabled != cfg.autoLoginEnabled ||
+                        autoCheckInEnabled != cfg.autoCheckInEnabled ||
+                        customCheckInKeywords.trim() != cfg.customCheckInKeywords ||
+                        customCheckOutKeywords.trim() != cfg.customCheckOutKeywords
+                if (!isChanged) return@LaunchedEffect
             }
-            delay(600L)
-            val currentCfg = configState ?: OfficeConfigEntity()
-            val newConfig = currentCfg.copy(
-                id = configState?.id ?: 0,
-                ssid = ssid.trim(),
-                checkInTime = checkInTime.trim(),
-                checkOutTime = checkOutTime.trim(),
-                portalUrl = portalUrl.trim(),
+            kotlinx.coroutines.delay(600L)
+            viewModel.saveConfigAndProfile(
+                fullName = fullName,
+                ssid = ssid,
+                checkInTime = checkInTime,
+                checkOutTime = checkOutTime,
+                portalUrl = portalUrl,
                 workingDaysMask = workingDaysMask,
                 wfoDaysMask = wfoDaysMask,
                 portalMode = portalMode,
-                useFloatingPortal = useFloatingPortal,
                 autoLoginEnabled = autoLoginEnabled,
                 autoCheckInEnabled = autoCheckInEnabled,
-                customCheckInKeywords = customCheckInKeywords.trim(),
-                customCheckOutKeywords = customCheckOutKeywords.trim()
+                portalUsername = portalUsername,
+                portalPassword = portalPassword,
+                customCheckInKeywords = customCheckInKeywords,
+                customCheckOutKeywords = customCheckOutKeywords,
+                useFloatingPortal = useFloatingPortal
             )
-            officeConfigRepo.saveConfig(newConfig)
-
-            credManager.saveCredentials(portalUsername, portalPassword)
-
-            val newProfile = UserProfileEntity(
-                id = profileState?.id ?: 0,
-                fullName = fullName.trim()
-            )
-            profileRepo.saveProfile(newProfile)
-
-            val svc = NotificationService(context)
-            svc.scheduleAlarmsFromConfig(newConfig)
         }
     }
 }
 
 @Composable
-private fun SectionHeader(
+private fun CategorySectionHeader(
     icon: ImageVector,
     title: String,
     subtitle: String,
-    containerColor: Color = MaterialTheme.colorScheme.primaryContainer,
-    iconTint: Color = MaterialTheme.colorScheme.primary,
-    summaryBadge: String? = null,
-    expanded: Boolean = true,
-    onToggle: (() -> Unit)? = null
+    iconBgColor: Color = MaterialTheme.colorScheme.primaryContainer,
+    iconTint: Color = MaterialTheme.colorScheme.primary
 ) {
-    val chevronRotation by animateFloatAsState(
-        targetValue = if (expanded) 180f else 0f,
-        animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
-        label = "chevron_rotation"
-    )
-
-    val haptic = LocalHapticFeedback.current
-
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .then(
-                if (onToggle != null) Modifier.clickable(onClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onToggle()
-                })
-                else Modifier
-            )
-            .padding(vertical = 2.dp),
+            .padding(bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
                 .size(38.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(containerColor),
+                .background(iconBgColor),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -1650,33 +1630,6 @@ private fun SectionHeader(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        if (!expanded && summaryBadge != null) {
-            Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                modifier = Modifier.padding(end = 6.dp)
-            ) {
-                Text(
-                    text = summaryBadge,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-        if (onToggle != null) {
-            Icon(
-                imageVector = Icons.Outlined.KeyboardArrowDown,
-                contentDescription = if (expanded) "Collapse" else "Expand",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier
-                    .size(22.dp)
-                    .rotate(chevronRotation)
-            )
-        }
     }
 }
 
@@ -1689,7 +1642,7 @@ private fun StatSummaryChip(
     Surface(
         shape = RoundedCornerShape(10.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
         modifier = modifier
     ) {
         Row(
@@ -1754,7 +1707,6 @@ private fun KeywordChipsGroup(
                 InputChip(
                     selected = true,
                     onClick = {
-                        // Remove chip on tap
                         val newList = keywordsList.filter { it != kw }
                         onKeywordsChanged(newList.joinToString(", "))
                     },
@@ -1773,7 +1725,6 @@ private fun KeywordChipsGroup(
                 )
             }
 
-            // + Add Keyword Chip Button
             SuggestionChip(
                 onClick = { showAddDialog = true },
                 label = { Text("+ Add Tag", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
@@ -1830,7 +1781,7 @@ private fun StatusPermissionRow(
     Surface(
         shape = RoundedCornerShape(12.dp),
         color = if (isGranted) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
-        border = androidx.compose.foundation.BorderStroke(1.dp, if (isGranted) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f) else MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f)),
+        border = BorderStroke(1.dp, if (isGranted) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f) else MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f)),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -1871,9 +1822,3 @@ private fun StatusPermissionRow(
         }
     }
 }
-
-private fun calculateShiftDuration(checkIn: String, checkOut: String): String {
-    return TimeFormatUtils.calculateShiftDuration(checkIn, checkOut)
-}
-
-

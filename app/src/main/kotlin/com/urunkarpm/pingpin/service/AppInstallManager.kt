@@ -14,9 +14,7 @@ object AppInstallManager {
     fun getInstallTimeMs(context: Context): Long {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val savedTime = prefs.getLong(KEY_INSTALL_TIME_MS, 0L)
-        if (savedTime > 0L) {
-            return savedTime
-        }
+        if (savedTime > 0L) return savedTime
 
         val packageInstallTime = try {
             context.packageManager.getPackageInfo(context.packageName, 0).firstInstallTime
@@ -39,9 +37,7 @@ object AppInstallManager {
     fun getInstallDateYyyyMmDd(context: Context): String {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val savedDate = prefs.getString(KEY_INSTALL_DATE, null)
-        if (!savedDate.isNullOrEmpty()) {
-            return savedDate
-        }
+        if (!savedDate.isNullOrEmpty()) return savedDate
 
         val installTimeMs = getInstallTimeMs(context)
         val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)

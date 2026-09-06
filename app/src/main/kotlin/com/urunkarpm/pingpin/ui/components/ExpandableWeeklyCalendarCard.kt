@@ -10,6 +10,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -20,7 +21,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -35,7 +35,6 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.urunkarpm.pingpin.data.local.entity.AttendanceRecordEntity
@@ -62,6 +61,7 @@ fun ExpandableWeeklyCalendarCard(
     val isDark = MaterialTheme.colorScheme.background.red < 0.5f
     val installCal = remember(context) { AppInstallManager.getInstallDateCalendar(context) }
 
+    val haptic = LocalHapticFeedback.current
     var internalIsExpanded by remember { mutableStateOf(false) }
     val currentIsExpanded = if (onExpandedChange != null) isExpanded else internalIsExpanded
     val setExpanded: (Boolean) -> Unit = { newValue ->
@@ -75,7 +75,6 @@ fun ExpandableWeeklyCalendarCard(
 
     var selectedYear by remember { mutableIntStateOf(Calendar.getInstance().get(Calendar.YEAR)) }
     var selectedMonth by remember { mutableIntStateOf(Calendar.getInstance().get(Calendar.MONTH) + 1) }
-
     val todayCal = remember {
         Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, 0)
@@ -205,9 +204,9 @@ fun ExpandableWeeklyCalendarCard(
                 detectVerticalDragGestures(
                     onDragStart = { totalDrag = 0f },
                     onDragEnd = {
-                        if (!currentIsExpanded && totalDrag < -50f) {
+                        if (!currentIsExpanded && totalDrag < -80f) {
                             setExpanded(true)
-                        } else if (currentIsExpanded && totalDrag > 50f) {
+                        } else if (currentIsExpanded && totalDrag > 80f) {
                             setExpanded(false)
                         }
                         totalDrag = 0f
@@ -316,11 +315,13 @@ fun ExpandableWeeklyCalendarCard(
             AnimatedContent(
                 targetState = currentIsExpanded,
                 transitionSpec = {
-                    val fadeSpec = tween<Float>(durationMillis = 200, easing = FastOutSlowInEasing)
-                    val sizeSpec = tween<androidx.compose.ui.unit.IntSize>(durationMillis = 200, easing = FastOutSlowInEasing)
-                    (fadeIn(animationSpec = fadeSpec) togetherWith fadeOut(animationSpec = fadeSpec))
-                        .using(SizeTransform(clip = true) { _, _ -> sizeSpec })
+                    val duration = 260
+                    (fadeIn(animationSpec = tween(duration, easing = FastOutSlowInEasing)) +
+                     expandVertically(animationSpec = tween(duration, easing = FastOutSlowInEasing), expandFrom = Alignment.Top)) togetherWith
+                    (fadeOut(animationSpec = tween(duration / 2, easing = FastOutSlowInEasing)) +
+                     shrinkVertically(animationSpec = tween(duration, easing = FastOutSlowInEasing), shrinkTowards = Alignment.Top))
                 },
+                contentAlignment = Alignment.TopCenter,
                 label = "calendar_view_transition"
             ) { expanded ->
                 if (!expanded) {
@@ -330,7 +331,7 @@ fun ExpandableWeeklyCalendarCard(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            for (day in weekDays) {
+                            weekDays.forEach { day ->
                                 WeeklyDayItem(
                                     data = day,
                                     isDark = isDark,
@@ -458,7 +459,7 @@ private fun WeeklyDayItem(
     onDayLongClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val circleBg = when {
+    val baseCircleBg = when {
         data.isAttended -> if (isDark) EmeraldGreenBgDark else EmeraldGreenBgLight
         data.isBeforeInstall -> Color.Transparent
         !data.isWorking -> Color.Transparent
@@ -509,51 +510,52 @@ private fun WeeklyDayItem(
                 .fillMaxWidth(),
             contentAlignment = Alignment.Center
         ) {
+            val squircleShape = RoundedCornerShape(12.dp)
             var circleModifier = Modifier
                 .fillMaxSize()
-                .clip(CircleShape)
-                .background(circleBg)
+                .clip(squircleShape)
+                .background(baseCircleBg)
 
             if (data.isToday) {
                 circleModifier = circleModifier.border(
                     width = 2.5.dp,
                     color = ElectricBlue,
-                    shape = CircleShape
+                    shape = squircleShape
                 )
             } else if (data.isMakeupWfo && !data.isAttended) {
                 circleModifier = circleModifier.border(
                     width = 1.5.dp,
                     color = AmberOrange,
-                    shape = CircleShape
+                    shape = squircleShape
                 )
             } else if (data.isWfo && data.isWorking && !data.isAttended && data.isFuture && !data.isBeforeInstall) {
                 circleModifier = circleModifier.border(
                     width = 1.2.dp,
                     color = WfoDayPurple.copy(alpha = 0.6f),
-                    shape = CircleShape
+                    shape = squircleShape
                 )
             } else if (data.isWfo && data.isWorking && !data.isAttended && !data.isFuture && !data.isBeforeInstall) {
                 circleModifier = circleModifier.border(
                     width = 1.dp,
                     color = CrimsonRed.copy(alpha = 0.5f),
-                    shape = CircleShape
+                    shape = squircleShape
                 )
             }
 
-    val haptic = LocalHapticFeedback.current
+            val haptic = LocalHapticFeedback.current
 
-    if (!data.isFuture) {
-        circleModifier = circleModifier.combinedClickable(
-            onClick = {
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                onDayClick()
-            },
-            onLongClick = {
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                onDayLongClick()
+            if (!data.isFuture) {
+                circleModifier = circleModifier.combinedClickable(
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onDayClick()
+                    },
+                    onLongClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onDayLongClick()
+                    }
+                )
             }
-        )
-    }
 
             Box(
                 modifier = circleModifier,

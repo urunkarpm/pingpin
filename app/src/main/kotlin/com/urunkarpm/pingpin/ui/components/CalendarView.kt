@@ -1,12 +1,20 @@
 package com.urunkarpm.pingpin.ui.components
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -15,8 +23,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -32,6 +46,15 @@ import com.urunkarpm.pingpin.service.WorkingDays
 import com.urunkarpm.pingpin.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
+
+enum class LegendFilterType {
+    PRESENT,
+    WFO_DAY,
+    MAKEUP_WFO,
+    MISSED,
+    TODAY,
+    OFF_DAY
+}
 
 private data class CellDateInfo(
     val year: Int,
@@ -72,6 +95,7 @@ fun MonthlyCalendarView(
     val context = LocalContext.current
     val installCal = remember(context) { AppInstallManager.getInstallDateCalendar(context) }
     val isDark = MaterialTheme.colorScheme.background.red < 0.5f
+    var activeFilter by remember { mutableStateOf<LegendFilterType?>(null) }
 
     val monthTitle = remember(year, month) {
         val cal = Calendar.getInstance().apply {
@@ -159,6 +183,16 @@ fun MonthlyCalendarView(
         list
     }
 
+    // Dynamic Monthly Tally Counts for Interactive Legend Badges
+    val presentCount = remember(monthCellsData) { monthCellsData.count { it.isCurrentMonthDay && it.isAttended } }
+    val wfoCount = remember(monthCellsData) { monthCellsData.count { it.isCurrentMonthDay && it.isWorking && it.isWfo && !it.isBeforeInstall } }
+    val makeupCount = remember(monthCellsData) { monthCellsData.count { it.isCurrentMonthDay && it.isMakeupWfo } }
+    val missedCount = remember(monthCellsData) {
+        monthCellsData.count { it.isCurrentMonthDay && it.isWorking && it.isWfo && !it.isAttended && !it.isFuture && !it.isToday && !it.isBeforeInstall }
+    }
+    val todayCount = remember(monthCellsData) { monthCellsData.count { it.isCurrentMonthDay && it.isToday } }
+    val offCount = remember(monthCellsData) { monthCellsData.count { it.isCurrentMonthDay && !it.isWorking } }
+
     Column(modifier = modifier.fillMaxWidth()) {
         // Header with circular stepping buttons & Month Pill
         Row(
@@ -169,7 +203,7 @@ fun MonthlyCalendarView(
             IconButton(
                 onClick = onPreviousMonth,
                 modifier = Modifier
-                    .size(48.dp)
+                    .size(44.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.surfaceContainerHigh)
             ) {
@@ -177,7 +211,7 @@ fun MonthlyCalendarView(
                     Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                     contentDescription = "Previous Month",
                     tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(22.dp)
                 )
             }
 
@@ -204,7 +238,7 @@ fun MonthlyCalendarView(
             IconButton(
                 onClick = onNextMonth,
                 modifier = Modifier
-                    .size(48.dp)
+                    .size(44.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.surfaceContainerHigh)
             ) {
@@ -212,7 +246,7 @@ fun MonthlyCalendarView(
                     Icons.AutoMirrored.Filled.KeyboardArrowRight,
                     contentDescription = "Next Month",
                     tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(22.dp)
                 )
             }
         }
@@ -222,14 +256,19 @@ fun MonthlyCalendarView(
         // Day labels header
         Row(modifier = Modifier.fillMaxWidth()) {
             val days = remember { listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun") }
-            for (day in days) {
+            for ((index, day) in days.withIndex()) {
+                val isWeekend = index >= 5
                 Text(
                     text = day,
                     modifier = Modifier.weight(1f),
                     textAlign = TextAlign.Center,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                    color = if (isWeekend) {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f)
+                    }
                 )
             }
         }
@@ -248,9 +287,15 @@ fun MonthlyCalendarView(
                     val slotIndex = row * 7 + col
                     val cell = monthCellsData[slotIndex]
 
+                    val isMatchingFilter = remember(cell, activeFilter) {
+                        isCellMatchingFilter(cell, activeFilter)
+                    }
+
                     MonthDayCellItem(
                         cell = cell,
                         isDark = isDark,
+                        isMatchingFilter = isMatchingFilter,
+                        isFilterActive = activeFilter != null,
                         onDayClick = onDayClick,
                         onDayLongClick = onDayLongClick,
                         modifier = Modifier.weight(1f)
@@ -263,83 +308,73 @@ fun MonthlyCalendarView(
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f))
         Spacer(modifier = Modifier.height(14.dp))
 
-        // Calendar Legend Bar with Circle aesthetics
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+        // Interactive Glass Filter Chips Row with Staggered Sweep Wave
+        val legendChips = remember {
+            listOf(
+                Triple("Present", LegendFilterType.PRESENT, presentCount),
+                Triple("WFO Day", LegendFilterType.WFO_DAY, wfoCount),
+                Triple("Makeup WFO", LegendFilterType.MAKEUP_WFO, makeupCount),
+                Triple("Missed", LegendFilterType.MISSED, missedCount),
+                Triple("Today", LegendFilterType.TODAY, todayCount),
+                Triple("Off-Day", LegendFilterType.OFF_DAY, offCount)
+            )
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier.weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    LegendItem(
-                        color = if (isDark) EmeraldGreenBgDark else EmeraldGreenBgLight,
-                        dotColor = EmeraldGreen,
-                        label = "Present"
-                    )
+            legendChips.forEachIndexed { idx, item ->
+                val (label, filterType, count) = item
+                val chipDiagPos = 0.65f + 0.30f * (idx / 5f)
+
+                val color = when (filterType) {
+                    LegendFilterType.PRESENT -> if (isDark) EmeraldGreenBgDark else EmeraldGreenBgLight
+                    LegendFilterType.WFO_DAY -> if (isDark) WfoDayPurpleBgDark else WfoDayPurpleBgLight
+                    LegendFilterType.MAKEUP_WFO -> if (isDark) AmberOrangeBgDark else AmberOrangeBgLight
+                    LegendFilterType.MISSED -> if (isDark) CrimsonRedBgDark else CrimsonRedBgLight
+                    LegendFilterType.TODAY -> ElectricBlue
+                    LegendFilterType.OFF_DAY -> Color.Transparent
                 }
-                Box(
-                    modifier = Modifier.weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    LegendItem(
-                        color = if (isDark) WfoDayPurpleBgDark else WfoDayPurpleBgLight,
-                        dotColor = WfoDayPurple,
-                        label = "WFO Day"
-                    )
+                val dotColor = when (filterType) {
+                    LegendFilterType.PRESENT -> EmeraldGreen
+                    LegendFilterType.WFO_DAY -> WfoDayPurple
+                    LegendFilterType.MAKEUP_WFO -> AmberOrange
+                    LegendFilterType.MISSED -> CrimsonRed
+                    LegendFilterType.TODAY -> ElectricBlue
+                    LegendFilterType.OFF_DAY -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                 }
-                Box(
-                    modifier = Modifier.weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    LegendItem(
-                        color = if (isDark) AmberOrangeBgDark else AmberOrangeBgLight,
-                        dotColor = AmberOrange,
-                        label = "Makeup WFO"
-                    )
-                }
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier.weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    LegendItem(
-                        color = if (isDark) CrimsonRedBgDark else CrimsonRedBgLight,
-                        dotColor = CrimsonRed,
-                        label = "Missed"
-                    )
-                }
-                Box(
-                    modifier = Modifier.weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    LegendItem(
-                        color = ElectricBlue,
-                        dotColor = ElectricBlue,
-                        label = "Today",
-                        isBorderOnly = true
-                    )
-                }
-                Box(
-                    modifier = Modifier.weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    LegendItem(
-                        color = Color.Transparent,
-                        dotColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                        label = "Off-Day"
-                    )
-                }
+
+                LegendFilterChip(
+                    label = label,
+                    count = count,
+                    color = color,
+                    dotColor = dotColor,
+                    isBorderOnly = filterType == LegendFilterType.TODAY,
+                    isSelected = activeFilter == filterType,
+                    isDark = isDark,
+                    onClick = {
+                        activeFilter = if (activeFilter == filterType) null else filterType
+                    }
+                )
             }
         }
+    }
+}
+
+private fun isCellMatchingFilter(cell: MonthDayCellData, filter: LegendFilterType?): Boolean {
+    if (filter == null) return true
+    if (!cell.isCurrentMonthDay) return false
+    return when (filter) {
+        LegendFilterType.PRESENT -> cell.isAttended
+        LegendFilterType.WFO_DAY -> cell.isWorking && cell.isWfo && !cell.isBeforeInstall
+        LegendFilterType.MAKEUP_WFO -> cell.isMakeupWfo
+        LegendFilterType.MISSED -> cell.isWorking && cell.isWfo && !cell.isAttended && !cell.isFuture && !cell.isToday && !cell.isBeforeInstall
+        LegendFilterType.TODAY -> cell.isToday
+        LegendFilterType.OFF_DAY -> !cell.isWorking
     }
 }
 
@@ -348,11 +383,19 @@ fun MonthlyCalendarView(
 private fun MonthDayCellItem(
     cell: MonthDayCellData,
     isDark: Boolean,
+    isMatchingFilter: Boolean,
+    isFilterActive: Boolean,
     onDayClick: ((dayNum: Int, dateYyyyMmDd: String) -> Unit)?,
     onDayLongClick: ((dayNum: Int, dateYyyyMmDd: String) -> Unit)?,
     modifier: Modifier = Modifier
 ) {
-    val circleBg = when {
+    val alphaAnim by animateFloatAsState(
+        targetValue = if (isFilterActive && !isMatchingFilter) 0.22f else 1.0f,
+        animationSpec = tween(durationMillis = 200),
+        label = "cell_alpha"
+    )
+
+    val baseSquircleBg = when {
         !cell.isCurrentMonthDay -> Color.Transparent
         cell.isAttended -> if (isDark) EmeraldGreenBgDark else EmeraldGreenBgLight
         cell.isBeforeInstall -> Color.Transparent
@@ -386,40 +429,53 @@ private fun MonthDayCellItem(
         else -> CrimsonRed
     }
 
+    val squircleShape = RoundedCornerShape(12.dp)
+
     Box(
         modifier = modifier
             .aspectRatio(1f)
-            .padding(2.dp),
+            .padding(2.dp)
+            .graphicsLayer {
+                alpha = alphaAnim
+            },
         contentAlignment = Alignment.Center
     ) {
-        var circleModifier = Modifier
+        var cellModifier = Modifier
             .fillMaxSize()
-            .clip(CircleShape)
-            .background(circleBg)
+            .clip(squircleShape)
+            .background(baseSquircleBg)
 
         if (cell.isToday) {
-            circleModifier = circleModifier.border(
+            cellModifier = cellModifier.border(
                 width = 2.5.dp,
                 color = ElectricBlue,
-                shape = CircleShape
+                shape = squircleShape
             )
         } else if (cell.isCurrentMonthDay && cell.isMakeupWfo && !cell.isAttended) {
-            circleModifier = circleModifier.border(
+            cellModifier = cellModifier.border(
                 width = 1.5.dp,
                 color = AmberOrange,
-                shape = CircleShape
+                shape = squircleShape
             )
         } else if (cell.isCurrentMonthDay && cell.isWfo && cell.isWorking && !cell.isAttended && cell.isFuture && !cell.isBeforeInstall) {
-            circleModifier = circleModifier.border(
+            cellModifier = cellModifier.border(
                 width = 1.2.dp,
                 color = WfoDayPurple.copy(alpha = 0.6f),
-                shape = CircleShape
+                shape = squircleShape
             )
         } else if (cell.isCurrentMonthDay && cell.isWfo && cell.isWorking && !cell.isAttended && !cell.isFuture && !cell.isBeforeInstall) {
-            circleModifier = circleModifier.border(
+            cellModifier = cellModifier.border(
                 width = 1.dp,
                 color = CrimsonRed.copy(alpha = 0.5f),
-                shape = CircleShape
+                shape = squircleShape
+            )
+        }
+
+        if (isFilterActive && isMatchingFilter && cell.isCurrentMonthDay) {
+            cellModifier = cellModifier.border(
+                width = 1.8.dp,
+                color = statusDotColor.copy(alpha = 0.9f),
+                shape = squircleShape
             )
         }
 
@@ -439,13 +495,13 @@ private fun MonthDayCellItem(
         }
 
         if (!cell.isFuture) {
-            circleModifier = circleModifier.combinedClickable(
+            cellModifier = cellModifier.combinedClickable(
                 onClick = { onDayClick?.invoke(cell.dayNum, cell.dateStr) },
                 onLongClick = { onDayLongClick?.invoke(cell.dayNum, cell.dateStr) }
             )
         }
 
-        circleModifier = circleModifier.semantics(mergeDescendants = true) {
+        cellModifier = cellModifier.semantics(mergeDescendants = true) {
             if (cell.isCurrentMonthDay) {
                 this.role = Role.Button
                 this.contentDescription = cellAccessibilityText
@@ -453,7 +509,7 @@ private fun MonthDayCellItem(
         }
 
         Box(
-            modifier = circleModifier,
+            modifier = cellModifier,
             contentAlignment = Alignment.Center
         ) {
             Column(
@@ -482,46 +538,102 @@ private fun MonthDayCellItem(
 }
 
 @Composable
-private fun LegendItem(
+private fun LegendFilterChip(
+    label: String,
+    count: Int,
     color: Color,
     dotColor: Color,
-    label: String,
-    isBorderOnly: Boolean = false
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    isBorderOnly: Boolean = false,
+    isDark: Boolean = true
 ) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.semantics(mergeDescendants = true) {
-            contentDescription = "Legend item: $label"
-        }
+    val chipBg = if (isSelected) {
+        if (isBorderOnly) ElectricBlue.copy(alpha = 0.2f) else color.copy(alpha = 0.35f)
+    } else {
+        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.4f)
+    }
+
+    val chipBorderColor = if (isSelected) {
+        if (isBorderOnly) ElectricBlue else dotColor
+    } else {
+        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+    }
+
+    val haptic = LocalHapticFeedback.current
+
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = chipBg,
+        border = androidx.compose.foundation.BorderStroke(
+            width = if (isSelected) 1.5.dp else 1.dp,
+            color = chipBorderColor
+        ),
+        modifier = Modifier
+            .semantics(mergeDescendants = true) {
+                role = Role.Button
+                contentDescription = "Filter by $label, count $count. ${if (isSelected) "Selected" else "Not selected"}"
+            }
+            .clickable {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                onClick()
+            }
     ) {
-        Box(
-            modifier = Modifier
-                .size(14.dp)
-                .clip(CircleShape)
-                .then(
-                    if (isBorderOnly) {
-                        Modifier.border(2.dp, color, CircleShape)
-                    } else {
-                        Modifier.background(color)
-                    }
-                ),
-            contentAlignment = Alignment.Center
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            if (!isBorderOnly && dotColor != Color.Transparent) {
-                Box(
-                    modifier = Modifier
-                        .size(4.dp)
-                        .clip(CircleShape)
-                        .background(dotColor)
-                )
+            Box(
+                modifier = Modifier
+                    .size(10.dp)
+                    .clip(CircleShape)
+                    .then(
+                        if (isBorderOnly) {
+                            Modifier.border(1.5.dp, color, CircleShape)
+                        } else {
+                            Modifier.background(color)
+                        }
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                if (!isBorderOnly && dotColor != Color.Transparent) {
+                    Box(
+                        modifier = Modifier
+                            .size(3.dp)
+                            .clip(CircleShape)
+                            .background(dotColor)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(6.dp))
+
+            Text(
+                text = label,
+                fontSize = 11.sp,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                color = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            if (count > 0) {
+                Spacer(modifier = Modifier.width(5.dp))
+                Surface(
+                    shape = CircleShape,
+                    color = if (isSelected) {
+                        dotColor.copy(alpha = 0.25f)
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f)
+                    }
+                ) {
+                    Text(
+                        text = "$count",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = if (isSelected) dotColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                    )
+                }
             }
         }
-        Spacer(modifier = Modifier.width(6.dp))
-        Text(
-            text = label,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
     }
 }

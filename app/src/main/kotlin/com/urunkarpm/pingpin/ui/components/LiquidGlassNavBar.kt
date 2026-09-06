@@ -211,7 +211,6 @@ fun LiquidGlassBottomBar(
                                     indication = null
                                 ) {
                                     if (!isSelected) {
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                         onItemSelected(index)
                                     }
                                 },
