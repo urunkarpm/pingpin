@@ -2,21 +2,23 @@ package com.urunkarpm.pingpin.data
 
 object AppChangelog {
     const val CURRENT_VERSION_CHANGELOG = """
-### Optimized & Enhanced
-- **120Hz High Refresh Rate Engine**: Enforced peak native display refresh rates (120Hz / 90Hz / 144Hz) across MainActivity, PortalActivity, and AlarmActivity for butter-smooth interactions.
-- **GPU Hardware Accelerated Ponytail Overlay**: Enabled GPU composition (`FLAG_HARDWARE_ACCELERATED`) and smooth displacement delta touch pacing on the Floating Portal overlay, eliminating drag lag and IPC thrashing.
-- **Zero-Layout-Pass Navigation Animations**: Converted LiquidGlassNavBar selection indicator movements to hardware-accelerated GPU graphicsLayer translations.
-- **Streamlined Settings**: Cleaned up test section UI and removed obsolete preview controls.
+### Added
+- **8 PM Eve-of-WFO Reminder Notification**: Automatically sends a status-bar notification at 8:00 PM on the evening prior to any scheduled WFO day as a gentle, non-intrusive reminder.
 """
 
     const val FULL_CHANGELOG = """
-## [2.4.4] - Current Release
+## [2.5.0] - Current Release
 
-### Optimized & Enhanced
-- **120Hz High Refresh Rate Engine**: Enforced peak native display refresh rates (120Hz / 90Hz / 144Hz) across MainActivity, PortalActivity, and AlarmActivity for butter-smooth interactions.
-- **GPU Hardware Accelerated Ponytail Overlay**: Enabled GPU composition (`FLAG_HARDWARE_ACCELERATED`) and smooth displacement delta touch pacing on the Floating Portal overlay, eliminating drag lag and IPC thrashing.
-- **Zero-Layout-Pass Navigation Animations**: Converted LiquidGlassNavBar selection indicator movements to hardware-accelerated GPU graphicsLayer translations.
-- **Streamlined Settings**: Cleaned up test section UI and removed obsolete preview controls.
+### Added
+- **8 PM Eve-of-WFO Reminder Notification**: Automatically sends a status-bar notification at 8:00 PM on the evening prior to any scheduled WFO day as a gentle, non-intrusive reminder.
+
+---
+
+## [2.4.5]
+
+### Optimized & Streamlined
+- **Ponytail Over-Engineering Cleanups**: Simplified `AppInstallManager` by removing duplicate in-memory `@Volatile` cache layers over Android's native `SharedPreferences`. Streamlined LaunchedEffect auto-save state checks in `SettingsScreen`.
+- **UI & Calendar Polish**: Upgraded calendar date cells to sleek 12.dp squircles, integrated dynamic status filter chips with live counts, and refined expand/collapse transition animations.
 
 ---
 

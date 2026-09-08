@@ -334,7 +334,74 @@ class AlarmReliabilityTest {
         assertEquals(102, NotificationService.CHECK_OUT_ALARM_ID)
         assertEquals(103, NotificationService.CHECK_IN_SNOOZE_ID)
         assertEquals(104, NotificationService.CHECK_OUT_SNOOZE_ID)
+        assertEquals(105, NotificationService.EVE_WFO_REMINDER_ID)
         assertEquals("alarm_channel_v4", NotificationService.ALARM_CHANNEL_ID)
+    }
+
+    @Test
+    fun testEveWfoReminderBefore8PmOnPriorDay() {
+        // Tuesday Sep 8, 2026 15:00 PM (3 PM)
+        val Tuesday3Pm = Calendar.getInstance().apply {
+            set(2026, Calendar.SEPTEMBER, 8, 15, 0, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        assertEquals(Calendar.TUESDAY, Tuesday3Pm.get(Calendar.DAY_OF_WEEK))
+
+        val eveCal = NotificationService.getNextWfoEveOccurrence(
+            wfoDaysMask = WorkingDays.DEFAULT_WEEKDAYS, // Mon-Fri
+            workingDaysMask = WorkingDays.DEFAULT_WEEKDAYS,
+            baseTimeMillis = Tuesday3Pm.timeInMillis
+        )
+
+        assertNotNull(eveCal)
+        assertEquals("Should schedule for tonight Tuesday at 20:00 (8 PM)", Calendar.TUESDAY, eveCal!!.get(Calendar.DAY_OF_WEEK))
+        assertEquals(20, eveCal.get(Calendar.HOUR_OF_DAY))
+        assertEquals(0, eveCal.get(Calendar.MINUTE))
+        assertEquals(8, eveCal.get(Calendar.DAY_OF_MONTH))
+    }
+
+    @Test
+    fun testEveWfoReminderAfter8PmOnPriorDay() {
+        // Tuesday Sep 8, 2026 21:00 PM (9 PM) - past 8 PM tonight
+        val Tuesday9Pm = Calendar.getInstance().apply {
+            set(2026, Calendar.SEPTEMBER, 8, 21, 0, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        assertEquals(Calendar.TUESDAY, Tuesday9Pm.get(Calendar.DAY_OF_WEEK))
+
+        val eveCal = NotificationService.getNextWfoEveOccurrence(
+            wfoDaysMask = WorkingDays.DEFAULT_WEEKDAYS, // Mon-Fri
+            workingDaysMask = WorkingDays.DEFAULT_WEEKDAYS,
+            baseTimeMillis = Tuesday9Pm.timeInMillis
+        )
+
+        assertNotNull(eveCal)
+        assertEquals("Should schedule for Wednesday 20:00 (8 PM before Thursday WFO)", Calendar.WEDNESDAY, eveCal!!.get(Calendar.DAY_OF_WEEK))
+        assertEquals(20, eveCal.get(Calendar.HOUR_OF_DAY))
+        assertEquals(0, eveCal.get(Calendar.MINUTE))
+        assertEquals(9, eveCal.get(Calendar.DAY_OF_MONTH))
+    }
+
+    @Test
+    fun testEveWfoReminderSkipsWeekendToSundayNight() {
+        // Friday Sep 11, 2026 21:00 PM (9 PM) - past Friday 8 PM
+        val Friday9Pm = Calendar.getInstance().apply {
+            set(2026, Calendar.SEPTEMBER, 11, 21, 0, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        assertEquals(Calendar.FRIDAY, Friday9Pm.get(Calendar.DAY_OF_WEEK))
+
+        val eveCal = NotificationService.getNextWfoEveOccurrence(
+            wfoDaysMask = WorkingDays.DEFAULT_WEEKDAYS, // Mon-Fri
+            workingDaysMask = WorkingDays.DEFAULT_WEEKDAYS,
+            baseTimeMillis = Friday9Pm.timeInMillis
+        )
+
+        assertNotNull(eveCal)
+        assertEquals("Should schedule for Sunday 20:00 (8 PM before Monday WFO)", Calendar.SUNDAY, eveCal!!.get(Calendar.DAY_OF_WEEK))
+        assertEquals(20, eveCal.get(Calendar.HOUR_OF_DAY))
+        assertEquals(0, eveCal.get(Calendar.MINUTE))
+        assertEquals(13, eveCal.get(Calendar.DAY_OF_MONTH))
     }
 
     @Test

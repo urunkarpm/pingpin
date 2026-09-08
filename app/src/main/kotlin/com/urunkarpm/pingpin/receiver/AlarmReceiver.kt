@@ -25,6 +25,21 @@ class AlarmReceiver : BroadcastReceiver() {
 
         Log.d(TAG, "Alarm triggered: $alarmId ($title)")
 
+        if (alarmId == NotificationService.EVE_WFO_REMINDER_ID) {
+            Log.d(TAG, "Eve WFO 8 PM Reminder triggered")
+            val notifService = NotificationService(context)
+            notifService.showEveWfoNotification()
+
+            val prefs = NotificationService.getAlarmPreferences(context)
+            val workingDaysMask = prefs.getInt("workingDaysMask", 0x1F)
+            val wfoDaysMask = prefs.getInt("wfoDaysMask", 0x1F)
+            val enabled = prefs.getBoolean("enabled", true)
+            if (enabled) {
+                notifService.scheduleEveWfoReminder(wfoDaysMask, workingDaysMask)
+            }
+            return
+        }
+
         // Acquire WakeLock to turn screen on immediately if device is asleep
         val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
         @Suppress("DEPRECATION")

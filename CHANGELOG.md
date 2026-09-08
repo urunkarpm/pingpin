@@ -5,6 +5,13 @@ All notable changes to **PingPin** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2026-09-08
+
+### Added
+- **8 PM Eve-of-WFO Reminder Notification**: Automatically sends a status-bar notification at 8:00 PM on the evening prior to any scheduled WFO day as a gentle, non-intrusive reminder.
+
+---
+
 ## [2.4.5] - 2026-09-06
 
 ### Optimized & Streamlined

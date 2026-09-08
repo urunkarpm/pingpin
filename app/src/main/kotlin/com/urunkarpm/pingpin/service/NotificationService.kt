@@ -28,6 +28,7 @@ class NotificationService(private val context: Context) {
         const val CHECK_OUT_ALARM_ID = 102
         const val CHECK_IN_SNOOZE_ID = 103
         const val CHECK_OUT_SNOOZE_ID = 104
+        const val EVE_WFO_REMINDER_ID = 105
         const val MAKEUP_WFO_ALARM_ID = 201
 
         const val PREFS_NAME = "pingpin_native_alarm_prefs"
@@ -73,6 +74,36 @@ class NotificationService(private val context: Context) {
             }
 
             return cal
+        }
+
+        fun getNextWfoEveOccurrence(
+            wfoDaysMask: Int,
+            workingDaysMask: Int,
+            baseTimeMillis: Long = System.currentTimeMillis()
+        ): Calendar? {
+            if (workingDaysMask == 0 || wfoDaysMask == 0) return null
+
+            var safetyLimit = 0
+            val targetCal = Calendar.getInstance().apply { timeInMillis = baseTimeMillis }
+
+            while (safetyLimit < 14) {
+                val candidateWfoDay = (targetCal.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, 1) }
+
+                if (WorkingDays.isWorkingDay(candidateWfoDay, workingDaysMask) && WorkingDays.isWfoDay(candidateWfoDay, wfoDaysMask)) {
+                    val eve8Pm = (targetCal.clone() as Calendar).apply {
+                        set(Calendar.HOUR_OF_DAY, 20)
+                        set(Calendar.MINUTE, 0)
+                        set(Calendar.SECOND, 0)
+                        set(Calendar.MILLISECOND, 0)
+                    }
+                    if (eve8Pm.timeInMillis > baseTimeMillis) {
+                        return eve8Pm
+                    }
+                }
+                targetCal.add(Calendar.DAY_OF_YEAR, 1)
+                safetyLimit++
+            }
+            return null
         }
 
         fun getAlarmPreferences(context: Context): SharedPreferences {
@@ -175,6 +206,7 @@ class NotificationService(private val context: Context) {
         checkInTime: String,
         checkOutTime: String,
         workingDaysMask: Int,
+        wfoDaysMask: Int = 31,
         portalUrl: String,
         enabled: Boolean = true
     ) {
@@ -183,6 +215,7 @@ class NotificationService(private val context: Context) {
             .putString("checkInTime", checkInTime)
             .putString("checkOutTime", checkOutTime)
             .putInt("workingDaysMask", workingDaysMask)
+            .putInt("wfoDaysMask", wfoDaysMask)
             .putString("portalUrl", portalUrl)
             .putBoolean("enabled", enabled)
             .apply()
@@ -193,11 +226,13 @@ class NotificationService(private val context: Context) {
             checkInTime = config.checkInTime,
             checkOutTime = config.checkOutTime,
             workingDaysMask = config.workingDaysMask,
+            wfoDaysMask = config.wfoDaysMask,
             portalUrl = config.portalUrl,
             enabled = true
         )
         scheduleCheckInAlarm(config.checkInTime, config.workingDaysMask, config.portalUrl)
         scheduleCheckOutAlarm(config.checkOutTime, config.workingDaysMask, config.portalUrl)
+        scheduleEveWfoReminder(config.wfoDaysMask, config.workingDaysMask)
     }
 
     fun scheduleCheckInAlarm(checkInTimeStr: String, workingDaysMask: Int, portalUrl: String) {
@@ -224,6 +259,33 @@ class NotificationService(private val context: Context) {
             portalUrl = portalUrl
         )
         Log.d(TAG, "Check-out alarm scheduled for $targetTime")
+    }
+
+    fun scheduleEveWfoReminder(wfoDaysMask: Int, workingDaysMask: Int) {
+        val targetTime = getNextWfoEveOccurrence(wfoDaysMask, workingDaysMask) ?: return
+
+        val intent = Intent(context, AlarmReceiver::class.java).apply {
+            putExtra("alarmId", EVE_WFO_REMINDER_ID)
+            putExtra("title", "EVE WFO REMINDER")
+        }
+
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            EVE_WFO_REMINDER_ID,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, targetTime.timeInMillis, pendingIntent)
+            } else {
+                alarmManager.set(AlarmManager.RTC_WAKEUP, targetTime.timeInMillis, pendingIntent)
+            }
+            Log.d(TAG, "Eve WFO 8 PM reminder scheduled for ${targetTime.time}")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error scheduling Eve WFO reminder: ${e.message}", e)
+        }
     }
 
     fun scheduleMakeupAlarm(targetDateYyyyMmDd: String, alarmId: Int = MAKEUP_WFO_ALARM_ID, portalUrl: String = "") {
@@ -359,6 +421,18 @@ class NotificationService(private val context: Context) {
         notificationManager.notify(1, builder.build())
     }
 
+    fun showEveWfoNotification() {
+        val builder = NotificationCompat.Builder(context, ATTENDANCE_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_stat_notification)
+            .setColor(android.graphics.Color.parseColor("#3B82F6"))
+            .setContentTitle("Work From Office Tomorrow 🏢")
+            .setContentText("Tomorrow is a scheduled WFO day. Remind yourself to check in!")
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+
+        notificationManager.notify(EVE_WFO_REMINDER_ID, builder.build())
+    }
+
     fun dismissNotification(alarmId: Int) {
         notificationManager.cancel(alarmId)
     }
@@ -369,11 +443,13 @@ class NotificationService(private val context: Context) {
         val checkInTime = prefs.getString("checkInTime", null)
         val checkOutTime = prefs.getString("checkOutTime", null)
         val workingDaysMask = prefs.getInt("workingDaysMask", 0x1F)
+        val wfoDaysMask = prefs.getInt("wfoDaysMask", 0x1F)
         val portalUrl = prefs.getString("portalUrl", "") ?: ""
 
         if (enabled && !checkInTime.isNullOrEmpty() && !checkOutTime.isNullOrEmpty()) {
             scheduleCheckInAlarm(checkInTime, workingDaysMask, portalUrl)
             scheduleCheckOutAlarm(checkOutTime, workingDaysMask, portalUrl)
+            scheduleEveWfoReminder(wfoDaysMask, workingDaysMask)
             Log.d(TAG, "verifyAndRescheduleAlarmsIfNeeded: Alarms re-verified and scheduled.")
         }
     }
