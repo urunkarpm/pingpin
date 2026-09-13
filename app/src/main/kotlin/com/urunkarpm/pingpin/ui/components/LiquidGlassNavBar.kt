@@ -9,6 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -38,11 +40,9 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.urunkarpm.pingpin.ui.theme.ElectricBlue
-import kotlin.math.roundToInt
 
 /**
  * State representation for items inside navigation bar.
@@ -69,7 +69,8 @@ val DefaultPingPinNavItems = listOf(
 )
 
 /**
- * Modern High-Contrast Floating Navigation Bar with zero-recomposition hardware accelerated indicator.
+ * High-Definition Apple-Style Liquid Glass Floating Navigation Bar.
+ * Features subtle, refined spring bounce animations for tab tiles and selection puck.
  */
 @Composable
 fun LiquidGlassBottomBar(
@@ -89,17 +90,32 @@ fun LiquidGlassBottomBar(
     val capsuleShape = RoundedCornerShape(containerCornerRadius)
     val indicatorShape = RoundedCornerShape(indicatorCornerRadius)
 
-    // Solid/High-opacity container background for zero blur distortion
-    val containerBg = if (isDark) {
-        Color(0xFF10141D)
-    } else {
-        Color(0xFFFFFFFF)
+    // High-Clarity Glass Container Fill
+    val containerGlassBrush = remember(isDark) {
+        if (isDark) {
+            Brush.verticalGradient(
+                colors = listOf(
+                    Color(0xF0141923),
+                    Color(0xE60F131C)
+                )
+            )
+        } else {
+            Brush.verticalGradient(
+                colors = listOf(
+                    Color(0xFFFFFFFF),
+                    Color(0xFFF1F5F9)
+                )
+            )
+        }
     }
 
-    val hairlineBorder = if (isDark) {
-        Color.White.copy(alpha = 0.15f)
-    } else {
-        Color.Black.copy(alpha = 0.10f)
+    // Solid Non-Fading Border Colors (Uniform 360-degree hairline contrast)
+    val solidBorderColor = remember(isDark) {
+        if (isDark) {
+            Color.White.copy(alpha = 0.25f)
+        } else {
+            Color(0xFF475569) // Crisp Slate Dark Border in Light Mode
+        }
     }
 
     Box(
@@ -116,30 +132,30 @@ fun LiquidGlassBottomBar(
             (containerWidthPx.toFloat() / itemCount) * validIndex
         } else 0f
 
-        // Hardware-accelerated puck animation (State read deferred to IntOffset lambda)
+        // Hardware-accelerated puck animation with subtle spring bounce
         val indicatorOffsetPxState = animateFloatAsState(
             targetValue = targetX,
             animationSpec = spring(
-                dampingRatio = 0.82f,
-                stiffness = 1400f
+                dampingRatio = 0.72f,
+                stiffness = 1200f
             ),
-            label = "iOSPuckOffset"
+            label = "subtle_puck_bounce"
         )
 
-        // Outer Floating Panel Container
+        // Outer Floating Liquid Glass Panel Container
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(barHeight)
                 .shadow(
-                    elevation = if (isDark) 16.dp else 8.dp,
+                    elevation = if (isDark) 20.dp else 12.dp,
                     shape = capsuleShape,
-                    ambientColor = Color.Black.copy(alpha = if (isDark) 0.50f else 0.12f),
-                    spotColor = Color.Black.copy(alpha = if (isDark) 0.60f else 0.18f)
+                    ambientColor = if (isDark) Color.Black.copy(alpha = 0.60f) else Color(0xFF0F172A).copy(alpha = 0.18f),
+                    spotColor = if (isDark) Color.Black.copy(alpha = 0.70f) else Color(0xFF1E293B).copy(alpha = 0.22f)
                 )
                 .clip(capsuleShape)
-                .background(containerBg)
-                .border(width = 1.dp, color = hairlineBorder, shape = capsuleShape)
+                .background(containerGlassBrush)
+                .border(width = 1.5.dp, color = solidBorderColor, shape = capsuleShape)
         ) {
             Box(
                 modifier = Modifier
@@ -147,7 +163,7 @@ fun LiquidGlassBottomBar(
                     .padding(horizontal = 6.dp, vertical = 6.dp)
                     .onSizeChanged { containerWidthPx = it.width }
             ) {
-                // High-contrast selection pill (Zero recompositions & layout passes during movement)
+                // High-contrast Liquid Glass selection puck
                 Box(
                     modifier = Modifier
                         .fillMaxHeight()
@@ -157,14 +173,14 @@ fun LiquidGlassBottomBar(
                         .clip(indicatorShape)
                         .background(
                             if (isDark) {
-                                ElectricBlue.copy(alpha = 0.25f)
+                                ElectricBlue.copy(alpha = 0.30f)
                             } else {
-                                ElectricBlue.copy(alpha = 0.12f)
+                                ElectricBlue.copy(alpha = 0.18f)
                             }
                         )
                         .border(
-                            width = 1.dp,
-                            color = if (isDark) Color(0xFF60A5FA).copy(alpha = 0.50f) else ElectricBlue.copy(alpha = 0.35f),
+                            width = 1.2.dp,
+                            color = if (isDark) Color(0xFF60A5FA).copy(alpha = 0.80f) else ElectricBlue,
                             shape = indicatorShape
                         )
                 )
@@ -177,9 +193,10 @@ fun LiquidGlassBottomBar(
                     items.forEachIndexed { index, item ->
                         val isSelected = index == validIndex
                         val interactionSource = remember { MutableInteractionSource() }
+                        val isPressed by interactionSource.collectIsPressedAsState()
 
-                        val activeColor = if (isDark) Color.White else ElectricBlue
-                        val inactiveColor = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+                        val activeColor = if (isDark) Color.White else Color(0xFF1D4ED8)
+                        val inactiveColor = if (isDark) Color(0xFF94A3B8) else Color(0xFF334155)
 
                         val animatedColorState = animateColorAsState(
                             targetValue = if (isSelected) activeColor else inactiveColor,
@@ -187,10 +204,14 @@ fun LiquidGlassBottomBar(
                             label = "TabColor_$index"
                         )
 
-                        val scaleState = animateFloatAsState(
-                            targetValue = if (isSelected) 1.05f else 1.0f,
-                            animationSpec = spring(stiffness = Spring.StiffnessHigh),
-                            label = "TabScale_$index"
+                        // Subtle, refined spring bounce scale animation for tile buttons
+                        val tileScaleState = animateFloatAsState(
+                            targetValue = if (isPressed) 0.92f else if (isSelected) 1.04f else 1.0f,
+                            animationSpec = spring(
+                                dampingRatio = 0.70f,
+                                stiffness = 1100f
+                            ),
+                            label = "subtle_tile_bounce_$index"
                         )
 
                         Box(
@@ -211,6 +232,7 @@ fun LiquidGlassBottomBar(
                                     indication = null
                                 ) {
                                     if (!isSelected) {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                         onItemSelected(index)
                                     }
                                 },
@@ -219,8 +241,8 @@ fun LiquidGlassBottomBar(
                             Row(
                                 modifier = Modifier
                                     .graphicsLayer {
-                                        scaleX = scaleState.value
-                                        scaleY = scaleState.value
+                                        scaleX = tileScaleState.value
+                                        scaleY = tileScaleState.value
                                     }
                                     .padding(horizontal = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -239,7 +261,7 @@ fun LiquidGlassBottomBar(
                                     text = item.label,
                                     color = animatedColorState.value,
                                     fontSize = 13.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.SemiBold,
                                     letterSpacing = 0.2.sp,
                                     maxLines = 1
                                 )

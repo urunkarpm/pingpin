@@ -49,6 +49,8 @@ import com.urunkarpm.pingpin.ui.components.WfoDaysSelector
 import com.urunkarpm.pingpin.ui.portal.PortalActivity
 import com.urunkarpm.pingpin.ui.theme.ElectricBlue
 import com.urunkarpm.pingpin.ui.theme.EmeraldGreen
+import com.urunkarpm.pingpin.ui.theme.WfoDayPurple
+import com.urunkarpm.pingpin.ui.theme.PitchDarkSurface
 import kotlinx.coroutines.launch
 
 enum class TestRunStatus {

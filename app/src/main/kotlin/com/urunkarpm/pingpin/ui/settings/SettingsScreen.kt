@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -93,13 +94,13 @@ fun SettingsScreen(
     val configState by viewModel.configState.collectAsState()
     val profileState by viewModel.profileState.collectAsState()
 
-    var fullName by remember { mutableStateOf("") }
-    var ssid by remember { mutableStateOf("") }
-    var checkInTime by remember { mutableStateOf("09:30") }
-    var checkOutTime by remember { mutableStateOf("17:30") }
-    var portalUrl by remember { mutableStateOf("") }
-    var workingDaysMask by remember { mutableStateOf(WorkingDays.DEFAULT_WEEKDAYS) }
-    var wfoDaysMask by remember { mutableStateOf(WorkingDays.DEFAULT_WEEKDAYS) }
+    var fullName by remember(profileState) { mutableStateOf(profileState?.fullName ?: "") }
+    var ssid by remember(configState) { mutableStateOf(configState?.ssid ?: "") }
+    var checkInTime by remember(configState) { mutableStateOf(configState?.checkInTime ?: "09:30") }
+    var checkOutTime by remember(configState) { mutableStateOf(configState?.checkOutTime ?: "17:30") }
+    var portalUrl by remember(configState) { mutableStateOf(configState?.portalUrl ?: "") }
+    var workingDaysMask by remember(configState) { mutableStateOf(configState?.workingDaysMask ?: WorkingDays.DEFAULT_WEEKDAYS) }
+    var wfoDaysMask by remember(configState) { mutableStateOf(configState?.wfoDaysMask ?: WorkingDays.DEFAULT_WEEKDAYS) }
 
     val credManager = remember { com.urunkarpm.pingpin.service.portal.PortalCredentialManager(context) }
     var portalMode by remember { mutableStateOf("EXTERNAL_BROWSER") }
@@ -352,94 +353,150 @@ fun SettingsScreen(
             }
         }
 
-        // 2. Segmented Pill Tab Bar (Category Selector - No Black Box Ripples!)
+        // 2. Liquid Glass Bouncy Segmented Category Selector Bar
         Surface(
-            shape = RoundedCornerShape(18.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (isDarkTheme) 0.40f else 0.50f),
+            border = BorderStroke(1.2.dp, if (isDarkTheme) Color.White.copy(alpha = 0.18f) else Color(0xFF475569).copy(alpha = 0.40f)),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Row(
+            val categories = remember { SettingsCategory.values() }
+            val selectedIndex = selectedCategory.ordinal
+            var navWidthPx by remember { mutableIntStateOf(0) }
+            val itemCount = categories.size
+
+            val targetX = if (navWidthPx > 0) {
+                (navWidthPx.toFloat() / itemCount) * selectedIndex
+            } else 0f
+
+            // Bouncy Spring Puck Animation (DampingRatioMediumBouncy for authentic fluid bounce)
+            val puckOffsetPx by animateFloatAsState(
+                targetValue = targetX,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessMediumLow
+                ),
+                label = "bouncy_puck_offset"
+            )
+
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    .padding(5.dp)
+                    .onSizeChanged { navWidthPx = it.width }
             ) {
-                SettingsCategory.values().forEach { category ->
-                    val isSelected = selectedCategory == category
-                    val containerColor by animateColorAsState(
-                        targetValue = if (isSelected) MaterialTheme.colorScheme.surface else Color.Transparent,
-                        animationSpec = tween(durationMillis = 200),
-                        label = "tab_bg"
-                    )
-                    val contentColor by animateColorAsState(
-                        targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        animationSpec = tween(durationMillis = 200),
-                        label = "tab_content"
-                    )
-
-                    val interactionSource = remember { MutableInteractionSource() }
-                    val isPressed by interactionSource.collectIsPressedAsState()
-                    val scale by animateFloatAsState(
-                        targetValue = if (isPressed) 0.94f else 1.0f,
-                        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                        label = "tab_scale"
-                    )
-
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .graphicsLayer {
-                                scaleX = scale
-                                scaleY = scale
+                // Hardware-Accelerated Bouncy Selection Puck Surface
+                Box(
+                    modifier = Modifier
+                        .height(58.dp)
+                        .fillMaxWidth(1f / itemCount)
+                        .graphicsLayer { translationX = puckOffsetPx }
+                        .padding(horizontal = 2.dp)
+                        .clip(RoundedCornerShape(15.dp))
+                        .background(
+                            if (isDarkTheme) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surface
                             }
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(containerColor)
-                            .border(
-                                width = 1.dp,
-                                color = if (isSelected) MaterialTheme.colorScheme.outline.copy(alpha = 0.2f) else Color.Transparent,
-                                shape = RoundedCornerShape(14.dp)
-                            )
-                            .clickable(
-                                interactionSource = interactionSource,
-                                indication = null
-                            ) {
-                                selectedCategory = category
-                            }
-                            .padding(vertical = 10.dp, horizontal = 4.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
+                        )
+                        .border(
+                            width = 1.2.dp,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = if (isDarkTheme) 0.60f else 0.85f),
+                            shape = RoundedCornerShape(15.dp)
+                        )
+                )
+
+                // Category Buttons Row
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(58.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    categories.forEach { category ->
+                        val isSelected = selectedCategory == category
+                        val interactionSource = remember { MutableInteractionSource() }
+                        val isPressed by interactionSource.collectIsPressedAsState()
+
+                        // Tactile Bouncy Scale Feedback
+                        val tabScale by animateFloatAsState(
+                            targetValue = if (isPressed) 0.88f else if (isSelected) 1.06f else 1.0f,
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessMediumLow
+                            ),
+                            label = "tab_bounce_scale"
+                        )
+
+                        val contentColor by animateColorAsState(
+                            targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            animationSpec = tween(durationMillis = 180),
+                            label = "tab_content_color"
+                        )
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .graphicsLayer {
+                                    scaleX = tabScale
+                                    scaleY = tabScale
+                                }
+                                .clip(RoundedCornerShape(15.dp))
+                                .clickable(
+                                    interactionSource = interactionSource,
+                                    indication = null
+                                ) {
+                                    if (!isSelected) {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        selectedCategory = category
+                                    }
+                                }
+                                .padding(vertical = 8.dp, horizontal = 2.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = category.icon,
-                                contentDescription = null,
-                                tint = contentColor,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = category.title,
-                                fontSize = 10.5.sp,
-                                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
-                                color = contentColor,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = category.icon,
+                                    contentDescription = null,
+                                    tint = contentColor,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.height(3.dp))
+                                Text(
+                                    text = category.title,
+                                    fontSize = 10.5.sp,
+                                    fontWeight = if (isSelected) FontWeight.Black else FontWeight.SemiBold,
+                                    color = contentColor,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                         }
                     }
                 }
             }
         }
 
-        // 3. Category Content Container (Instant & Smooth)
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            when (selectedCategory) {
+        // 3. Category Content Container (Clean Instant In-Place Display, No Vertical Slide)
+        AnimatedContent(
+            targetState = selectedCategory,
+            transitionSpec = {
+                fadeIn(animationSpec = tween(150)).togetherWith(fadeOut(animationSpec = tween(150)))
+            },
+            label = "settings_content_fade",
+            modifier = Modifier.fillMaxWidth()
+        ) { category ->
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                when (category) {
                     SettingsCategory.PROFILE_SHIFT -> {
                         // Personal Identity Section
                         GlassCard(modifier = Modifier.fillMaxWidth()) {
@@ -1531,6 +1588,7 @@ fun SettingsScreen(
                     }
                 }
             }
+        }
         }
 
         if (showAppChangelogDialog) {

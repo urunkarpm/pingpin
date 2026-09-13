@@ -24,14 +24,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
-
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 
+/**
+ * Authentic High-Definition iOS-Style Liquid Glassmorphism Surface Container.
+ * Features 100% solid non-fading perimeter borders for sharp, high-contrast edge definition.
+ */
 @Composable
 fun GlassCard(
     modifier: Modifier = Modifier,
@@ -48,27 +51,36 @@ fun GlassCard(
     val bgColor = MaterialTheme.colorScheme.background
     val isDark = remember(bgColor) { bgColor.red < 0.5f }
 
-    val defaultBg = backgroundColor ?: if (isDark) {
-        MaterialTheme.colorScheme.surfaceContainer
-    } else {
-        MaterialTheme.colorScheme.surface
-    }
-
-    val defaultBorder = borderColor ?: if (isDark) {
-        Color.White.copy(alpha = 0.12f)
-    } else {
-        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
-    }
-
     val shape = remember(cornerRadius) { RoundedCornerShape(cornerRadius) }
 
-    val gradientBrush = remember(defaultBg, isDark) {
-        Brush.verticalGradient(
-            colors = listOf(
-                defaultBg,
-                if (isDark) defaultBg.copy(alpha = 0.85f) else defaultBg
+    // High-Clarity Translucent Fill
+    val glassFillBrush = remember(backgroundColor, isDark) {
+        if (backgroundColor != null) {
+            Brush.verticalGradient(listOf(backgroundColor, backgroundColor))
+        } else if (isDark) {
+            Brush.verticalGradient(
+                colors = listOf(
+                    Color(0xD9141923), // Translucent Pitch Surface Container
+                    Color(0xC80F131C)
+                )
             )
-        )
+        } else {
+            Brush.verticalGradient(
+                colors = listOf(
+                    Color(0xFFFFFFFF),
+                    Color(0xFFF1F5F9)
+                )
+            )
+        }
+    }
+
+    // Solid Non-Fading Border Colors (Uniform 360-degree hairline contrast)
+    val solidBorderColor = remember(borderColor, isDark) {
+        borderColor ?: if (isDark) {
+            Color.White.copy(alpha = 0.22f)
+        } else {
+            Color(0xFF475569).copy(alpha = 0.60f) // Crisp Dark Slate Border in Light Mode
+        }
     }
 
     val cardModifier = if (onClick != null) {
@@ -85,15 +97,15 @@ fun GlassCard(
                 scaleY = scale
             }
             .shadow(
-                elevation = if (isDark) 8.dp else 4.dp,
+                elevation = if (isDark) 14.dp else 8.dp,
                 shape = shape,
                 clip = false,
-                ambientColor = Color.Black.copy(alpha = 0.1f),
-                spotColor = Color.Black.copy(alpha = 0.15f)
+                ambientColor = if (isDark) Color.Black.copy(alpha = 0.50f) else Color(0xFF0F172A).copy(alpha = 0.12f),
+                spotColor = if (isDark) Color.Black.copy(alpha = 0.60f) else Color(0xFF3B82F6).copy(alpha = 0.18f)
             )
             .clip(shape)
-            .background(gradientBrush)
-            .border(width = 1.dp, color = defaultBorder, shape = shape)
+            .background(glassFillBrush)
+            .border(width = 1.2.dp, color = solidBorderColor, shape = shape)
             .semantics {
                 role?.let { this.role = it }
                 contentDescription?.let { this.contentDescription = it }
@@ -109,15 +121,15 @@ fun GlassCard(
     } else {
         modifier
             .shadow(
-                elevation = if (isDark) 8.dp else 4.dp,
+                elevation = if (isDark) 12.dp else 6.dp,
                 shape = shape,
                 clip = false,
-                ambientColor = Color.Black.copy(alpha = 0.1f),
-                spotColor = Color.Black.copy(alpha = 0.15f)
+                ambientColor = if (isDark) Color.Black.copy(alpha = 0.45f) else Color(0xFF0F172A).copy(alpha = 0.10f),
+                spotColor = if (isDark) Color.Black.copy(alpha = 0.55f) else Color(0xFF3B82F6).copy(alpha = 0.15f)
             )
             .clip(shape)
-            .background(gradientBrush)
-            .border(width = 1.dp, color = defaultBorder, shape = shape)
+            .background(glassFillBrush)
+            .border(width = 1.2.dp, color = solidBorderColor, shape = shape)
             .semantics {
                 contentDescription?.let { this.contentDescription = it }
             }
@@ -128,4 +140,3 @@ fun GlassCard(
         content = content
     )
 }
-

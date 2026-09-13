@@ -35,6 +35,9 @@ import androidx.compose.ui.semantics.stateDescription
 private val DAY_LABELS = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 private val FULL_DAY_NAMES = listOf("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
 
+/**
+ * Clean WFO Days Selector (Day pills only, without cluttering preset buttons).
+ */
 @Composable
 fun WfoDaysSelector(
     wfoDaysMask: Int,
@@ -154,82 +157,6 @@ fun WfoDaysSelector(
                     )
                 }
             }
-        }
-
-        // Quick WFO Presets
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            WfoPresetChip(
-                label = "Mon - Fri",
-                isSelected = wfoDaysMask == 31,
-                onClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onMaskChanged(31) // 0b0011111 (Mon-Fri)
-                },
-                modifier = Modifier.weight(1f)
-            )
-            WfoPresetChip(
-                label = "3 Days (M/W/F)",
-                isSelected = wfoDaysMask == 21,
-                onClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onMaskChanged(21) // 1|4|16 = Mon(1) + Wed(4) + Fri(16) = 21
-                },
-                modifier = Modifier.weight(1f)
-            )
-            WfoPresetChip(
-                label = "2 Days (T/Th)",
-                isSelected = wfoDaysMask == 10,
-                onClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onMaskChanged(10) // 2|8 = Tue(2) + Thu(8) = 10
-                },
-                modifier = Modifier.weight(1f)
-            )
-            WfoPresetChip(
-                label = "All 7 Days",
-                isSelected = wfoDaysMask == 127,
-                onClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onMaskChanged(127) // 0b1111111
-                },
-                modifier = Modifier.weight(1f)
-            )
-        }
-    }
-}
-
-@Composable
-private fun WfoPresetChip(
-    label: String,
-    isSelected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(10.dp),
-        color = if (isSelected) EmeraldGreen.copy(alpha = 0.18f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-        border = androidx.compose.foundation.BorderStroke(
-            width = 1.dp,
-            color = if (isSelected) EmeraldGreen else MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
-        ),
-        modifier = modifier.defaultMinSize(minHeight = 48.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 6.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = label,
-                fontSize = 10.sp,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                color = if (isSelected) EmeraldGreen else MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }

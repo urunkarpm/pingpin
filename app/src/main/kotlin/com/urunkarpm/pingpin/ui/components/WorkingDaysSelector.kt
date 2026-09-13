@@ -179,15 +179,7 @@ fun WorkingDaysSelector(
                 },
                 modifier = Modifier.weight(1f)
             )
-            PresetChip(
-                label = "All 7 Days",
-                isSelected = workingDaysMask == 127,
-                onClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onMaskChanged(127) // 0b1111111
-                },
-                modifier = Modifier.weight(1f)
-            )
+
         }
     }
 }

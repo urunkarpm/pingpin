@@ -5,9 +5,13 @@ All notable changes to **PingPin** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.5.0] - 2026-09-08
+## [2.5.0] - 2026-09-13
 
-### Added
+### Added & Refined
+- **Liquid Glassmorphism UI**: Added iOS-style liquid glass components (`GlassCard`) and navigation bar (`LiquidGlassNavBar`) with prominent, non-fading hairline borders tuned for both Light and Dark modes.
+- **Initial Setup Redesign**: Modernized the initial onboarding wizard (`OnboardingScreen`) with clean glass cards, refined typography, and smooth step navigation.
+- **Settings Screen Bouncy Navigation**: Added bouncy spring animations to the upper navigation tab bar on the Settings page and subtle tile interactions on the bottom navigation bar.
+- **Selector Streamlining**: Cleaned up WFO Days and Working Days configuration selectors in initial setup and settings by removing unnecessary preset chips and the "All 7 Days" option.
 - **8 PM Eve-of-WFO Reminder Notification**: Automatically sends a status-bar notification at 8:00 PM on the evening prior to any scheduled WFO day as a gentle, non-intrusive reminder.
 
 ---
