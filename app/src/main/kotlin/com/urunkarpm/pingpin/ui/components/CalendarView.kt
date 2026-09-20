@@ -1,5 +1,6 @@
 package com.urunkarpm.pingpin.ui.components
 
+import androidx.compose.animation.*
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -10,14 +11,21 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -55,6 +63,15 @@ enum class LegendFilterType {
     TODAY,
     OFF_DAY
 }
+
+private data class LegendItemData(
+    val label: String,
+    val type: LegendFilterType?,
+    val count: Int,
+    val color: Color,
+    val dotColor: Color,
+    val isBorderOnly: Boolean = false
+)
 
 private data class CellDateInfo(
     val year: Int,
@@ -308,58 +325,153 @@ fun MonthlyCalendarView(
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f))
         Spacer(modifier = Modifier.height(14.dp))
 
-        // Interactive Glass Filter Chips Row with Staggered Sweep Wave
-        val legendChips = remember {
+        // ponytail: In-place scroll wheel selector for calendar legends.
+        // Ceiling: Single-slot inline scroll wheel cycling through filters. Upgrade path: Multi-track wheel or chip grid if concurrent multi-select filters are needed.
+        val offDayDotColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+        val legendWheelItems = remember(presentCount, wfoCount, makeupCount, missedCount, todayCount, offCount, isDark, offDayDotColor) {
             listOf(
-                Triple("Present", LegendFilterType.PRESENT, presentCount),
-                Triple("WFO Day", LegendFilterType.WFO_DAY, wfoCount),
-                Triple("Makeup WFO", LegendFilterType.MAKEUP_WFO, makeupCount),
-                Triple("Missed", LegendFilterType.MISSED, missedCount),
-                Triple("Today", LegendFilterType.TODAY, todayCount),
-                Triple("Off-Day", LegendFilterType.OFF_DAY, offCount)
+                LegendItemData("All Legends", null, 0, Color.Transparent, ElectricBlue),
+                LegendItemData("Present", LegendFilterType.PRESENT, presentCount, if (isDark) EmeraldGreenBgDark else EmeraldGreenBgLight, EmeraldGreen),
+                LegendItemData("WFO Day", LegendFilterType.WFO_DAY, wfoCount, if (isDark) WfoDayPurpleBgDark else WfoDayPurpleBgLight, WfoDayPurple),
+                LegendItemData("Makeup WFO", LegendFilterType.MAKEUP_WFO, makeupCount, if (isDark) AmberOrangeBgDark else AmberOrangeBgLight, AmberOrange),
+                LegendItemData("Missed", LegendFilterType.MISSED, missedCount, if (isDark) CrimsonRedBgDark else CrimsonRedBgLight, CrimsonRed),
+                LegendItemData("Today", LegendFilterType.TODAY, todayCount, ElectricBlue, ElectricBlue, isBorderOnly = true),
+                LegendItemData("Off-Day", LegendFilterType.OFF_DAY, offCount, Color.Transparent, offDayDotColor)
             )
         }
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
+        var wheelIndex by remember { mutableIntStateOf(0) }
+        val haptic = LocalHapticFeedback.current
+
+        val currentWheelItem = legendWheelItems[wheelIndex]
+        LaunchedEffect(wheelIndex) {
+            activeFilter = currentWheelItem.type
+        }
+        // ponytail: Clean in-place vertical scroll wheel selector without caret buttons or press shadows.
+        // Ceiling: Single-slot inline scroll wheel cycling through filters. Upgrade path: Multi-track wheel or chip grid if concurrent multi-select filters are needed.
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            legendChips.forEachIndexed { idx, item ->
-                val (label, filterType, count) = item
-                val chipDiagPos = 0.65f + 0.30f * (idx / 5f)
-
-                val color = when (filterType) {
-                    LegendFilterType.PRESENT -> if (isDark) EmeraldGreenBgDark else EmeraldGreenBgLight
-                    LegendFilterType.WFO_DAY -> if (isDark) WfoDayPurpleBgDark else WfoDayPurpleBgLight
-                    LegendFilterType.MAKEUP_WFO -> if (isDark) AmberOrangeBgDark else AmberOrangeBgLight
-                    LegendFilterType.MISSED -> if (isDark) CrimsonRedBgDark else CrimsonRedBgLight
-                    LegendFilterType.TODAY -> ElectricBlue
-                    LegendFilterType.OFF_DAY -> Color.Transparent
-                }
-                val dotColor = when (filterType) {
-                    LegendFilterType.PRESENT -> EmeraldGreen
-                    LegendFilterType.WFO_DAY -> WfoDayPurple
-                    LegendFilterType.MAKEUP_WFO -> AmberOrange
-                    LegendFilterType.MISSED -> CrimsonRed
-                    LegendFilterType.TODAY -> ElectricBlue
-                    LegendFilterType.OFF_DAY -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                }
-
-                LegendFilterChip(
-                    label = label,
-                    count = count,
-                    color = color,
-                    dotColor = dotColor,
-                    isBorderOnly = filterType == LegendFilterType.TODAY,
-                    isSelected = activeFilter == filterType,
-                    isDark = isDark,
-                    onClick = {
-                        activeFilter = if (activeFilter == filterType) null else filterType
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .width(170.dp)
+                    .height(36.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(
+                        if (currentWheelItem.type != null) {
+                            currentWheelItem.color.copy(alpha = 0.25f)
+                        } else {
+                            MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f)
+                        }
+                    )
+                    .border(
+                        width = 1.dp,
+                        color = currentWheelItem.dotColor,
+                        shape = RoundedCornerShape(20.dp)
+                    )
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        wheelIndex = (wheelIndex + 1) % legendWheelItems.size
                     }
-                )
+                    .pointerInput(Unit) {
+                        var totalDrag = 0f
+                        detectVerticalDragGestures(
+                            onDragStart = { totalDrag = 0f },
+                            onDragEnd = {
+                                if (totalDrag < -20f) {
+                                    // Swipe UP -> Scroll next item
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    wheelIndex = (wheelIndex + 1) % legendWheelItems.size
+                                } else if (totalDrag > 20f) {
+                                    // Swipe DOWN -> Scroll prev item
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    wheelIndex = if (wheelIndex == 0) legendWheelItems.size - 1 else wheelIndex - 1
+                                }
+                            },
+                            onVerticalDrag = { _, dragAmount -> totalDrag += dragAmount }
+                        )
+                    }
+                    .semantics {
+                        role = Role.Button
+                        contentDescription = "Vertical legend scroll wheel: ${currentWheelItem.label}. Swipe up or down to scroll."
+                    }
+            ) {
+                AnimatedContent(
+                    targetState = currentWheelItem,
+                    transitionSpec = {
+                        (fadeIn(tween(180)) + slideInVertically(tween(200)) { height -> height / 2 }) togetherWith
+                        (fadeOut(tween(140)) + slideOutVertically(tween(180)) { height -> -height / 2 })
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                    label = "legend_vertical_wheel_scroll"
+                ) { item ->
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        if (item.type != null) {
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .clip(CircleShape)
+                                    .then(
+                                        if (item.isBorderOnly) {
+                                            Modifier.border(1.5.dp, item.color, CircleShape)
+                                        } else {
+                                            Modifier.background(item.color)
+                                        }
+                                    )
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                        }
+
+                        Text(
+                            text = if (item.type != null) "${item.label} (${item.count})" else item.label,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Scroll position indicator dots below
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                legendWheelItems.forEachIndexed { idx, item ->
+                    val isSelected = idx == wheelIndex
+                    Box(
+                        modifier = Modifier
+                            .size(width = if (isSelected) 12.dp else 5.dp, height = 5.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (isSelected) {
+                                    item.dotColor
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
+                                }
+                            )
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                wheelIndex = idx
+                            }
+                    )
+                }
             }
         }
     }
@@ -537,103 +649,3 @@ private fun MonthDayCellItem(
     }
 }
 
-@Composable
-private fun LegendFilterChip(
-    label: String,
-    count: Int,
-    color: Color,
-    dotColor: Color,
-    isSelected: Boolean,
-    onClick: () -> Unit,
-    isBorderOnly: Boolean = false,
-    isDark: Boolean = true
-) {
-    val chipBg = if (isSelected) {
-        if (isBorderOnly) ElectricBlue.copy(alpha = 0.2f) else color.copy(alpha = 0.35f)
-    } else {
-        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.4f)
-    }
-
-    val chipBorderColor = if (isSelected) {
-        if (isBorderOnly) ElectricBlue else dotColor
-    } else {
-        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-    }
-
-    val haptic = LocalHapticFeedback.current
-
-    Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = chipBg,
-        border = androidx.compose.foundation.BorderStroke(
-            width = if (isSelected) 1.5.dp else 1.dp,
-            color = chipBorderColor
-        ),
-        modifier = Modifier
-            .semantics(mergeDescendants = true) {
-                role = Role.Button
-                contentDescription = "Filter by $label, count $count. ${if (isSelected) "Selected" else "Not selected"}"
-            }
-            .clickable {
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                onClick()
-            }
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(10.dp)
-                    .clip(CircleShape)
-                    .then(
-                        if (isBorderOnly) {
-                            Modifier.border(1.5.dp, color, CircleShape)
-                        } else {
-                            Modifier.background(color)
-                        }
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                if (!isBorderOnly && dotColor != Color.Transparent) {
-                    Box(
-                        modifier = Modifier
-                            .size(3.dp)
-                            .clip(CircleShape)
-                            .background(dotColor)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.width(6.dp))
-
-            Text(
-                text = label,
-                fontSize = 11.sp,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                color = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            if (count > 0) {
-                Spacer(modifier = Modifier.width(5.dp))
-                Surface(
-                    shape = CircleShape,
-                    color = if (isSelected) {
-                        dotColor.copy(alpha = 0.25f)
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f)
-                    }
-                ) {
-                    Text(
-                        text = "$count",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = if (isSelected) dotColor else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
-                    )
-                }
-            }
-        }
-    }
-}

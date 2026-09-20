@@ -61,6 +61,8 @@ fun WeatherDetailBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surface,
+        scrimColor = Color.Black.copy(alpha = 0.25f),
+        windowInsets = WindowInsets(0, 0, 0, 0), // ponytail: zero insets ensure scrim extends edge-to-edge behind status bar
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         dragHandle = { BottomSheetDefaults.DragHandle() },
         modifier = modifier

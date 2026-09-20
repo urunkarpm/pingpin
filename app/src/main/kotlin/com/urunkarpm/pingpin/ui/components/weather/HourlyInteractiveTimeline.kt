@@ -204,12 +204,16 @@ fun HourlyInteractiveTimeline(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 // Rain Probability Canvas Graph + Scrollable Timeline
-                Box(modifier = Modifier.fillMaxWidth()) {
+                // ponytail: Stacked in Column to ensure graph sits above hourly forecast cards without overlap
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
                     val isRadarAvailable = radarStatus == com.urunkarpm.pingpin.data.model.RadarStatus.AVAILABLE && hourlyForecast.size >= 2
 
                     if (isRadarAvailable) {
                         val rainColor = MaterialTheme.colorScheme.primary
-                        val graphHeightDp = 44.dp
+                        val graphHeightDp = 52.dp
 
                         val maxRainInListForSemantics = remember(hourlyForecast) { hourlyForecast.maxOfOrNull { it.rainChancePercent } ?: 0 }
 
@@ -324,9 +328,7 @@ fun HourlyInteractiveTimeline(
                         state = listState,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         contentPadding = PaddingValues(horizontal = 16.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 36.dp)
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         itemsIndexed(
                             items = hourlyForecast,

@@ -40,11 +40,16 @@ import java.util.*
 fun UpcomingHolidaysCard(
     upcomingHolidays: List<UpcomingHolidayData>,
     allHolidays: List<IndianHoliday>,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onSheetStateChange: (Boolean) -> Unit = {}
 ) {
     val haptic = LocalHapticFeedback.current
     val isDark = MaterialTheme.colorScheme.background.red < 0.5f
     var showFullCalendarSheet by remember { mutableStateOf(false) }
+
+    LaunchedEffect(showFullCalendarSheet) {
+        onSheetStateChange(showFullCalendarSheet)
+    }
 
     GlassCard(
         modifier = modifier.fillMaxWidth(),
@@ -376,7 +381,8 @@ fun FullHolidayCalendarBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surface,
-        scrimColor = Color.Black.copy(alpha = 0.5f)
+        scrimColor = Color.Black.copy(alpha = 0.25f),
+        windowInsets = WindowInsets(0, 0, 0, 0) // ponytail: zero insets ensure scrim extends edge-to-edge behind status bar
     ) {
         Column(
             modifier = Modifier
@@ -434,12 +440,19 @@ fun FullHolidayCalendarBottomSheet(
 
             // Filter Chips Row
             val currentYear = remember { Calendar.getInstance().get(Calendar.YEAR) }
+            val categories = remember { HolidayCategory.values() }
+            val longWeekendCount = remember(allHolidays, showUpcomingOnly, todayYyyyMmDd) {
+                allHolidays.count {
+                    (if (showUpcomingOnly) it.dateYyyyMmDd >= todayYyyyMmDd else true) && it.isLongWeekend
+                }
+            }
+
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                item {
+                item(key = "chip_upcoming") {
                     FilterChip(
                         selected = showUpcomingOnly,
                         onClick = { showUpcomingOnly = true },
@@ -451,7 +464,7 @@ fun FullHolidayCalendarBottomSheet(
                     )
                 }
 
-                item {
+                item(key = "chip_all") {
                     FilterChip(
                         selected = !showUpcomingOnly,
                         onClick = { showUpcomingOnly = false },
@@ -459,16 +472,13 @@ fun FullHolidayCalendarBottomSheet(
                     )
                 }
 
-                item {
+                item(key = "chip_long_weekend") {
                     FilterChip(
                         selected = onlyLongWeekendsFilter,
                         onClick = {
                             onlyLongWeekendsFilter = !onlyLongWeekendsFilter
                         },
                         label = {
-                            val longWeekendCount = allHolidays.count {
-                                (if (showUpcomingOnly) it.dateYyyyMmDd >= todayYyyyMmDd else true) && it.isLongWeekend
-                            }
                             Text("Long Weekends ($longWeekendCount)", fontSize = 12.sp)
                         },
                         colors = FilterChipDefaults.filterChipColors(
@@ -478,7 +488,7 @@ fun FullHolidayCalendarBottomSheet(
                     )
                 }
 
-                items(HolidayCategory.values()) { category ->
+                items(categories, key = { it.name }) { category ->
                     FilterChip(
                         selected = selectedCategoryFilter == category,
                         onClick = {
@@ -525,7 +535,7 @@ fun FullHolidayCalendarBottomSheet(
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                     contentPadding = PaddingValues(bottom = 24.dp)
                 ) {
-                    items(filteredHolidays) { holiday ->
+                    items(filteredHolidays, key = { it.dateYyyyMmDd + "_" + it.name }) { holiday ->
                         FullHolidayCardItem(holiday = holiday, todayYyyyMmDd = todayYyyyMmDd)
                     }
                 }

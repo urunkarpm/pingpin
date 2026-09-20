@@ -2,16 +2,27 @@ package com.urunkarpm.pingpin.data
 
 object AppChangelog {
     const val CURRENT_VERSION_CHANGELOG = """
-### Added & Refined
-- **Liquid Glassmorphism UI**: Added iOS-style liquid glass components (`GlassCard`) and navigation bar (`LiquidGlassNavBar`) with prominent, non-fading hairline borders tuned for both Light and Dark modes.
-- **Initial Setup Redesign**: Modernized the initial onboarding wizard (`OnboardingScreen`) with clean glass cards, refined typography, and smooth step navigation.
-- **Settings Screen Bouncy Navigation**: Added bouncy spring animations to the upper navigation tab bar on the Settings page and subtle tile interactions on the bottom navigation bar.
-- **Selector Streamlining**: Cleaned up WFO Days and Working Days configuration selectors in initial setup and settings by removing unnecessary preset chips and the "All 7 Days" option.
-- **8 PM Eve-of-WFO Reminder Notification**: Automatically sends a status-bar notification at 8:00 PM on the evening prior to any scheduled WFO day as a gentle, non-intrusive reminder.
+### Polish & Performance
+- **Calendar Legend Vertical Scroll Wheel**: Upgraded calendar legend dropdown into a compact in-place vertical scroll wheel selector (`170dp x 36dp`) with indicator dots and gesture control.
+- **Edge-to-Edge Backdrop Blur**: Replaced dark background scrim shadows on Weather Detail and Holiday Radar bottom sheets with frosted glass `Modifier.blur(16.dp)` background blur extending behind the status bar.
+- **Rain Probability Trend Graph Fix**: Solved curve masking by stacking the 24-hour rain trend graph above hourly cards with a dedicated `52dp` curve canvas height.
+- **Smooth Navigation & Animations**: Unified Easing curves in `LiquidGlassNavBar` and added stable Compose item keys for buttery smooth 60/120Hz scrolling and bottom sheet slide animations.
+- **System Health Streamlining**: Removed redundant test alarm button from Settings for a clean, distraction-free System Health view.
 """
 
     const val FULL_CHANGELOG = """
-## [2.5.0] - Current Release
+## [2.5.1] - Current Release
+
+### Polish & Performance
+- **Calendar Legend Vertical Scroll Wheel**: Upgraded calendar legend dropdown into a compact in-place vertical scroll wheel selector (`170dp x 36dp`) with indicator dots and gesture control.
+- **Edge-to-Edge Backdrop Blur**: Replaced dark background scrim shadows on Weather Detail and Holiday Radar bottom sheets with frosted glass `Modifier.blur(16.dp)` background blur extending behind the status bar.
+- **Rain Probability Trend Graph Fix**: Solved curve masking by stacking the 24-hour rain trend graph above hourly cards with a dedicated `52dp` curve canvas height.
+- **Smooth Navigation & Animations**: Unified Easing curves in `LiquidGlassNavBar` and added stable Compose item keys for buttery smooth 60/120Hz scrolling and bottom sheet slide animations.
+- **System Health Streamlining**: Removed redundant test alarm button from Settings for a clean, distraction-free System Health view.
+
+---
+
+## [2.5.0]
 
 ### Added & Refined
 - **Liquid Glassmorphism UI**: Added iOS-style liquid glass components (`GlassCard`) and navigation bar (`LiquidGlassNavBar`) with prominent, non-fading hairline borders tuned for both Light and Dark modes.

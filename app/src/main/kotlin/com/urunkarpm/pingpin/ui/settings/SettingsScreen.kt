@@ -113,7 +113,6 @@ fun SettingsScreen(
     var portalPassword by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
 
-    var testAlarmFired by remember { mutableStateOf(false) }
     var showAppChangelogDialog by remember { mutableStateOf(false) }
 
     // Active Category Tab: Default to PROFILE_SHIFT
@@ -1029,42 +1028,6 @@ fun SettingsScreen(
                                     }
                                 )
 
-                                // Test Alarm Button
-                                Button(
-                                    onClick = {
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        notifService.fireTestAlarm(delaySeconds = 5)
-                                        testAlarmFired = true
-                                        Toast.makeText(
-                                            context,
-                                            "🔔 Test alarm will fire in 5 seconds!",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                    },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = fieldShape,
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = MaterialTheme.colorScheme.primary,
-                                        contentColor = MaterialTheme.colorScheme.onPrimary
-                                    )
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Outlined.Alarm,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            text = if (testAlarmFired) "Test Alarm Scheduled (−5s)" else "Fire Test Alarm in 5 Seconds",
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 13.sp
-                                        )
-                                    }
-                                }
                             }
                         }
 

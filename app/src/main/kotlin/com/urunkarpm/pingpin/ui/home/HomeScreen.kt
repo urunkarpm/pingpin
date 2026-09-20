@@ -25,6 +25,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -65,7 +66,6 @@ fun HomeScreen(
     viewModel: HomeViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
     val context = LocalContext.current
-    val haptic = LocalHapticFeedback.current
 
     val configState by viewModel.configState.collectAsState()
     val recordsState by viewModel.recordsState.collectAsState()
@@ -80,6 +80,7 @@ fun HomeScreen(
 
     var hasExactAlarmPerm by remember { mutableStateOf(viewModel.notifService.canScheduleExactAlarms()) }
     var showWeatherDetailSheet by remember { mutableStateOf(false) }
+    var isHolidaySheetOpen by remember { mutableStateOf(false) }
 
     val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
@@ -124,7 +125,11 @@ fun HomeScreen(
     val windowSizeInfo = com.urunkarpm.pingpin.ui.theme.rememberWindowSizeInfo()
     val isWideOrLandscape = windowSizeInfo.useNavRail || windowSizeInfo.isMediumWidth || windowSizeInfo.isExpandedWidth
 
-    Box(modifier = modifier.fillMaxSize()) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .then(if (showWeatherDetailSheet || isHolidaySheetOpen) Modifier.blur(16.dp) else Modifier)
+    ) {
         if (isWideOrLandscape) {
             Row(
                 modifier = Modifier
@@ -363,7 +368,8 @@ fun HomeScreen(
                             else -> {
                                 UpcomingHolidaysCard(
                                     upcomingHolidays = upcomingHolidays,
-                                    allHolidays = allIndianHolidays
+                                    allHolidays = allIndianHolidays,
+                                    onSheetStateChange = { isHolidaySheetOpen = it }
                                 )
                             }
                         }
@@ -619,7 +625,8 @@ fun HomeScreen(
                         else -> {
                             UpcomingHolidaysCard(
                                 upcomingHolidays = upcomingHolidays,
-                                allHolidays = allIndianHolidays
+                                allHolidays = allIndianHolidays,
+                                onSheetStateChange = { isHolidaySheetOpen = it }
                             )
                         }
                     }
