@@ -305,144 +305,73 @@ fun SettingsScreen(
                         Icon(
                             imageVector = if (isDarkTheme) Icons.Outlined.DarkMode else Icons.Outlined.LightMode,
                             contentDescription = null,
-                            tint = if (isDarkTheme) MaterialTheme.colorScheme.primary else Color(0xFFD97706),
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(14.dp)
                         )
                         PingPinSwitch(
                             checked = isDarkTheme,
                             onCheckedChange = { onToggleTheme(it) },
                             checkedIcon = Icons.Outlined.DarkMode,
-                            uncheckedIcon = Icons.Outlined.LightMode,
-                            checkedTrackColor = MaterialTheme.colorScheme.primary,
-                            uncheckedTrackColor = Color(0xFFFEF3C7),
-                            uncheckedThumbColor = Color(0xFFD97706),
-                            uncheckedBorderColor = Color(0xFFF59E0B),
-                            iconTintUnchecked = Color.White
+                            uncheckedIcon = Icons.Outlined.LightMode
                         )
                     }
                 }
             }
         }
 
-        // 2. Liquid Glass Segmented Category Selector Bar
+        // 2. Segmented Control Category Bar (Aligned with Home Screen Weather & Holidays Nav)
+        // ponytail: Unified top nav container styling across screens. Ceiling: Fixed horizontal category tabs. Upgrade path: Scrollable TabRow if > 4 settings categories added.
         Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (isDarkTheme) 0.40f else 0.50f),
-            border = BorderStroke(1.dp, if (isDarkTheme) Color.White.copy(alpha = 0.18f) else Color(0xFF475569).copy(alpha = 0.30f)),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            color = if (isDarkTheme) MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f) else MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.8f),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
         ) {
-            val categories = remember { SettingsCategory.values() }
-            val selectedIndex = selectedCategory.ordinal
-            var navWidthPx by remember { mutableIntStateOf(0) }
-            val itemCount = categories.size
-
-            val targetX = if (navWidthPx > 0) {
-                (navWidthPx.toFloat() / itemCount) * selectedIndex
-            } else 0f
-
-            val puckOffsetPx by animateFloatAsState(
-                targetValue = targetX,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessMediumLow
-                ),
-                label = "bouncy_puck_offset"
-            )
-
-            Box(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(4.dp)
-                    .onSizeChanged { navWidthPx = it.width }
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .height(44.dp)
-                        .fillMaxWidth(1f / itemCount)
-                        .graphicsLayer { translationX = puckOffsetPx }
-                        .padding(horizontal = 2.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(
-                            if (isDarkTheme) {
-                                MaterialTheme.colorScheme.primaryContainer
-                            } else {
-                                MaterialTheme.colorScheme.surface
+                val categories = remember { SettingsCategory.values() }
+
+                categories.forEach { category ->
+                    val isSelected = selectedCategory == category
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(
+                                if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
+                            )
+                            .clickable {
+                                if (!isSelected) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    selectedCategory = category
+                                }
                             }
-                        )
-                        .border(
-                            width = 1.dp,
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = if (isDarkTheme) 0.60f else 0.85f),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                )
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(44.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    categories.forEach { category ->
-                        val isSelected = selectedCategory == category
-                        val interactionSource = remember { MutableInteractionSource() }
-                        val isPressed by interactionSource.collectIsPressedAsState()
-
-                        val tabScale by animateFloatAsState(
-                            targetValue = if (isPressed) 0.92f else if (isSelected) 1.02f else 1.0f,
-                            animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                stiffness = Spring.StiffnessMediumLow
-                            ),
-                            label = "tab_bounce_scale"
-                        )
-
-                        val contentColor by animateColorAsState(
-                            targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            animationSpec = tween(durationMillis = 180),
-                            label = "tab_content_color"
-                        )
-
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                                .graphicsLayer {
-                                    scaleX = tabScale
-                                    scaleY = tabScale
-                                }
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable(
-                                    interactionSource = interactionSource,
-                                    indication = null
-                                ) {
-                                    if (!isSelected) {
-                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                        selectedCategory = category
-                                    }
-                                }
-                                .padding(horizontal = 4.dp),
-                            contentAlignment = Alignment.Center
+                            .padding(vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(5.dp)
-                            ) {
-                                Icon(
-                                    imageVector = category.icon,
-                                    contentDescription = null,
-                                    tint = contentColor,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Text(
-                                    text = category.tabLabel,
-                                    fontSize = 12.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = contentColor,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
+                            Icon(
+                                imageVector = category.icon,
+                                contentDescription = category.tabLabel,
+                                tint = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = category.tabLabel,
+                                fontSize = 12.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
                     }
                 }
@@ -537,8 +466,7 @@ fun SettingsScreen(
                                 // Shift Horizon Badge
                                 Surface(
                                     shape = RoundedCornerShape(12.dp),
-                                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
-                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f)),
+                                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.35f),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Row(
@@ -643,58 +571,57 @@ fun SettingsScreen(
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
 
-                                Row(
+                                Surface(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    shape = RoundedCornerShape(14.dp),
+                                    color = if (isDarkTheme) MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.7f),
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                                 ) {
-                                    FilterChip(
-                                        selected = portalMode == "IN_APP_AUTO",
-                                        onClick = { portalMode = "IN_APP_AUTO" },
-                                        label = { Text("In-App Auto Portal", fontSize = 12.sp) },
-                                        colors = FilterChipDefaults.filterChipColors(
-                                            selectedContainerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                                            selectedLabelColor = MaterialTheme.colorScheme.onTertiaryContainer,
-                                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                        ),
-                                        border = FilterChipDefaults.filterChipBorder(
-                                            enabled = true,
-                                            selected = portalMode == "IN_APP_AUTO",
-                                            borderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
-                                            selectedBorderColor = MaterialTheme.colorScheme.tertiary
-                                        ),
-                                        shape = RoundedCornerShape(12.dp),
-                                        leadingIcon = {
-                                            if (portalMode == "IN_APP_AUTO") {
-                                                Icon(Icons.Outlined.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(3.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        val modes = listOf(
+                                            Triple("IN_APP_AUTO", "In-App Auto Portal", Icons.Outlined.AutoAwesome),
+                                            Triple("EXTERNAL_BROWSER", "Chrome Browser", Icons.Outlined.OpenInBrowser)
+                                        )
+
+                                        modes.forEach { (mode, label, icon) ->
+                                            val isSelected = portalMode == mode
+                                            Box(
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .clip(RoundedCornerShape(11.dp))
+                                                    .background(
+                                                        if (isSelected) MaterialTheme.colorScheme.tertiary else Color.Transparent
+                                                    )
+                                                    .clickable { portalMode = mode }
+                                                    .padding(vertical = 9.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.Center
+                                                ) {
+                                                    Icon(
+                                                        imageVector = icon,
+                                                        contentDescription = null,
+                                                        tint = if (isSelected) MaterialTheme.colorScheme.onTertiary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        modifier = Modifier.size(15.dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Text(
+                                                        text = label,
+                                                        fontSize = 12.sp,
+                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                        color = if (isSelected) MaterialTheme.colorScheme.onTertiary else MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                }
                                             }
-                                        },
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                    FilterChip(
-                                        selected = portalMode == "EXTERNAL_BROWSER",
-                                        onClick = { portalMode = "EXTERNAL_BROWSER" },
-                                        label = { Text("Chrome Browser", fontSize = 12.sp) },
-                                        colors = FilterChipDefaults.filterChipColors(
-                                            selectedContainerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                                            selectedLabelColor = MaterialTheme.colorScheme.onTertiaryContainer,
-                                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                        ),
-                                        border = FilterChipDefaults.filterChipBorder(
-                                            enabled = true,
-                                            selected = portalMode == "EXTERNAL_BROWSER",
-                                            borderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
-                                            selectedBorderColor = MaterialTheme.colorScheme.tertiary
-                                        ),
-                                        shape = RoundedCornerShape(12.dp),
-                                        leadingIcon = {
-                                            if (portalMode == "EXTERNAL_BROWSER") {
-                                                Icon(Icons.Outlined.Check, contentDescription = null, modifier = Modifier.size(16.dp))
-                                            }
-                                        },
-                                        modifier = Modifier.weight(1f)
-                                    )
+                                        }
+                                    }
                                 }
 
                                 if (portalMode == "IN_APP_AUTO") {
@@ -1768,24 +1695,23 @@ private fun StatusPermissionRow(
 ) {
     Surface(
         shape = RoundedCornerShape(12.dp),
-        color = if (isGranted) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
-        border = BorderStroke(1.dp, if (isGranted) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f) else MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f)),
+        color = if (isGranted) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f) else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.weight(1f)
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = if (isGranted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
+                    tint = if (isGranted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
                     modifier = Modifier.size(20.dp)
                 )
                 Column {
@@ -1803,8 +1729,11 @@ private fun StatusPermissionRow(
                 }
             }
             if (!isGranted) {
-                TextButton(onClick = onActionClick) {
-                    Text(actionText, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
+                TextButton(
+                    onClick = onActionClick,
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(actionText, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
                 }
             }
         }

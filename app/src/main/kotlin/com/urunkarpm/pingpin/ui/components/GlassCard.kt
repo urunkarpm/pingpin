@@ -83,12 +83,12 @@ fun GlassCard(
         }
     }
 
-    // Solid Non-Fading Border Colors (Uniform 360-degree hairline contrast)
-    val solidBorderColor = remember(borderColor, isDark) {
+    val outlineVariant = MaterialTheme.colorScheme.outlineVariant
+    val solidBorderColor = remember(borderColor, isDark, outlineVariant) {
         borderColor ?: if (isDark) {
             Color.White.copy(alpha = 0.22f)
         } else {
-            Color(0xFF475569).copy(alpha = 0.60f) // Crisp Dark Slate Border in Light Mode
+            outlineVariant.copy(alpha = 0.30f)
         }
     }
 

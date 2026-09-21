@@ -138,6 +138,7 @@ fun HomeScreen(
             Row(
                 modifier = Modifier
                     .fillMaxSize()
+                    .statusBarsPadding()
                     .padding(20.dp),
                 horizontalArrangement = Arrangement.spacedBy(20.dp)
             ) {

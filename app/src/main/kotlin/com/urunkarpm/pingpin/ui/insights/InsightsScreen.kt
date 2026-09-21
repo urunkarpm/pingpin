@@ -1035,17 +1035,24 @@ private fun AttendanceLogSummaryCard(
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
+                                val isDark = MaterialTheme.colorScheme.background.red < 0.5f
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(6.dp))
-                                        .background(if (isLate) Color(0xFFFEE2E2) else Color(0xFFDCFCE7))
+                                        .background(
+                                            if (isLate) {
+                                                if (isDark) com.urunkarpm.pingpin.ui.theme.CrimsonRedBgDark else com.urunkarpm.pingpin.ui.theme.CrimsonRedBgLight
+                                            } else {
+                                                if (isDark) com.urunkarpm.pingpin.ui.theme.EmeraldGreenBgDark else com.urunkarpm.pingpin.ui.theme.EmeraldGreenBgLight
+                                            }
+                                        )
                                         .padding(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
                                     Text(
                                         text = if (isLate) "LATE" else "ON TIME",
                                         fontSize = 9.sp,
                                         fontWeight = FontWeight.ExtraBold,
-                                        color = if (isLate) Color(0xFFB91C1C) else Color(0xFF15803D)
+                                        color = if (isLate) com.urunkarpm.pingpin.ui.theme.CrimsonRed else com.urunkarpm.pingpin.ui.theme.EmeraldGreen
                                     )
                                 }
                             }
