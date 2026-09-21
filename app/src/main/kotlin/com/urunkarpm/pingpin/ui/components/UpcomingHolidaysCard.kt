@@ -356,6 +356,10 @@ fun FullHolidayCalendarBottomSheet(
     allHolidays: List<IndianHoliday>,
     onDismiss: () -> Unit
 ) {
+    androidx.activity.compose.BackHandler(enabled = true) {
+        onDismiss()
+    }
+
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val todayYyyyMmDd = remember {
         SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
@@ -439,6 +443,7 @@ fun FullHolidayCalendarBottomSheet(
             Spacer(modifier = Modifier.height(12.dp))
 
             // Filter Chips Row
+            val haptic = LocalHapticFeedback.current
             val currentYear = remember { Calendar.getInstance().get(Calendar.YEAR) }
             val categories = remember { HolidayCategory.values() }
             val longWeekendCount = remember(allHolidays, showUpcomingOnly, todayYyyyMmDd) {
@@ -455,7 +460,10 @@ fun FullHolidayCalendarBottomSheet(
                 item(key = "chip_upcoming") {
                     FilterChip(
                         selected = showUpcomingOnly,
-                        onClick = { showUpcomingOnly = true },
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            showUpcomingOnly = true
+                        },
                         label = { Text("Upcoming ($upcomingCount)", fontSize = 12.sp) },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = EmeraldGreen.copy(alpha = 0.2f),
@@ -467,7 +475,10 @@ fun FullHolidayCalendarBottomSheet(
                 item(key = "chip_all") {
                     FilterChip(
                         selected = !showUpcomingOnly,
-                        onClick = { showUpcomingOnly = false },
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            showUpcomingOnly = false
+                        },
                         label = { Text("All $currentYear (${allHolidays.size})", fontSize = 12.sp) }
                     )
                 }
@@ -476,6 +487,7 @@ fun FullHolidayCalendarBottomSheet(
                     FilterChip(
                         selected = onlyLongWeekendsFilter,
                         onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             onlyLongWeekendsFilter = !onlyLongWeekendsFilter
                         },
                         label = {

@@ -342,7 +342,7 @@ fun HourlyInteractiveTimeline(
                                 onClick = {
                                     if (selectedIndex != index) {
                                         selectedIndex = index
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                         onHourSelected(forecast)
                                     }
                                 }

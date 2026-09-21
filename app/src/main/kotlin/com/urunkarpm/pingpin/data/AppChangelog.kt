@@ -2,23 +2,30 @@ package com.urunkarpm.pingpin.data
 
 object AppChangelog {
     const val CURRENT_VERSION_CHANGELOG = """
-### Polish & Performance
-- **Calendar Legend Vertical Scroll Wheel**: Upgraded calendar legend dropdown into a compact in-place vertical scroll wheel selector (`170dp x 36dp`) with indicator dots and gesture control.
-- **Edge-to-Edge Backdrop Blur**: Replaced dark background scrim shadows on Weather Detail and Holiday Radar bottom sheets with frosted glass `Modifier.blur(16.dp)` background blur extending behind the status bar.
-- **Rain Probability Trend Graph Fix**: Solved curve masking by stacking the 24-hour rain trend graph above hourly cards with a dedicated `52dp` curve canvas height.
-- **Smooth Navigation & Animations**: Unified Easing curves in `LiquidGlassNavBar` and added stable Compose item keys for buttery smooth 60/120Hz scrolling and bottom sheet slide animations.
-- **System Health Streamlining**: Removed redundant test alarm button from Settings for a clean, distraction-free System Health view.
+### Background Wi-Fi Attendance, System Clock Redirection & UI Alignment (v2.6.1)
+- **Background Wi-Fi Attendance Fix**: Added FOREGROUND_SERVICE_LOCATION permission and updated AttendanceAutoService to location|dataSync foreground service type, resolving Android 14 background Wi-Fi SSID redactions so attendance is marked automatically upon connecting to office Wi-Fi without needing to open the app.
+- **System Clock Quick Settings Redirection**: Redirected system Quick Settings alarm tile taps to launch the native system Clock / Alarms app (AlarmClock.ACTION_SHOW_ALARMS) instead of opening PingPin.
+- **Settings Screen Status Bar Alignment**: Applied statusBarsPadding() to the Settings page layout column for uniform status bar top inset alignment across all app screens.
 """
 
     const val FULL_CHANGELOG = """
-## [2.5.1] - Current Release
+## [2.6.1] - Current Release
 
-### Polish & Performance
-- **Calendar Legend Vertical Scroll Wheel**: Upgraded calendar legend dropdown into a compact in-place vertical scroll wheel selector (`170dp x 36dp`) with indicator dots and gesture control.
-- **Edge-to-Edge Backdrop Blur**: Replaced dark background scrim shadows on Weather Detail and Holiday Radar bottom sheets with frosted glass `Modifier.blur(16.dp)` background blur extending behind the status bar.
-- **Rain Probability Trend Graph Fix**: Solved curve masking by stacking the 24-hour rain trend graph above hourly cards with a dedicated `52dp` curve canvas height.
-- **Smooth Navigation & Animations**: Unified Easing curves in `LiquidGlassNavBar` and added stable Compose item keys for buttery smooth 60/120Hz scrolling and bottom sheet slide animations.
-- **System Health Streamlining**: Removed redundant test alarm button from Settings for a clean, distraction-free System Health view.
+### Background Wi-Fi Attendance, System Clock Redirection & UI Alignment
+- **Background Wi-Fi Attendance Fix**: Added `FOREGROUND_SERVICE_LOCATION` permission and updated `AttendanceAutoService` to `location|dataSync` foreground service type, resolving Android 14 background Wi-Fi SSID redactions so attendance is marked automatically upon connecting to office Wi-Fi without needing to open the app.
+- **System Clock Quick Settings Redirection**: Redirected system Quick Settings alarm tile taps to launch the native system Clock / Alarms app (`AlarmClock.ACTION_SHOW_ALARMS`) instead of opening PingPin.
+- **Settings Screen Status Bar Alignment**: Applied `statusBarsPadding()` to the Settings page layout column for uniform status bar top inset alignment across all app screens.
+
+---
+
+## [2.6.0]
+- Edge-to-Edge Status Bar Blur, Selective Calendar Blur, De-congested Settings UX, Initial Setup Refinement, Navigation & Tablet Scalability, Grid Symmetry.
+
+
+---
+
+## [2.5.1]
+- Calendar Legend Vertical Scroll Wheel selector, Edge-to-Edge Backdrop Blur, and Rain Probability graph fixes.
 
 ---
 

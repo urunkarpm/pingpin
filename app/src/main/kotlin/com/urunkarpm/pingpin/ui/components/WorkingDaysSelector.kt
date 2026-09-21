@@ -139,7 +139,7 @@ fun WorkingDaysSelector(
                         .clickable(
                             onClickLabel = "Toggle ${FULL_DAY_NAMES[index]} working day"
                         ) {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             val newMask = workingDaysMask xor (1 shl index)
                             onMaskChanged(newMask)
                         },
@@ -165,7 +165,7 @@ fun WorkingDaysSelector(
                 label = "Mon - Fri",
                 isSelected = workingDaysMask == 31,
                 onClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     onMaskChanged(31) // 0b0011111
                 },
                 modifier = Modifier.weight(1f)
@@ -174,7 +174,7 @@ fun WorkingDaysSelector(
                 label = "Mon - Sat",
                 isSelected = workingDaysMask == 63,
                 onClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     onMaskChanged(63) // 0b0111111
                 },
                 modifier = Modifier.weight(1f)

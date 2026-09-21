@@ -171,7 +171,7 @@ fun LiquidGlassNavRail(
                                     indication = null
                                 ) {
                                     if (!isSelected) {
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                         onTabSelected(index)
                                     }
                                 },

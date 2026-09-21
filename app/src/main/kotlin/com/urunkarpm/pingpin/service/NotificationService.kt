@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Build
 import android.os.PowerManager
+import android.provider.AlarmClock
 import android.provider.Settings
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -375,7 +376,8 @@ class NotificationService(private val context: Context) {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val showIntent = Intent(context, MainActivity::class.java).apply {
+        // ponytail: Native platform intent to open system clock app from Quick Settings alarm tile
+        val showIntent = Intent(AlarmClock.ACTION_SHOW_ALARMS).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         val showPendingIntent = PendingIntent.getActivity(

@@ -84,7 +84,7 @@ fun PingPinSwitch(
         checked = checked,
         onCheckedChange = { newValue ->
             if (enabled && onCheckedChange != null) {
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 onCheckedChange(newValue)
             }
         },

@@ -55,6 +55,10 @@ fun WeatherDetailBottomSheet(
 ) {
     val context = LocalContext.current
     val isTodayAttended = todayRecord != null
+    androidx.activity.compose.BackHandler(enabled = true) {
+        onDismissRequest()
+    }
+
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
 
     ModalBottomSheet(

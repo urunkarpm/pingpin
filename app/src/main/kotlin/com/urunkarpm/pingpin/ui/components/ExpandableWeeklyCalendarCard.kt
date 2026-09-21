@@ -404,7 +404,7 @@ fun ExpandableWeeklyCalendarCard(
                             }
                         )
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
                         // Gesture Hint (Downward bobbing arrow)
                         Row(

@@ -268,7 +268,7 @@ fun MonthlyCalendarView(
             }
         }
 
-        Spacer(modifier = Modifier.height(18.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         // Day labels header
         Row(modifier = Modifier.fillMaxWidth()) {
@@ -290,14 +290,12 @@ fun MonthlyCalendarView(
             }
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
-        // Days grid with 7 columns x 6 rows (42 slots)
+        // Days grid with 7 columns x 6 rows (42 slots) with 100% equal horizontal & vertical 4dp gaps
         for (row in 0 until 6) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 3.dp),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 for (col in 0..6) {
@@ -321,9 +319,9 @@ fun MonthlyCalendarView(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f))
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         // ponytail: In-place scroll wheel selector for calendar legends.
         // Ceiling: Single-slot inline scroll wheel cycling through filters. Upgrade path: Multi-track wheel or chip grid if concurrent multi-select filters are needed.

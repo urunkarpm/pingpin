@@ -142,7 +142,7 @@ fun WfoDaysSelector(
                         .clickable(
                             onClickLabel = "Toggle ${FULL_DAY_NAMES[index]} WFO day"
                         ) {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             val newMask = wfoDaysMask xor (1 shl index)
                             onMaskChanged(newMask)
                         },

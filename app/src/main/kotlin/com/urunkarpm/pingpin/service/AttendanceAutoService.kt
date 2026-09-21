@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
@@ -52,7 +53,17 @@ class AttendanceAutoService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         // Post foreground notification immediately to satisfy Android's 5-second rule
-        startForeground(FOREGROUND_NOTIF_ID, buildCheckingNotification())
+        // ponytail: LOCATION foreground type allows reading Wi-Fi SSID in background on Android 14+ (targetSdk 34)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION or ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+            } else {
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
+            }
+            startForeground(FOREGROUND_NOTIF_ID, buildCheckingNotification(), type)
+        } else {
+            startForeground(FOREGROUND_NOTIF_ID, buildCheckingNotification())
+        }
 
         scope.launch {
             try {

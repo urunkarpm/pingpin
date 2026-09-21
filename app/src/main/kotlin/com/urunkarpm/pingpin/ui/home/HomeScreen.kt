@@ -1,6 +1,7 @@
 package com.urunkarpm.pingpin.ui.home
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -118,6 +119,9 @@ fun HomeScreen(
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     var isCalendarExpanded by remember { mutableStateOf(false) }
 
+    BackHandler(enabled = isCalendarExpanded) {
+        isCalendarExpanded = false
+    }
 
     val isDark = MaterialTheme.colorScheme.background.red < 0.5f
     var selectedDayForDialog by remember { mutableStateOf<Pair<Int, String>?>(null) }
@@ -142,6 +146,7 @@ fun HomeScreen(
                     modifier = Modifier
                         .weight(1.1f)
                         .fillMaxHeight()
+                        .then(if (isCalendarExpanded) Modifier.blur(16.dp) else Modifier)
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
@@ -404,6 +409,8 @@ fun HomeScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .then(if (isCalendarExpanded) Modifier.blur(16.dp) else Modifier)
+                    .statusBarsPadding()
                     .verticalScroll(rememberScrollState())
                     .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 220.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -631,6 +638,20 @@ fun HomeScreen(
                         }
                     }
                 }
+            }
+
+            if (isCalendarExpanded) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.35f))
+                        .clickable(
+                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            isCalendarExpanded = false
+                        }
+                )
             }
 
             // Pinned Bottom Expandable Calendar Card for Compact Portrait

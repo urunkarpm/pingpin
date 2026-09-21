@@ -53,14 +53,23 @@ fun GlassCard(
 
     val shape = remember(cornerRadius) { RoundedCornerShape(cornerRadius) }
 
+    val hourOfDay = remember { java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY) }
+    val ambientTint = remember(hourOfDay, isDark) {
+        when (hourOfDay) {
+            in 6..8, in 17..19 -> if (isDark) Color(0x1AFFF3E0) else Color(0x0FFFF8E1) // Warm golden sunrise/sunset ambient glow
+            in 20..23, in 0..5 -> if (isDark) Color(0x1E1A237E) else Color(0x10E8EAF6) // Deep night ambient glass tint
+            else -> Color.Transparent
+        }
+    }
+
     // High-Clarity Translucent Fill
-    val glassFillBrush = remember(backgroundColor, isDark) {
+    val glassFillBrush = remember(backgroundColor, isDark, ambientTint) {
         if (backgroundColor != null) {
             Brush.verticalGradient(listOf(backgroundColor, backgroundColor))
         } else if (isDark) {
             Brush.verticalGradient(
                 colors = listOf(
-                    Color(0xD9141923), // Translucent Pitch Surface Container
+                    Color(0xD9141923),
                     Color(0xC80F131C)
                 )
             )
@@ -105,6 +114,7 @@ fun GlassCard(
             )
             .clip(shape)
             .background(glassFillBrush)
+            .background(ambientTint)
             .border(width = 1.2.dp, color = solidBorderColor, shape = shape)
             .semantics {
                 role?.let { this.role = it }
@@ -115,7 +125,7 @@ fun GlassCard(
                 indication = null,
                 onClickLabel = onClickLabel
             ) {
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 onClick()
             }
     } else {
@@ -129,6 +139,7 @@ fun GlassCard(
             )
             .clip(shape)
             .background(glassFillBrush)
+            .background(ambientTint)
             .border(width = 1.2.dp, color = solidBorderColor, shape = shape)
             .semantics {
                 contentDescription?.let { this.contentDescription = it }

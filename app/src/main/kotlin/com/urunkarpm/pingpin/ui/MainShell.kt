@@ -80,9 +80,7 @@ fun MainShell(
         ) {
             // 1. Full-screen Body Content Layer
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .statusBarsPadding()
+                modifier = Modifier.fillMaxSize()
             ) {
                 saveableStateHolder.SaveableStateProvider(key = selectedTab) {
                     when (selectedTab) {

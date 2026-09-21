@@ -21,11 +21,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Insights
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -66,7 +66,7 @@ typealias NavItemData = LiquidNavItem
  */
 val DefaultPingPinNavItems = listOf(
     LiquidNavItem(Icons.Outlined.Home, Icons.Filled.Home, "Home"),
-    LiquidNavItem(Icons.Outlined.Speed, Icons.Filled.Speed, "Metrics"),
+    LiquidNavItem(Icons.Outlined.Insights, Icons.Filled.Insights, "Insights"),
     LiquidNavItem(Icons.Outlined.Settings, Icons.Filled.Settings, "Settings")
 )
 
@@ -173,7 +173,7 @@ fun LiquidGlassBottomBar(
                             indication = null
                         ) {
                             if (!isSelected) {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 onItemSelected(index)
                             }
                         }

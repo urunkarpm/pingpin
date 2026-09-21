@@ -271,65 +271,47 @@ fun OnboardingScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Tappable Step Indicators
+                    // Tappable Step Indicator Dots
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        horizontalArrangement = Arrangement.SpaceEvenly,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        val stepTitles = listOf("Profile", "Wi-Fi", "Shift", "Schedule", "Portal", "Test", "Launch")
-                        stepTitles.forEachIndexed { index, title ->
-                            val stepNumber = index + 1
+                        (1..totalSteps).forEach { stepNumber ->
                             val isCompleted = stepNumber < currentStep
                             val isCurrent = stepNumber == currentStep
 
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
+                            Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
+                                    .size(if (isCurrent) 26.dp else 22.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        when {
+                                            isCurrent -> ElectricBlue
+                                            isCompleted -> EmeraldGreen
+                                            else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
+                                        }
+                                    )
                                     .clickable(enabled = stepNumber <= currentStep) {
                                         currentStep = stepNumber
-                                    }
-                                    .padding(horizontal = 3.dp, vertical = 2.dp)
+                                    },
+                                contentAlignment = Alignment.Center
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(18.dp)
-                                        .clip(CircleShape)
-                                        .background(
-                                            when {
-                                                isCurrent -> ElectricBlue
-                                                isCompleted -> EmeraldGreen
-                                                else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-                                            }
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    if (isCompleted) {
-                                        Icon(
-                                            imageVector = Icons.Default.Check,
-                                            contentDescription = null,
-                                            tint = Color.White,
-                                            modifier = Modifier.size(11.dp)
-                                        )
-                                    } else {
-                                        Text(
-                                            text = "$stepNumber",
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = if (isCurrent) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
+                                if (isCompleted) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                } else {
+                                    Text(
+                                        text = "$stepNumber",
+                                        fontSize = if (isCurrent) 12.sp else 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isCurrent) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 }
-                                Spacer(modifier = Modifier.width(3.dp))
-                                Text(
-                                    text = title,
-                                    fontSize = 10.sp,
-                                    fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isCurrent) ElectricBlue else if (isCompleted) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
                             }
                         }
                     }
@@ -547,6 +529,17 @@ fun OnboardingScreen(
 
                     // Next / Complete Button
                     if (currentStep < totalSteps) {
+                        val nextStepLabel = remember(currentStep) {
+                            when (currentStep) {
+                                1 -> "Next: Office Wi-Fi"
+                                2 -> "Next: Shift Timings"
+                                3 -> "Next: Work Schedule"
+                                4 -> "Next: HR Portal"
+                                5 -> "Next: Test Run"
+                                6 -> "Next: Review & Launch"
+                                else -> "Next Step"
+                            }
+                        }
                         Button(
                             onClick = {
                                 when (currentStep) {
@@ -569,7 +562,7 @@ fun OnboardingScreen(
                             colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("Next Step", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                Text(nextStepLabel, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
@@ -680,12 +673,37 @@ private fun Step1ProfileSection(
     isDark: Boolean,
     fieldShape: RoundedCornerShape
 ) {
+    val avatarInitials = remember(fullName) {
+        if (fullName.isBlank()) "P"
+        else fullName.trim().split("\\s+".toRegex()).mapNotNull { it.firstOrNull()?.uppercaseChar() }.take(2).joinToString("")
+    }
+
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-
+        // Live Avatar Preview Badge
+        Box(
+            modifier = Modifier
+                .scale(pulseScale)
+                .size(64.dp)
+                .clip(CircleShape)
+                .background(
+                    Brush.linearGradient(
+                        colors = listOf(ElectricBlue, EmeraldGreen)
+                    )
+                )
+                .border(2.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = avatarInitials,
+                color = Color.White,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Black
+            )
+        }
 
         Text(
             text = "Welcome to PingPin",

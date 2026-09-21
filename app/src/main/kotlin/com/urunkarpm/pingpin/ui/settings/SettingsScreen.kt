@@ -60,13 +60,14 @@ import kotlinx.coroutines.delay
 
 private enum class SettingsCategory(
     val title: String,
+    val tabLabel: String,
     val subtitle: String,
     val icon: ImageVector
 ) {
-    PROFILE_SHIFT("Profile & Shift", "Personal profile, Wi-Fi & working hours", Icons.Outlined.Badge),
-    AUTOMATION("Automation", "Portal auto-checkin & credential auto-fill", Icons.Outlined.AutoAwesome),
-    RELIABILITY("System Health", "Permissions, battery & alarm precision", Icons.Outlined.Shield),
-    UPDATES("Updates & About", "GitHub releases & app changelogs", Icons.Outlined.RocketLaunch)
+    PROFILE_SHIFT("Profile & Shift", "Profile", "Personal profile, Wi-Fi & working hours", Icons.Outlined.Badge),
+    AUTOMATION("Automation", "Automation", "Portal auto-checkin & credential auto-fill", Icons.Outlined.AutoAwesome),
+    RELIABILITY("System Health", "Health", "Permissions, battery & alarm precision", Icons.Outlined.Shield),
+    UPDATES("Updates & About", "Updates", "GitHub releases & app changelogs", Icons.Outlined.RocketLaunch)
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -158,11 +159,7 @@ fun SettingsScreen(
         TimeFormatUtils.calculateShiftDuration(checkInTime, checkOutTime)
     }
 
-    val activeDaysCount = remember(workingDaysMask) {
-        (0 until 7).count { (workingDaysMask and (1 shl it)) != 0 }
-    }
-
-    val isProfileComplete = remember(fullName, ssid, checkInTime, checkOutTime) {
+    val isProfileComplete = remember(fullName, ssid) {
         fullName.isNotBlank() && ssid.isNotBlank()
     }
 
@@ -189,9 +186,11 @@ fun SettingsScreen(
         }
     }
 
+    // ponytail: Standard Compose statusBarsPadding() for status bar inset alignment
     Column(
         modifier = modifier
             .fillMaxSize()
+            .statusBarsPadding()
             .imePadding()
             .verticalScroll(rememberScrollState())
             .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 120.dp),
@@ -222,141 +221,114 @@ fun SettingsScreen(
 
         // 1. Sleek Compact Profile Hero & Theme Bar
         GlassCard(modifier = Modifier.fillMaxWidth()) {
-            Column(
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    modifier = Modifier.weight(1f)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f)
+                    // Avatar Box
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primaryContainer)
+                            .border(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f), CircleShape),
+                        contentAlignment = Alignment.Center
                     ) {
-                        // Avatar Box
-                        Box(
-                            modifier = Modifier
-                                .size(54.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primaryContainer)
-                                .border(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f), CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = avatarInitials,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Black
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(14.dp))
-
-                        Column {
-                            Text(
-                                text = fullName.ifBlank { "Setup Profile" },
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-
-                            Spacer(modifier = Modifier.height(2.dp))
-
-                            // Status Pill
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (isProfileComplete) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.tertiaryContainer
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(6.dp)
-                                            .clip(CircleShape)
-                                            .background(if (isProfileComplete) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary)
-                                    )
-                                    Text(
-                                        text = if (isProfileComplete) "AUTOMATION READY" else "SETUP PENDING",
-                                        fontSize = 9.5.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = if (isProfileComplete) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onTertiaryContainer,
-                                        letterSpacing = 0.5.sp
-                                    )
-                                }
-                            }
-                        }
+                        Text(
+                            text = avatarInitials,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Black
+                        )
                     }
 
-                    // Integrated Theme Switch
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = fullName.ifBlank { "Setup Profile" },
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+
+                        Spacer(modifier = Modifier.height(2.dp))
+
+                        // Status Pill
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = if (isProfileComplete) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.tertiaryContainer
                         ) {
-                            Icon(
-                                imageVector = if (isDarkTheme) Icons.Outlined.DarkMode else Icons.Outlined.LightMode,
-                                contentDescription = null,
-                                tint = if (isDarkTheme) MaterialTheme.colorScheme.primary else Color(0xFFD97706),
-                                modifier = Modifier.size(16.dp)
-                            )
-                            PingPinSwitch(
-                                checked = isDarkTheme,
-                                onCheckedChange = { onToggleTheme(it) },
-                                checkedIcon = Icons.Outlined.DarkMode,
-                                uncheckedIcon = Icons.Outlined.LightMode,
-                                checkedTrackColor = MaterialTheme.colorScheme.primary,
-                                uncheckedTrackColor = Color(0xFFFEF3C7),
-                                uncheckedThumbColor = Color(0xFFD97706),
-                                uncheckedBorderColor = Color(0xFFF59E0B),
-                                iconTintUnchecked = Color.White
-                            )
+                            Row(
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(5.dp)
+                                        .clip(CircleShape)
+                                        .background(if (isProfileComplete) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary)
+                                )
+                                Text(
+                                    text = if (isProfileComplete) "AUTOMATION READY" else "SETUP PENDING",
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = if (isProfileComplete) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onTertiaryContainer,
+                                    letterSpacing = 0.4.sp
+                                )
+                            }
                         }
                     }
                 }
 
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f))
+                Spacer(modifier = Modifier.width(12.dp))
 
-                // Stat Summary Chips Row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                // Integrated Theme Switch
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
                 ) {
-                    StatSummaryChip(
-                        icon = Icons.Outlined.Schedule,
-                        label = "${TimeFormatUtils.format24To12Hour(checkInTime)} - ${TimeFormatUtils.format24To12Hour(checkOutTime)}",
-                        modifier = Modifier.weight(1f)
-                    )
-                    StatSummaryChip(
-                        icon = Icons.Outlined.DateRange,
-                        label = "$activeDaysCount Days/Wk",
-                        modifier = Modifier.weight(1f)
-                    )
-                    StatSummaryChip(
-                        icon = Icons.Outlined.Wifi,
-                        label = ssid.ifBlank { "No Wi-Fi" },
-                        modifier = Modifier.weight(1f)
-                    )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isDarkTheme) Icons.Outlined.DarkMode else Icons.Outlined.LightMode,
+                            contentDescription = null,
+                            tint = if (isDarkTheme) MaterialTheme.colorScheme.primary else Color(0xFFD97706),
+                            modifier = Modifier.size(14.dp)
+                        )
+                        PingPinSwitch(
+                            checked = isDarkTheme,
+                            onCheckedChange = { onToggleTheme(it) },
+                            checkedIcon = Icons.Outlined.DarkMode,
+                            uncheckedIcon = Icons.Outlined.LightMode,
+                            checkedTrackColor = MaterialTheme.colorScheme.primary,
+                            uncheckedTrackColor = Color(0xFFFEF3C7),
+                            uncheckedThumbColor = Color(0xFFD97706),
+                            uncheckedBorderColor = Color(0xFFF59E0B),
+                            iconTintUnchecked = Color.White
+                        )
+                    }
                 }
             }
         }
 
-        // 2. Liquid Glass Bouncy Segmented Category Selector Bar
+        // 2. Liquid Glass Segmented Category Selector Bar
         Surface(
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(16.dp),
             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (isDarkTheme) 0.40f else 0.50f),
-            border = BorderStroke(1.2.dp, if (isDarkTheme) Color.White.copy(alpha = 0.18f) else Color(0xFF475569).copy(alpha = 0.40f)),
+            border = BorderStroke(1.dp, if (isDarkTheme) Color.White.copy(alpha = 0.18f) else Color(0xFF475569).copy(alpha = 0.30f)),
             modifier = Modifier.fillMaxWidth()
         ) {
             val categories = remember { SettingsCategory.values() }
@@ -368,7 +340,6 @@ fun SettingsScreen(
                 (navWidthPx.toFloat() / itemCount) * selectedIndex
             } else 0f
 
-            // Bouncy Spring Puck Animation (DampingRatioMediumBouncy for authentic fluid bounce)
             val puckOffsetPx by animateFloatAsState(
                 targetValue = targetX,
                 animationSpec = spring(
@@ -381,17 +352,16 @@ fun SettingsScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(5.dp)
+                    .padding(4.dp)
                     .onSizeChanged { navWidthPx = it.width }
             ) {
-                // Hardware-Accelerated Bouncy Selection Puck Surface
                 Box(
                     modifier = Modifier
-                        .height(58.dp)
+                        .height(44.dp)
                         .fillMaxWidth(1f / itemCount)
                         .graphicsLayer { translationX = puckOffsetPx }
                         .padding(horizontal = 2.dp)
-                        .clip(RoundedCornerShape(15.dp))
+                        .clip(RoundedCornerShape(12.dp))
                         .background(
                             if (isDarkTheme) {
                                 MaterialTheme.colorScheme.primaryContainer
@@ -400,17 +370,16 @@ fun SettingsScreen(
                             }
                         )
                         .border(
-                            width = 1.2.dp,
+                            width = 1.dp,
                             color = MaterialTheme.colorScheme.primary.copy(alpha = if (isDarkTheme) 0.60f else 0.85f),
-                            shape = RoundedCornerShape(15.dp)
+                            shape = RoundedCornerShape(12.dp)
                         )
                 )
 
-                // Category Buttons Row
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(58.dp),
+                        .height(44.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -419,9 +388,8 @@ fun SettingsScreen(
                         val interactionSource = remember { MutableInteractionSource() }
                         val isPressed by interactionSource.collectIsPressedAsState()
 
-                        // Tactile Bouncy Scale Feedback
                         val tabScale by animateFloatAsState(
-                            targetValue = if (isPressed) 0.88f else if (isSelected) 1.06f else 1.0f,
+                            targetValue = if (isPressed) 0.92f else if (isSelected) 1.02f else 1.0f,
                             animationSpec = spring(
                                 dampingRatio = Spring.DampingRatioMediumBouncy,
                                 stiffness = Spring.StiffnessMediumLow
@@ -443,34 +411,33 @@ fun SettingsScreen(
                                     scaleX = tabScale
                                     scaleY = tabScale
                                 }
-                                .clip(RoundedCornerShape(15.dp))
+                                .clip(RoundedCornerShape(12.dp))
                                 .clickable(
                                     interactionSource = interactionSource,
                                     indication = null
                                 ) {
                                     if (!isSelected) {
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                         selectedCategory = category
                                     }
                                 }
-                                .padding(vertical = 8.dp, horizontal = 2.dp),
+                                .padding(horizontal = 4.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
                             ) {
                                 Icon(
                                     imageVector = category.icon,
                                     contentDescription = null,
                                     tint = contentColor,
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(16.dp)
                                 )
-                                Spacer(modifier = Modifier.height(3.dp))
                                 Text(
-                                    text = category.title,
-                                    fontSize = 10.5.sp,
-                                    fontWeight = if (isSelected) FontWeight.Black else FontWeight.SemiBold,
+                                    text = category.tabLabel,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                     color = contentColor,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
