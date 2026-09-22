@@ -1,22 +1,12 @@
-# PingPin v2.6.0 Release
+# PingPin v2.6.1 Release
 
 ## What's New & Refined
 
-### Edge-to-Edge Status Bar Blur & Visual Isolation
-- **Edge-to-Edge Status Bar Backdrop Blur**: Extended `16dp` backdrop blur edge-to-edge behind the Android status bar for expanded calendar, weather detail, and holiday sheets, leaving system clock and icons crisp and readable.
-- **Selective Background Blur for Calendar**: When expanding the monthly calendar, background surroundings are blurred while the calendar grid itself remains 100% sharp, readable, and clear.
+### Laws of UX Tactile & Target Sizing Overhaul
+- **Instant Tactile Haptic Feedback**: Replaced non-standard handle feedback with native `HapticFeedbackType.LongPress` across interactive cards (`GlassCard`), custom switches (`PingPinSwitch`), and day selectors (`WfoDaysSelector`, `WorkingDaysSelector`) to provide instant feedback fulfilling the **Doherty Threshold** (<400ms response) and **Peak-End Rule**.
+- **Fitts's Law Touch Target Sizing**: Enforced 48dp minimum touch target bounds (`minimumTouchTargetSize`) across all day selector pills and interactive controls to eliminate misclicks across screen densities.
+- **Jakob's Law Accessibility Semantics**: Standardized semantic state descriptions (`"Selected"` / `"Not selected"`, `"On"` / `"Off"`) and accessibility roles across all custom widgets to conform with native Android platform mental models.
 
-### De-congested Settings UX
-- **Compact Profile Hero Header**: Merged avatar (42dp), completion status pill, and quick dark/light theme toggle into a single compact horizontal header card.
-- **Clean Segmented Category Selector**: Upgraded category tabs (`Profile`, `Automation`, `Health`, `Updates`) to eliminate text truncation and provide generous tab padding.
-- **Reclaimed Vertical Real Estate**: Reclaimed over `92dp` of vertical screen height, making input controls immediately visible without initial scrolling.
-
-### Initial Setup (Onboarding) UX Refinement
-- **7-Dot Step Indicator Bar**: Upgraded onboarding wizard navigation to a clean 7-dot step indicator bar featuring active ElectricBlue highlighting (26dp) and completed EmeraldGreen checkmarks.
-- **Contextual Action Buttons**: Dynamic button labels (`Next: Office Wi-Fi`, `Next: Shift Timings`, `Next: HR Portal`, `Next: Test Run`, `Next: Review & Launch`).
-- **Live Avatar Preview**: Dynamic initial avatar badge in Step 1 updating in real-time as users type their full name.
-
-### Scalability & Grid Symmetry
-- **Multi-Form Factor Scalability**: Integrated `WindowSizeUtils` adaptive breakpoint engine switching from floating bottom bar (`LiquidGlassNavBar`) on compact phones to side rail (`LiquidGlassNavRail`) and dual-pane split view on foldables, tablets, and landscape.
-- **Equal Grid Padding**: Equalized day cell spacing and row padding (`4.dp` uniform gaps) across the 7x6 monthly calendar grid.
-- **Bottom Navigation Label**: Renamed middle tab to **Insights** with matching icons.
+### 60/120fps Smooth Blur Load/Offload Animation
+- **Animated Blur Transitions**: Replaced harsh instant modifier toggling with native Compose `animateDpAsState` spring animations (`Spring.StiffnessMediumLow`) for backdrop blur on bottom sheets and calendar overlays.
+- **Zero-Stutter Load/Offload**: Smoothly interpolates blur radius frame-by-frame from `0.dp` to `16.dp`, eliminating visual pop-in/pop-out delay on 120Hz displays.

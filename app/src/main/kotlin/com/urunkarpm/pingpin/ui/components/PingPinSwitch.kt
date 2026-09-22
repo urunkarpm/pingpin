@@ -84,7 +84,8 @@ fun PingPinSwitch(
         checked = checked,
         onCheckedChange = { newValue ->
             if (enabled && onCheckedChange != null) {
-                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                // ponytail: Native HapticFeedbackType.LongPress for switch feedback (Laws of UX: Doherty Threshold). Upgrade: VibrationEffect.EFFECT_CLICK.
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 onCheckedChange(newValue)
             }
         },

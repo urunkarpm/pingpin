@@ -139,7 +139,8 @@ fun WorkingDaysSelector(
                         .clickable(
                             onClickLabel = "Toggle ${FULL_DAY_NAMES[index]} working day"
                         ) {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            // ponytail: Direct bitmask update with native haptics (Laws of UX: Fitts's Law & Doherty Threshold). Upgrade: State flow event bus.
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             val newMask = workingDaysMask xor (1 shl index)
                             onMaskChanged(newMask)
                         },

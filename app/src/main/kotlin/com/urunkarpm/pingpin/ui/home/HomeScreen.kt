@@ -3,6 +3,9 @@ package com.urunkarpm.pingpin.ui.home
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -129,10 +132,22 @@ fun HomeScreen(
     val windowSizeInfo = com.urunkarpm.pingpin.ui.theme.rememberWindowSizeInfo()
     val isWideOrLandscape = windowSizeInfo.useNavRail || windowSizeInfo.isMediumWidth || windowSizeInfo.isExpandedWidth
 
+    // ponytail: Smooth 60/120fps animated blur radius using native Compose animateDpAsState instead of harsh instant modifier toggling. Upgrade: Custom RenderEffect GPU shader.
+    val sheetBlurRadius by animateDpAsState(
+        targetValue = if (showWeatherDetailSheet || isHolidaySheetOpen) 16.dp else 0.dp,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "sheetBlurRadius"
+    )
+    val calendarBlurRadius by animateDpAsState(
+        targetValue = if (isCalendarExpanded) 16.dp else 0.dp,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "calendarBlurRadius"
+    )
+
     Box(
         modifier = modifier
             .fillMaxSize()
-            .then(if (showWeatherDetailSheet || isHolidaySheetOpen) Modifier.blur(16.dp) else Modifier)
+            .then(if (sheetBlurRadius > 0.dp) Modifier.blur(sheetBlurRadius) else Modifier)
     ) {
         if (isWideOrLandscape) {
             Row(
@@ -147,7 +162,7 @@ fun HomeScreen(
                     modifier = Modifier
                         .weight(1.1f)
                         .fillMaxHeight()
-                        .then(if (isCalendarExpanded) Modifier.blur(16.dp) else Modifier)
+                        .then(if (calendarBlurRadius > 0.dp) Modifier.blur(calendarBlurRadius) else Modifier)
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
@@ -410,7 +425,7 @@ fun HomeScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .then(if (isCalendarExpanded) Modifier.blur(16.dp) else Modifier)
+                    .then(if (calendarBlurRadius > 0.dp) Modifier.blur(calendarBlurRadius) else Modifier)
                     .statusBarsPadding()
                     .verticalScroll(rememberScrollState())
                     .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 220.dp),

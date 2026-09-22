@@ -142,7 +142,8 @@ fun WfoDaysSelector(
                         .clickable(
                             onClickLabel = "Toggle ${FULL_DAY_NAMES[index]} WFO day"
                         ) {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            // ponytail: Inline bitmask toggling with native haptics (Laws of UX: Fitts's Law & Doherty Threshold). Upgrade: Dedicated DayState observer.
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             val newMask = wfoDaysMask xor (1 shl index)
                             onMaskChanged(newMask)
                         },

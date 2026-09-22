@@ -125,7 +125,8 @@ fun GlassCard(
                 indication = null,
                 onClickLabel = onClickLabel
             ) {
-                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                // ponytail: Native HapticFeedbackType.LongPress for immediate tactile feedback (Laws of UX: Doherty Threshold). Upgrade: Custom Vibrator waveform API.
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 onClick()
             }
     } else {

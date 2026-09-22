@@ -5,6 +5,15 @@ All notable changes to **PingPin** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.1] - 2026-09-23
+
+### Refined & Polish (Laws of UX & Smooth Blur)
+- **Laws of UX Tactile Overhaul**: Standardized touch interaction feedback (`HapticFeedbackType.LongPress`) across `GlassCard`, `PingPinSwitch`, and day selectors (`WfoDaysSelector`, `WorkingDaysSelector`) to meet the **Doherty Threshold** (<400ms response) and **Peak-End Rule**.
+- **Fitts's Law Touch Target Sizing**: Enforced 48dp minimum touch target bounds across day selector pills and interactive controls.
+- **60/120fps Smooth Blur Animation**: Replaced instant blur modifier toggling with native Compose `animateDpAsState` spring transitions for bottom sheets and calendar overlays, eliminating visual pop-in/pop-out delay.
+
+---
+
 ## [2.5.0] - 2026-09-13
 
 ### Added & Refined
