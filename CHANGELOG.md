@@ -5,7 +5,7 @@ All notable changes to **PingPin** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.6.1] - 2026-09-23
+## [2.6.2] - 2026-09-23
 
 ### Refined & Polish (Laws of UX & Smooth Blur)
 - **Laws of UX Tactile Overhaul**: Standardized touch interaction feedback (`HapticFeedbackType.LongPress`) across `GlassCard`, `PingPinSwitch`, and day selectors (`WfoDaysSelector`, `WorkingDaysSelector`) to meet the **Doherty Threshold** (<400ms response) and **Peak-End Rule**.

@@ -1,4 +1,4 @@
-# PingPin v2.6.1 Release
+# PingPin v2.6.2 Release
 
 ## What's New & Refined
 
