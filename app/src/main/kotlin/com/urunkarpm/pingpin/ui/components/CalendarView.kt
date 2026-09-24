@@ -506,12 +506,7 @@ private fun MonthDayCellItem(
     onDayLongClick: ((dayNum: Int, dateYyyyMmDd: String) -> Unit)?,
     modifier: Modifier = Modifier
 ) {
-    val alphaAnim by animateFloatAsState(
-        targetValue = if (isFilterActive && !isMatchingFilter) 0.22f else 1.0f,
-        animationSpec = tween(durationMillis = 200),
-        label = "cell_alpha"
-    )
-
+    // ponytail: Direct graphicsLayer alpha assignment for 42 calendar grid cells instead of 42 concurrent animateFloatAsState state objects. Ceiling: static alpha check. Upgrade: GPU instance rendering.
     val baseSquircleBg = when {
         !cell.isCurrentMonthDay -> Color.Transparent
         cell.isAttended -> if (isDark) EmeraldGreenBgDark else EmeraldGreenBgLight
@@ -554,7 +549,7 @@ private fun MonthDayCellItem(
             .aspectRatio(1f)
             .padding(2.dp)
             .graphicsLayer {
-                alpha = alphaAnim
+                alpha = if (isFilterActive && !isMatchingFilter) 0.25f else 1.0f
             },
         contentAlignment = Alignment.Center
     ) {

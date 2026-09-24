@@ -132,22 +132,9 @@ fun HomeScreen(
     val windowSizeInfo = com.urunkarpm.pingpin.ui.theme.rememberWindowSizeInfo()
     val isWideOrLandscape = windowSizeInfo.useNavRail || windowSizeInfo.isMediumWidth || windowSizeInfo.isExpandedWidth
 
-    // ponytail: Smooth 60/120fps animated blur radius using native Compose animateDpAsState instead of harsh instant modifier toggling. Upgrade: Custom RenderEffect GPU shader.
-    val sheetBlurRadius by animateDpAsState(
-        targetValue = if (showWeatherDetailSheet || isHolidaySheetOpen) 16.dp else 0.dp,
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-        label = "sheetBlurRadius"
-    )
-    val calendarBlurRadius by animateDpAsState(
-        targetValue = if (isCalendarExpanded) 16.dp else 0.dp,
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-        label = "calendarBlurRadius"
-    )
-
+    // ponytail: Clean translucent scrim overlay without GPU Modifier.blur to prevent frame drops and lag. Ceiling: translucent scrim overlay. Upgrade: RenderEffect hardware GPU shader.
     Box(
-        modifier = modifier
-            .fillMaxSize()
-            .then(if (sheetBlurRadius > 0.dp) Modifier.blur(sheetBlurRadius) else Modifier)
+        modifier = modifier.fillMaxSize()
     ) {
         if (isWideOrLandscape) {
             Row(
@@ -162,7 +149,6 @@ fun HomeScreen(
                     modifier = Modifier
                         .weight(1.1f)
                         .fillMaxHeight()
-                        .then(if (calendarBlurRadius > 0.dp) Modifier.blur(calendarBlurRadius) else Modifier)
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
@@ -425,7 +411,6 @@ fun HomeScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .then(if (calendarBlurRadius > 0.dp) Modifier.blur(calendarBlurRadius) else Modifier)
                     .statusBarsPadding()
                     .verticalScroll(rememberScrollState())
                     .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 220.dp),

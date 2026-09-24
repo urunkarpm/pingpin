@@ -53,34 +53,9 @@ fun GlassCard(
 
     val shape = remember(cornerRadius) { RoundedCornerShape(cornerRadius) }
 
-    val hourOfDay = remember { java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY) }
-    val ambientTint = remember(hourOfDay, isDark) {
-        when (hourOfDay) {
-            in 6..8, in 17..19 -> if (isDark) Color(0x1AFFF3E0) else Color(0x0FFFF8E1) // Warm golden sunrise/sunset ambient glow
-            in 20..23, in 0..5 -> if (isDark) Color(0x1E1A237E) else Color(0x10E8EAF6) // Deep night ambient glass tint
-            else -> Color.Transparent
-        }
-    }
-
-    // High-Clarity Translucent Fill
-    val glassFillBrush = remember(backgroundColor, isDark, ambientTint) {
-        if (backgroundColor != null) {
-            Brush.verticalGradient(listOf(backgroundColor, backgroundColor))
-        } else if (isDark) {
-            Brush.verticalGradient(
-                colors = listOf(
-                    Color(0xD9141923),
-                    Color(0xC80F131C)
-                )
-            )
-        } else {
-            Brush.verticalGradient(
-                colors = listOf(
-                    Color(0xFFFFFFFF),
-                    Color(0xFFF1F5F9)
-                )
-            )
-        }
+    // ponytail: Single-pass background container fill for high-performance card rendering. Ceiling: M3 surface elevation. Upgrade: Multi-pass liquid glass shader.
+    val containerBgColor = remember(backgroundColor, isDark) {
+        backgroundColor ?: if (isDark) Color(0xD9141923) else Color(0xFFFFFFFF)
     }
 
     val outlineVariant = MaterialTheme.colorScheme.outlineVariant
@@ -106,15 +81,11 @@ fun GlassCard(
                 scaleY = scale
             }
             .shadow(
-                elevation = if (isDark) 14.dp else 8.dp,
-                shape = shape,
-                clip = false,
-                ambientColor = if (isDark) Color.Black.copy(alpha = 0.50f) else Color(0xFF0F172A).copy(alpha = 0.12f),
-                spotColor = if (isDark) Color.Black.copy(alpha = 0.60f) else Color(0xFF3B82F6).copy(alpha = 0.18f)
+                elevation = if (isDark) 8.dp else 4.dp,
+                shape = shape
             )
             .clip(shape)
-            .background(glassFillBrush)
-            .background(ambientTint)
+            .background(containerBgColor)
             .border(width = 1.2.dp, color = solidBorderColor, shape = shape)
             .semantics {
                 role?.let { this.role = it }
@@ -125,22 +96,18 @@ fun GlassCard(
                 indication = null,
                 onClickLabel = onClickLabel
             ) {
-                // ponytail: Native HapticFeedbackType.LongPress for immediate tactile feedback (Laws of UX: Doherty Threshold). Upgrade: Custom Vibrator waveform API.
+                // ponytail: Native HapticFeedbackType.LongPress for immediate tactile feedback. Upgrade: Custom Vibrator waveform API.
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 onClick()
             }
     } else {
         modifier
             .shadow(
-                elevation = if (isDark) 12.dp else 6.dp,
-                shape = shape,
-                clip = false,
-                ambientColor = if (isDark) Color.Black.copy(alpha = 0.45f) else Color(0xFF0F172A).copy(alpha = 0.10f),
-                spotColor = if (isDark) Color.Black.copy(alpha = 0.55f) else Color(0xFF3B82F6).copy(alpha = 0.15f)
+                elevation = if (isDark) 6.dp else 3.dp,
+                shape = shape
             )
             .clip(shape)
-            .background(glassFillBrush)
-            .background(ambientTint)
+            .background(containerBgColor)
             .border(width = 1.2.dp, color = solidBorderColor, shape = shape)
             .semantics {
                 contentDescription?.let { this.contentDescription = it }

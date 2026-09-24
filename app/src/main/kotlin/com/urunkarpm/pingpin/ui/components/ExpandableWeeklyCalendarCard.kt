@@ -61,7 +61,6 @@ fun ExpandableWeeklyCalendarCard(
     val isDark = MaterialTheme.colorScheme.background.red < 0.5f
     val installCal = remember(context) { AppInstallManager.getInstallDateCalendar(context) }
 
-    val haptic = LocalHapticFeedback.current
     var internalIsExpanded by remember { mutableStateOf(false) }
     val currentIsExpanded = if (onExpandedChange != null) isExpanded else internalIsExpanded
     val setExpanded: (Boolean) -> Unit = { newValue ->
@@ -172,29 +171,7 @@ fun ExpandableWeeklyCalendarCard(
         weekDays.count { it.isWorking && it.isWfo && !it.isBeforeInstall }
     }
 
-    // Gesture arrow bobbing animation for Week View (up)
-    val infiniteTransition = rememberInfiniteTransition(label = "swipe_hint")
-    val arrowOffsetY by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = -4f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(700, easing = LinearOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "arrow_offset"
-    )
-
-    // Gesture arrow bobbing animation for Month View (down)
-    val downArrowOffsetY by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 4f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(700, easing = LinearOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "down_arrow_offset"
-    )
-
+    // ponytail: Static arrow indicators instead of continuous infinite transition loop to eliminate CPU thread wakeups and recompositions. Ceiling: static icon hint. Upgrade: One-shot swipe animation.
     var totalDrag by remember { mutableFloatStateOf(0f) }
 
     GlassCard(
@@ -356,9 +333,7 @@ fun ExpandableWeeklyCalendarCard(
                                 imageVector = Icons.Default.KeyboardArrowUp,
                                 contentDescription = "Swipe up hint",
                                 tint = ElectricBlue,
-                                modifier = Modifier
-                                    .size(16.dp)
-                                    .graphicsLayer { translationY = arrowOffsetY.dp.toPx() }
+                                modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
@@ -418,9 +393,7 @@ fun ExpandableWeeklyCalendarCard(
                                 imageVector = Icons.Default.KeyboardArrowDown,
                                 contentDescription = "Swipe down hint",
                                 tint = ElectricBlue,
-                                modifier = Modifier
-                                    .size(16.dp)
-                                    .graphicsLayer { translationY = downArrowOffsetY.dp.toPx() }
+                                modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
