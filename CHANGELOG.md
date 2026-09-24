@@ -5,6 +5,15 @@ All notable changes to **PingPin** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.1] - 2026-09-24
+
+### Optimized & Signed Release (Ponytail Performance & Play Protect Hardening)
+- **Signed Release APK (Play Protect Compliant)**: Configured release keystore signing (`upload-keystore.jks`) to resolve Play Protect untrusted developer warnings on Android devices.
+- **Ponytail Performance Polish**: Eliminated heavy `Modifier.blur(...)` GPU rendering bottlenecks, replaced 24/7 infinite transition CPU recomposition loops, and optimized calendar cell graphics layers for smooth 120fps interactions.
+- **Extra WFO Attendance Detection & Insights**: Full support for tracking office visits on non-WFO days with uncapped compliance calculations and Electric Blue calendar badging.
+
+---
+
 ## [2.7.0] - 2026-09-24
 
 ### Added & Refined (Extra WFO Tracking & Insights Overhaul)
