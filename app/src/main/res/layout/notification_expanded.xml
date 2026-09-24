@@ -5,7 +5,7 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:padding="16dp"
-    android:background="#161822">
+    android:background="#0F172A">
 
     <!-- Header Tag -->
     <LinearLayout
@@ -27,7 +27,7 @@
             android:layout_weight="1"
             android:layout_marginStart="8dp"
             android:text="PINGPIN • ATTENDANCE REMINDER"
-            android:textColor="#A0AEC0"
+            android:textColor="#3B82F6"
             android:textSize="11sp"
             android:textStyle="bold"
             android:letterSpacing="0.05" />
@@ -37,7 +37,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="NOW"
-            android:textColor="#718096"
+            android:textColor="#94A3B8"
             android:textSize="10sp"
             android:textStyle="bold" />
     </LinearLayout>
@@ -81,7 +81,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:text="Don't forget to mark your daily attendance on the office HR portal."
-                android:textColor="#E2E8F0"
+                android:textColor="#CBD5E1"
                 android:textSize="13sp"
                 android:lineSpacingExtra="2dp" />
 
@@ -91,7 +91,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
                 android:text="Tap 'Open Portal' to launch directly or 'Snooze' for 10 min."
-                android:textColor="#818CF8"
+                android:textColor="#3B82F6"
                 android:textSize="12sp"
                 android:textStyle="italic" />
         </LinearLayout>
@@ -112,7 +112,7 @@
             android:layout_height="38dp"
             android:background="@drawable/notification_secondary_btn_bg"
             android:text="Dismiss"
-            android:textColor="#A0AEC0"
+            android:textColor="#94A3B8"
             android:textSize="13sp"
             android:paddingStart="16dp"
             android:paddingEnd="16dp"
@@ -126,8 +126,9 @@
             android:layout_marginStart="10dp"
             android:background="@drawable/notification_secondary_btn_bg"
             android:text="Snooze 10m"
-            android:textColor="#FFFFFF"
+            android:textColor="#F59E0B"
             android:textSize="13sp"
+            android:textStyle="bold"
             android:paddingStart="16dp"
             android:paddingEnd="16dp"
             android:minHeight="0dp"

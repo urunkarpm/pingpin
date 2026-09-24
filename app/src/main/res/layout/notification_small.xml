@@ -5,7 +5,7 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:padding="12dp"
-    android:background="#1A1C24">
+    android:background="#0F172A">
 
     <!-- Header Row: App Tag & Accent Dot -->
     <LinearLayout
@@ -27,7 +27,7 @@
             android:layout_weight="1"
             android:layout_marginStart="8dp"
             android:text="PINGPIN • ATTENDANCE"
-            android:textColor="#A0AEC0"
+            android:textColor="#3B82F6"
             android:textSize="11sp"
             android:textStyle="bold"
             android:letterSpacing="0.05" />
@@ -37,7 +37,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="NOW"
-            android:textColor="#718096"
+            android:textColor="#94A3B8"
             android:textSize="10sp"
             android:textStyle="bold" />
     </LinearLayout>
@@ -83,7 +83,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
                 android:text="Tap to open HR portal or manage alarm"
-                android:textColor="#CBD5E0"
+                android:textColor="#CBD5E1"
                 android:textSize="13sp"
                 android:maxLines="2"
                 android:ellipsize="end" />
@@ -105,10 +105,10 @@
             android:layout_height="34dp"
             android:background="@drawable/notification_secondary_btn_bg"
             android:text="Dismiss"
-            android:textColor="#A0AEC0"
+            android:textColor="#94A3B8"
             android:textSize="12sp"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
             android:minHeight="0dp"
             android:minWidth="0dp" />
 
@@ -119,10 +119,11 @@
             android:layout_marginStart="8dp"
             android:background="@drawable/notification_secondary_btn_bg"
             android:text="Snooze 10m"
-            android:textColor="#E2E8F0"
+            android:textColor="#F59E0B"
             android:textSize="12sp"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
+            android:textStyle="bold"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
             android:minHeight="0dp"
             android:minWidth="0dp" />
 
@@ -136,8 +137,8 @@
             android:textColor="#FFFFFF"
             android:textSize="12sp"
             android:textStyle="bold"
-            android:paddingStart="14dp"
-            android:paddingEnd="14dp"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
             android:minHeight="0dp"
             android:minWidth="0dp" />
     </LinearLayout>

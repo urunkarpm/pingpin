@@ -261,10 +261,32 @@ fun SettingsScreen(
 
                         Spacer(modifier = Modifier.height(2.dp))
 
-                        // Status Pill
+                        // ponytail: Status Pill logic — AUTOMATION READY is only shown when in-app auto portal mode is enabled. Ceiling: Static status pill enum. Upgrade: Dynamic health check score pill.
+                        val isAutoPortalSelected = portalMode == "IN_APP_AUTO"
+                        val statusText = when {
+                            isAutoPortalSelected && isProfileComplete -> "AUTOMATION READY"
+                            !isAutoPortalSelected && isProfileComplete -> "PROFILE READY"
+                            else -> "SETUP PENDING"
+                        }
+                        val pillContainerColor = when {
+                            isAutoPortalSelected && isProfileComplete -> MaterialTheme.colorScheme.primaryContainer
+                            !isAutoPortalSelected && isProfileComplete -> MaterialTheme.colorScheme.secondaryContainer
+                            else -> MaterialTheme.colorScheme.tertiaryContainer
+                        }
+                        val pillContentColor = when {
+                            isAutoPortalSelected && isProfileComplete -> MaterialTheme.colorScheme.onPrimaryContainer
+                            !isAutoPortalSelected && isProfileComplete -> MaterialTheme.colorScheme.onSecondaryContainer
+                            else -> MaterialTheme.colorScheme.onTertiaryContainer
+                        }
+                        val dotColor = when {
+                            isAutoPortalSelected && isProfileComplete -> MaterialTheme.colorScheme.primary
+                            !isAutoPortalSelected && isProfileComplete -> MaterialTheme.colorScheme.secondary
+                            else -> MaterialTheme.colorScheme.tertiary
+                        }
+
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = if (isProfileComplete) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.tertiaryContainer
+                            color = pillContainerColor
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
@@ -275,13 +297,13 @@ fun SettingsScreen(
                                     modifier = Modifier
                                         .size(5.dp)
                                         .clip(CircleShape)
-                                        .background(if (isProfileComplete) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary)
+                                        .background(dotColor)
                                 )
                                 Text(
-                                    text = if (isProfileComplete) "AUTOMATION READY" else "SETUP PENDING",
+                                    text = statusText,
                                     fontSize = 9.sp,
                                     fontWeight = FontWeight.ExtraBold,
-                                    color = if (isProfileComplete) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onTertiaryContainer,
+                                    color = pillContentColor,
                                     letterSpacing = 0.4.sp
                                 )
                             }
@@ -921,6 +943,7 @@ fun SettingsScreen(
                                         }
                                     }
                                 )
+
 
                             }
                         }
@@ -1691,6 +1714,7 @@ private fun StatusPermissionRow(
     subtitle: String,
     isGranted: Boolean,
     actionText: String,
+    alwaysShowAction: Boolean = false,
     onActionClick: () -> Unit
 ) {
     Surface(
@@ -1728,12 +1752,17 @@ private fun StatusPermissionRow(
                     )
                 }
             }
-            if (!isGranted) {
+            if (actionText.isNotBlank() && (!isGranted || alwaysShowAction)) {
                 TextButton(
                     onClick = onActionClick,
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
                 ) {
-                    Text(actionText, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+                    Text(
+                        text = actionText,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isGranted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                        fontSize = 12.sp
+                    )
                 }
             }
         }

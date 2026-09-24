@@ -18,8 +18,11 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.unit.Density
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
@@ -600,24 +603,33 @@ fun AlarmScreenContent(
         label = "dot_blink"
     )
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    val currentDensity = LocalDensity.current
+    // ponytail: Font scale clamp & verticalScroll ensures accessibility display/font scale large settings stay perfectly legible and scrollable. Ceiling: System accessibility scaling override. Upgrade: Dynamic FontScale breakpoint layout.
+    val clampedDensity = Density(
+        density = currentDensity.density,
+        fontScale = currentDensity.fontScale.coerceAtMost(1.15f)
+    )
 
-        // --- BACKGROUND: Flagship Luxury Cinematic Canvas ---
-        CinematicEldritchMirrorCanvas(
-            accentColor = accentPrimary,
-            secondaryColor = accentSecondary
-        )
+    CompositionLocalProvider(LocalDensity provides clampedDensity) {
+        Box(modifier = Modifier.fillMaxSize()) {
 
-        // --- FOREGROUND: Interactive UI Layers ---
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 20.dp),
-            verticalArrangement = Arrangement.SpaceBetween,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
+            // --- BACKGROUND: Flagship Luxury Cinematic Canvas ---
+            CinematicEldritchMirrorCanvas(
+                accentColor = accentPrimary,
+                secondaryColor = accentSecondary
+            )
+
+            // --- FOREGROUND: Interactive UI Layers ---
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
 
             // Top Section: Status pill & Portal domain badge
             Column(
@@ -707,14 +719,14 @@ fun AlarmScreenContent(
             ) {
                 // Kinetic Fluid Glass Centerpiece containing the Hero Digital Time!
                 Box(
-                    modifier = Modifier.size(240.dp),
+                    modifier = Modifier.size(190.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     // Outer Fluid Halo Ring
                     Box(
                         modifier = Modifier
                             .scale(pulseScale * 1.12f)
-                            .size(220.dp)
+                            .size(170.dp)
                             .clip(CircleShape)
                             .background(
                                 brush = Brush.radialGradient(
@@ -730,7 +742,7 @@ fun AlarmScreenContent(
                     Box(
                         modifier = Modifier
                             .scale(pulseScale)
-                            .size(190.dp)
+                            .size(145.dp)
                             .clip(CircleShape)
                             .background(
                                 brush = Brush.radialGradient(
@@ -762,10 +774,10 @@ fun AlarmScreenContent(
                             Text(
                                 text = formattedTime,
                                 color = inkWhite,
-                                fontSize = 54.sp,
+                                fontSize = 42.sp,
                                 fontWeight = FontWeight.ExtraBold,
-                                letterSpacing = (-2).sp,
-                                lineHeight = 54.sp
+                                letterSpacing = (-1).sp,
+                                lineHeight = 42.sp
                             )
 
                             Spacer(modifier = Modifier.height(4.dp))
@@ -803,27 +815,97 @@ fun AlarmScreenContent(
                 )
             }
 
-            // Bottom Section: Liquid Gesture Slide Controls & Integrated Snooze Hub
+            // Bottom Section: Side-by-Side Vertical Liquid Sliders (Check-In & Snooze) + Leave Button
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                // 1. HERO LIQUID SLIDE TO CONFIRM (Primary Action: Check-In / Check-Out)
-                LiquidSlideControl(
-                    label = if (isCheckIn) "SLIDE TO CHECK-IN" else "SLIDE TO CHECK-OUT",
-                    accentPrimary = accentPrimary,
-                    accentSecondary = accentSecondary,
-                    icon = if (isCheckIn) Icons.Default.OpenInBrowser else Icons.AutoMirrored.Filled.ExitToApp,
-                    onConfirm = { if (isCheckIn) onCheckIn() else onCheckOut() }
-                )
+                // Vertical Sliders Side-by-Side Row (extending vertically right till half the screen)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(260.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Left Column: Primary Action (Vertical Slide Check-In / Check-Out)
+                    LiquidVerticalSlideControl(
+                        label = if (isCheckIn) "SLIDE UP TO\nCHECK-IN" else "SLIDE UP TO\nCHECK-OUT",
+                        accentPrimary = accentPrimary,
+                        accentSecondary = accentSecondary,
+                        icon = if (isCheckIn) Icons.Default.OpenInBrowser else Icons.AutoMirrored.Filled.ExitToApp,
+                        onConfirm = { if (isCheckIn) onCheckIn() else onCheckOut() },
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                    )
 
-                // 2. UNIFIED SNOOZE ACTION HUB (Segmented Pills + Slide-to-Snooze)
-                SnoozeHubControl(
-                    selectedMins = selectedSnoozeMins,
-                    onMinsSelected = { selectedSnoozeMins = it },
-                    onSnoozeConfirmed = { onSnooze(selectedSnoozeMins) }
-                )
+                    // Right Column: Snooze Section (Duration Pills + Vertical Snooze Slider)
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Duration Selector Pills
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color.Black.copy(alpha = 0.55f),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                Color(0xFFFBBF24).copy(alpha = 0.3f)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                val options = listOf(5, 10, 15, 30)
+                                options.forEach { mins ->
+                                    val isSelected = selectedSnoozeMins == mins
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(
+                                                if (isSelected) Color(0xFFFBBF24).copy(alpha = 0.35f) else Color.Transparent
+                                            )
+                                            .border(
+                                                1.dp,
+                                                if (isSelected) Color(0xFFFBBF24) else Color.Transparent,
+                                                RoundedCornerShape(10.dp)
+                                            )
+                                            .clickable { selectedSnoozeMins = mins }
+                                            .padding(vertical = 5.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "${mins}m",
+                                            color = if (isSelected) Color(0xFFFBBF24) else Color.White.copy(alpha = 0.6f),
+                                            fontSize = 11.sp,
+                                            fontWeight = if (isSelected) FontWeight.Black else FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // Vertical Slide to Snooze
+                        LiquidVerticalSlideControl(
+                            label = "SLIDE UP TO\nSNOOZE (${selectedSnoozeMins}m)",
+                            accentPrimary = Color(0xFFF59E0B),
+                            accentSecondary = Color(0xFFFBBF24),
+                            icon = Icons.Default.Snooze,
+                            onConfirm = { onSnooze(selectedSnoozeMins) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                        )
+                    }
+                }
 
                 // 3. TERTIARY ACTION: APPLY FOR LEAVE (Check-In Mode Only)
                 if (isCheckIn) {
@@ -859,145 +941,38 @@ fun AlarmScreenContent(
         }
     }
 }
-
-/**
- * Unified Glass Snooze Hub Control (Segmented Duration Pills + Slide to Snooze Bar)
- */
-@Composable
-fun SnoozeHubControl(
-    selectedMins: Int,
-    onMinsSelected: (Int) -> Unit,
-    onSnoozeConfirmed: () -> Unit
-) {
-    val amberGold = Color(0xFFFBBF24)
-    val amberDeep = Color(0xFFF59E0B)
-
-    Surface(
-        shape = RoundedCornerShape(26.dp),
-        color = Color.Black.copy(alpha = 0.55f),
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            amberGold.copy(alpha = 0.3f)
-        ),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            // Header Row: Snooze Title + Segmented Glass Tab Bar
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.padding(start = 4.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Snooze,
-                        contentDescription = null,
-                        tint = amberGold,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Text(
-                        text = "SNOOZE DURATION",
-                        color = Color.White.copy(alpha = 0.9f),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 1.sp
-                    )
-                }
-
-                // Segmented Pill Tabs Bar
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = Color.White.copy(alpha = 0.06f),
-                    border = androidx.compose.foundation.BorderStroke(
-                        1.dp,
-                        Color.White.copy(alpha = 0.1f)
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier.padding(3.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        val options = listOf(5, 10, 15, 30)
-                        options.forEach { mins ->
-                            val isSelected = selectedMins == mins
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(
-                                        if (isSelected) amberGold.copy(alpha = 0.3f) else Color.Transparent
-                                    )
-                                    .border(
-                                        1.dp,
-                                        if (isSelected) amberGold else Color.Transparent,
-                                        RoundedCornerShape(12.dp)
-                                    )
-                                    .clickable { onMinsSelected(mins) }
-                                    .padding(horizontal = 10.dp, vertical = 4.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "${mins}m",
-                                    color = if (isSelected) amberGold else Color.White.copy(alpha = 0.6f),
-                                    fontSize = 11.sp,
-                                    fontWeight = if (isSelected) FontWeight.Black else FontWeight.Bold
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Integrated Slide to Snooze Bar
-            LiquidSlideControl(
-                label = "SLIDE TO SNOOZE (${selectedMins}m)",
-                accentPrimary = amberDeep,
-                accentSecondary = amberGold,
-                icon = Icons.Default.Snooze,
-                onConfirm = onSnoozeConfirmed
-            )
-        }
-    }
 }
 
 /**
- * Fluid Liquid Slide-to-Confirm Hero Gesture Control Bar
+ * ponytail: Fluid Vertical Liquid Slide-to-Confirm Gesture Control extending vertically up to half the screen. Ceiling: Touch gesture drag velocity calculation. Upgrade: Physics spring fling gesture animation.
  */
 @Composable
-fun LiquidSlideControl(
+fun LiquidVerticalSlideControl(
     label: String,
     accentPrimary: Color,
     accentSecondary: Color,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
-    onConfirm: () -> Unit
+    onConfirm: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
-    var containerWidthPx by remember { mutableFloatStateOf(0f) }
-    val handleSizeDp = 54.dp
+    var containerHeightPx by remember { mutableFloatStateOf(0f) }
+    val handleSizeDp = 50.dp
     val handleSizePx = with(density) { handleSizeDp.toPx() }
 
-    var dragOffsetPx by remember { mutableFloatStateOf(0f) }
+    var dragUpPx by remember { mutableFloatStateOf(0f) }
     var isDragging by remember { mutableStateOf(false) }
 
-    val maxDragPx = (containerWidthPx - handleSizePx).coerceAtLeast(1f)
-    val dragProgress = (dragOffsetPx / maxDragPx).coerceIn(0f, 1f)
+    val maxDragPx = (containerHeightPx - handleSizePx).coerceAtLeast(1f)
+    val dragProgress = (dragUpPx / maxDragPx).coerceIn(0f, 1f)
 
-    val animatedDragOffset by animateFloatAsState(
-        targetValue = dragOffsetPx,
+    val animatedDragUp by animateFloatAsState(
+        targetValue = dragUpPx,
         animationSpec = if (isDragging) spring(stiffness = Spring.StiffnessHigh) else spring(stiffness = Spring.StiffnessMediumLow),
-        label = "handle_offset"
+        label = "handle_offset_up"
     )
 
-    // Animated shimmering arrow hint
-    val infiniteTransition = rememberInfiniteTransition(label = "arrow_pulse")
+    val infiniteTransition = rememberInfiniteTransition(label = "arrow_pulse_vert")
     val arrowAlpha by infiniteTransition.animateFloat(
         initialValue = 0.3f,
         targetValue = 1.0f,
@@ -1005,31 +980,30 @@ fun LiquidSlideControl(
             animation = tween(900, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "arrow_alpha"
+        label = "arrow_alpha_vert"
     )
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .height(58.dp)
-            .clip(RoundedCornerShape(29.dp))
+            .clip(RoundedCornerShape(26.dp))
             .background(Color.Black.copy(alpha = 0.55f))
             .border(
                 1.5.dp,
-                Brush.horizontalGradient(
+                Brush.verticalGradient(
                     colors = listOf(
-                        accentPrimary.copy(alpha = 0.7f),
-                        accentSecondary.copy(alpha = 0.4f)
+                        accentSecondary.copy(alpha = 0.7f),
+                        accentPrimary.copy(alpha = 0.4f)
                     )
                 ),
-                RoundedCornerShape(29.dp)
+                RoundedCornerShape(26.dp)
             )
             .onGloballyPositioned { layoutCoordinates ->
-                containerWidthPx = layoutCoordinates.size.width.toFloat()
+                containerHeightPx = layoutCoordinates.size.height.toFloat()
             }
-            .pointerInput(containerWidthPx) {
-                if (containerWidthPx <= 0f) return@pointerInput
-                val currentMaxDragPx = (containerWidthPx - handleSizePx).coerceAtLeast(1f)
+            .pointerInput(containerHeightPx) {
+                if (containerHeightPx <= 0f) return@pointerInput
+                val currentMaxDragPx = (containerHeightPx - handleSizePx).coerceAtLeast(1f)
 
                 detectDragGestures(
                     onDragStart = {
@@ -1037,62 +1011,83 @@ fun LiquidSlideControl(
                     },
                     onDragEnd = {
                         isDragging = false
-                        if (dragOffsetPx >= currentMaxDragPx * 0.70f) {
+                        if (dragUpPx >= currentMaxDragPx * 0.70f) {
                             onConfirm()
                         }
-                        dragOffsetPx = 0f
+                        dragUpPx = 0f
                     },
                     onDragCancel = {
                         isDragging = false
-                        dragOffsetPx = 0f
+                        dragUpPx = 0f
                     },
                     onDrag = { change, dragAmount ->
                         change.consume()
-                        dragOffsetPx = (dragOffsetPx + dragAmount.x).coerceIn(0f, currentMaxDragPx)
+                        dragUpPx = (dragUpPx - dragAmount.y).coerceIn(0f, currentMaxDragPx)
                     }
                 )
             },
-        contentAlignment = Alignment.CenterStart
+        contentAlignment = Alignment.BottomCenter
     ) {
-        // 1. Dynamic Liquid Gradient Fill Track
-        val fillWidthDp = with(density) { (animatedDragOffset + handleSizePx / 2f).toDp() }
+        // 1. Dynamic Liquid Gradient Fill Track (from Bottom to Top)
+        val fillHeightDp = with(density) { (animatedDragUp + handleSizePx / 2f).toDp() }
         Box(
             modifier = Modifier
-                .width(fillWidthDp)
-                .fillMaxHeight()
+                .fillMaxWidth()
+                .height(fillHeightDp)
                 .background(
-                    brush = Brush.horizontalGradient(
-                        colors = listOf(accentPrimary.copy(alpha = 0.85f), accentSecondary)
+                    brush = Brush.verticalGradient(
+                        colors = listOf(accentSecondary, accentPrimary.copy(alpha = 0.85f))
                     ),
-                    shape = RoundedCornerShape(29.dp)
+                    shape = RoundedCornerShape(26.dp)
                 )
         )
 
-        // 2. Morphing Track Text
-        Row(
+        // 2. Track Text & Arrow Hints (Bottom padding 60.dp keeps text completely clear of handle orb)
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 24.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
+                .padding(top = 16.dp, bottom = 60.dp, start = 6.dp, end = 6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
             val textAlpha = (1.0f - dragProgress * 1.5f).coerceIn(0f, 1f)
-            val isNearEnd = dragProgress >= 0.75f
+            val isNearTop = dragProgress >= 0.75f
 
-            Text(
-                text = if (isNearEnd) "RELEASE TO CONFIRM  ✓" else "$label  ►►",
-                color = if (isNearEnd) Color.White else Color.White.copy(alpha = textAlpha * arrowAlpha),
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 13.sp,
-                letterSpacing = 1.sp,
-                textAlign = TextAlign.Center
-            )
+            if (isNearTop) {
+                Text(
+                    text = "RELEASE TO\nCONFIRM ✓",
+                    color = Color.White,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 12.sp,
+                    letterSpacing = 1.sp,
+                    textAlign = TextAlign.Center
+                )
+            } else {
+                Text(
+                    text = "▲ ▲",
+                    color = Color.White.copy(alpha = arrowAlpha),
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 12.sp,
+                    letterSpacing = 2.sp,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = label,
+                    color = Color.White.copy(alpha = textAlpha.coerceAtLeast(0.7f)),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp,
+                    letterSpacing = 0.8.sp,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 14.sp
+                )
+            }
         }
 
-        // 3. Sliding Handle Orb
+        // 3. Vertical Sliding Handle Orb
         Box(
             modifier = Modifier
-                .offset { IntOffset(animatedDragOffset.roundToInt(), 0) }
+                .offset { IntOffset(0, -animatedDragUp.roundToInt()) }
                 .padding(3.dp)
                 .size(handleSizeDp - 6.dp)
                 .clip(CircleShape)
@@ -1109,7 +1104,7 @@ fun LiquidSlideControl(
         ) {
             Icon(
                 imageVector = if (dragProgress >= 0.75f) Icons.Default.Check else icon,
-                contentDescription = "Slide Handle",
+                contentDescription = "Vertical Slide Handle",
                 tint = Color(0xFF0F172A),
                 modifier = Modifier.size(24.dp)
             )

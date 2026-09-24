@@ -160,11 +160,11 @@ class FloatingPortalService : Service(), PortalAutoCheckInEngine.PortalCallback 
         val displayMetrics = resources.displayMetrics
         val density = displayMetrics.density
 
-        // YouTube-style compact PIP window dimensions (e.g. 250dp x 160dp)
-        val targetWidth = (250 * density).toInt()
-        val targetHeight = (160 * density).toInt()
-        val width = targetWidth.coerceAtMost((displayMetrics.widthPixels * 0.75).toInt())
-        val height = targetHeight.coerceAtMost((displayMetrics.heightPixels * 0.30).toInt())
+        // YouTube-style PIP window dimensions matching PingPin glass theme (300dp x 210dp)
+        val targetWidth = (300 * density).toInt()
+        val targetHeight = (210 * density).toInt()
+        val width = targetWidth.coerceAtMost((displayMetrics.widthPixels * 0.85).toInt())
+        val height = targetHeight.coerceAtMost((displayMetrics.heightPixels * 0.40).toInt())
 
         val layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
@@ -184,20 +184,24 @@ class FloatingPortalService : Service(), PortalAutoCheckInEngine.PortalCallback 
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            y = (80 * density).toInt()
+            y = (70 * density).toInt()
         }
 
-        // Root container with dark glass theme & sleek rounded corners
+        // ponytail: Dark glass overlay container matching PingPin Material 3 glassmorphism. Ceiling: System WindowManager surface blur. Upgrade: RenderEffect blur overlay.
+        val isCheckIn = actionType.equals("CHECK_IN", ignoreCase = true)
+        val primaryAccentHex = if (isCheckIn) "#3B82F6" else "#10B981"
+        val textAccentHex = if (isCheckIn) "#38BDF8" else "#34D399"
+
         val rootLayout = FrameLayout(this).apply {
             val drawable = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                cornerRadius = 14f * density
-                setColor(Color.parseColor("#F20F172A")) // Slate dark glass background
-                setStroke((1.5f * density).toInt(), Color.parseColor("#475569")) // Subtle accent border
+                cornerRadius = 18f * density
+                setColor(Color.parseColor("#F20F172A")) // Slate OLED Glass
+                setStroke((1.5f * density).toInt(), Color.parseColor(primaryAccentHex)) // Accent border
             }
             background = drawable
-            elevation = 12f * density
-            setPadding((6 * density).toInt(), (6 * density).toInt(), (6 * density).toInt(), (6 * density).toInt())
+            elevation = 16f * density
+            setPadding((8 * density).toInt(), (8 * density).toInt(), (8 * density).toInt(), (8 * density).toInt())
         }
 
         val mainContainer = LinearLayout(this).apply {
@@ -208,50 +212,77 @@ class FloatingPortalService : Service(), PortalAutoCheckInEngine.PortalCallback 
             )
         }
 
-        // Header Bar (Draggable)
+        // Header Bar (Draggable) with frosted glass background
         val headerBar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            val hPadding = (8 * density).toInt()
-            val vPadding = (4 * density).toInt()
+            val hPadding = (10 * density).toInt()
+            val vPadding = (6 * density).toInt()
             setPadding(hPadding, vPadding, hPadding, vPadding)
             val headerBg = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                cornerRadius = 8f * density
-                setColor(Color.parseColor("#331E293B"))
+                cornerRadius = 12f * density
+                setColor(Color.parseColor("#401E293B")) // Frosted glass header bar
             }
             background = headerBg
         }
 
         titleTextView = TextView(this).apply {
-            text = if (actionType.equals("CHECK_IN", ignoreCase = true)) "📌 Check-In" else "📌 Check-Out"
-            setTextColor(Color.WHITE)
+            text = if (isCheckIn) "⚡ AUTO CHECK-IN" else "⚡ AUTO CHECK-OUT"
+            setTextColor(Color.parseColor(textAccentHex))
             textSize = 11f
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.BOLD)
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f)
         }
 
         val fullScreenHeaderBtn = TextView(this).apply {
             text = " ⛶ "
-            setTextColor(Color.parseColor("#38BDF8"))
-            textSize = 14f
-            setPadding((6 * density).toInt(), 0, (6 * density).toInt(), 0)
+            setTextColor(Color.WHITE)
+            textSize = 12f
+            val pillBg = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = 8f * density
+                setColor(Color.parseColor("#3038BDF8"))
+            }
+            background = pillBg
+            setPadding((6 * density).toInt(), (3 * density).toInt(), (6 * density).toInt(), (3 * density).toInt())
+            val lp = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            lp.setMargins((4 * density).toInt(), 0, 0, 0)
+            layoutParams = lp
             setOnClickListener { openFullScreen() }
         }
 
         minimizeBtn = TextView(this).apply {
-            text = " 🗕 "
+            text = " ─ "
             setTextColor(Color.parseColor("#94A3B8"))
-            textSize = 14f
-            setPadding((6 * density).toInt(), 0, (6 * density).toInt(), 0)
+            textSize = 12f
+            val pillBg = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = 8f * density
+                setColor(Color.parseColor("#30475569"))
+            }
+            background = pillBg
+            setPadding((6 * density).toInt(), (3 * density).toInt(), (6 * density).toInt(), (3 * density).toInt())
+            val lp = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            lp.setMargins((4 * density).toInt(), 0, 0, 0)
+            layoutParams = lp
             setOnClickListener { toggleMinimize() }
         }
 
         closeBtn = TextView(this).apply {
             text = " ✕ "
             setTextColor(Color.parseColor("#F87171"))
-            textSize = 14f
-            setPadding((6 * density).toInt(), 0, (6 * density).toInt(), 0)
+            textSize = 12f
+            val pillBg = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = 8f * density
+                setColor(Color.parseColor("#30F87171"))
+            }
+            background = pillBg
+            setPadding((6 * density).toInt(), (3 * density).toInt(), (6 * density).toInt(), (3 * density).toInt())
+            val lp = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            lp.setMargins((4 * density).toInt(), 0, 0, 0)
+            layoutParams = lp
             setOnClickListener { stopSelf() }
         }
 
@@ -297,13 +328,14 @@ class FloatingPortalService : Service(), PortalAutoCheckInEngine.PortalCallback 
 
         // Status Badge Row
         statusTextView = TextView(this).apply {
-            text = "Initializing Auto Engine..."
-            setTextColor(Color.parseColor("#38BDF8"))
+            text = "● Initializing Auto Engine..."
+            setTextColor(Color.parseColor(textAccentHex))
             textSize = 10f
+            typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
             maxLines = 1
             ellipsize = android.text.TextUtils.TruncateAt.END
-            val sPaddingH = (8 * density).toInt()
-            val sPaddingV = (2 * density).toInt()
+            val sPaddingH = (10 * density).toInt()
+            val sPaddingV = (4 * density).toInt()
             setPadding(sPaddingH, sPaddingV, sPaddingH, sPaddingV)
         }
 
@@ -318,7 +350,7 @@ class FloatingPortalService : Service(), PortalAutoCheckInEngine.PortalCallback 
             }
             val webBg = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                cornerRadius = 8f * density
+                cornerRadius = 12f * density
                 setColor(Color.WHITE)
             }
             background = webBg
@@ -418,17 +450,17 @@ class FloatingPortalService : Service(), PortalAutoCheckInEngine.PortalCallback 
         isMinimized = !isMinimized
         if (isMinimized) {
             webViewContainer?.visibility = View.GONE
-            params.width = (180 * density).toInt()
+            params.width = (200 * density).toInt()
             params.height = ViewGroup.LayoutParams.WRAP_CONTENT
-            minimizeBtn?.text = " 🗖 "
+            minimizeBtn?.text = " ⛶ "
         } else {
             webViewContainer?.visibility = View.VISIBLE
             val displayMetrics = resources.displayMetrics
-            val targetWidth = (250 * density).toInt()
-            val targetHeight = (160 * density).toInt()
-            params.width = targetWidth.coerceAtMost((displayMetrics.widthPixels * 0.75).toInt())
-            params.height = targetHeight.coerceAtMost((displayMetrics.heightPixels * 0.30).toInt())
-            minimizeBtn?.text = " 🗕 "
+            val targetWidth = (300 * density).toInt()
+            val targetHeight = (210 * density).toInt()
+            params.width = targetWidth.coerceAtMost((displayMetrics.widthPixels * 0.85).toInt())
+            params.height = targetHeight.coerceAtMost((displayMetrics.heightPixels * 0.40).toInt())
+            minimizeBtn?.text = " ─ "
         }
         windowManager?.updateViewLayout(view, params)
     }

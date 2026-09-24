@@ -25,6 +25,9 @@ class AlarmSoundService : Service() {
     companion object {
         private const val TAG = "AlarmSoundService"
 
+        @Volatile
+        private var instance: AlarmSoundService? = null
+
         const val ACTION_START_ALARM = "com.urunkarpm.pingpin.ACTION_START_ALARM"
         const val ACTION_STOP_ALARM = "com.urunkarpm.pingpin.ACTION_STOP_ALARM"
 
@@ -62,12 +65,15 @@ class AlarmSoundService : Service() {
         }
 
         fun stopAlarmSound(context: Context) {
-            val intent = Intent(context, AlarmSoundService::class.java).apply {
-                action = ACTION_STOP_ALARM
+            // ponytail: Direct instance cleanup + stopService bypasses Android 12+ background start restrictions from receivers. Ceiling: service instance binding. Upgrade: Bound service IPC.
+            try {
+                instance?.stopAlarm()
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed direct stopAlarm: ${e.message}")
             }
             try {
-                context.startService(intent)
-                Log.d(TAG, "Sent ACTION_STOP_ALARM to AlarmSoundService")
+                context.stopService(Intent(context, AlarmSoundService::class.java))
+                Log.d(TAG, "Called stopService on AlarmSoundService")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to stop AlarmSoundService: ${e.message}", e)
             }
@@ -87,6 +93,7 @@ class AlarmSoundService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        instance = this
         audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
     }
 
@@ -377,9 +384,10 @@ class AlarmSoundService : Service() {
             setOnClickPendingIntent(R.id.btn_notif_expanded_dismiss, dismissPendingIntent)
         }
 
+        // ponytail: Electric Blue notification brand theme tint matching Material 3 surface containers. Ceiling: RemoteViews custom view layout. Upgrade: Dynamic M3 system color extraction API.
         return NotificationCompat.Builder(this, NotificationService.ALARM_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_notification)
-            .setColor(android.graphics.Color.parseColor("#6366F1"))
+            .setColor(android.graphics.Color.parseColor("#3B82F6"))
             .setCustomContentView(smallLayout)
             .setCustomBigContentView(expandedLayout)
             .setStyle(NotificationCompat.DecoratedCustomViewStyle())
@@ -389,10 +397,12 @@ class AlarmSoundService : Service() {
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setFullScreenIntent(fullScreenPendingIntent, true)
             .setContentIntent(fullScreenPendingIntent)
+            .setDeleteIntent(dismissPendingIntent)
             .addAction(R.drawable.ic_stat_notification, "Open Portal", openPortalPendingIntent)
             .addAction(R.drawable.ic_stat_notification, "Snooze 10m", snoozePendingIntent)
-            .setOngoing(true)
-            .setAutoCancel(false)
+            .addAction(R.drawable.ic_stat_notification, "Dismiss", dismissPendingIntent)
+            .setOngoing(false)
+            .setAutoCancel(true)
             .build()
     }
 
@@ -459,6 +469,9 @@ class AlarmSoundService : Service() {
     }
 
     override fun onDestroy() {
+        if (instance == this) {
+            instance = null
+        }
         stopAlarm()
         serviceScope.cancel()
         super.onDestroy()
