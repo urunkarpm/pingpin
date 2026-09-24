@@ -2,19 +2,31 @@ package com.urunkarpm.pingpin.data
 
 object AppChangelog {
     const val CURRENT_VERSION_CHANGELOG = """
-### Background Wi-Fi Attendance, System Clock Redirection & UI Alignment (v2.6.1)
-- **Background Wi-Fi Attendance Fix**: Added FOREGROUND_SERVICE_LOCATION permission and updated AttendanceAutoService to location|dataSync foreground service type, resolving Android 14 background Wi-Fi SSID redactions so attendance is marked automatically upon connecting to office Wi-Fi without needing to open the app.
-- **System Clock Quick Settings Redirection**: Redirected system Quick Settings alarm tile taps to launch the native system Clock / Alarms app (AlarmClock.ACTION_SHOW_ALARMS) instead of opening PingPin.
-- **Settings Screen Status Bar Alignment**: Applied statusBarsPadding() to the Settings page layout column for uniform status bar top inset alignment across all app screens.
+### Extra WFO Attendance Tracking & PDF Insights Overhaul (v2.7.0)
+- **Extra WFO Attendance Detection**: Added full support for tracking office visits made on non-WFO days. Check-ins on non-WFO days now contribute accurately to overall attendance metrics without calculation errors.
+- **Uncapped Compliance Rate**: Updated compliance calculation on the Insights page to accurately reflect over-achievement (>100% compliance) when users visit the office more than designated WFO target days.
+- **Electric Blue Calendar & Log Badging**: Added dedicated `ElectricBlue` (`#0284C7`) visual markers, squircle borders, status dots, and legend filter options (`EXTRA_WFO`) across calendar cells and monthly log views.
+- **Executive PDF Export Statement**: PDF reports now include non-WFO attendance records in detailed log tables, highlight `EXCEEDED TARGET` compliance statuses, and display `EXTRA WFO` status pills in `ElectricBlue`.
 """
 
     const val FULL_CHANGELOG = """
-## [2.6.1] - Current Release
+## [2.7.0] - Current Release
 
-### Background Wi-Fi Attendance, System Clock Redirection & UI Alignment
-- **Background Wi-Fi Attendance Fix**: Added `FOREGROUND_SERVICE_LOCATION` permission and updated `AttendanceAutoService` to `location|dataSync` foreground service type, resolving Android 14 background Wi-Fi SSID redactions so attendance is marked automatically upon connecting to office Wi-Fi without needing to open the app.
-- **System Clock Quick Settings Redirection**: Redirected system Quick Settings alarm tile taps to launch the native system Clock / Alarms app (`AlarmClock.ACTION_SHOW_ALARMS`) instead of opening PingPin.
-- **Settings Screen Status Bar Alignment**: Applied `statusBarsPadding()` to the Settings page layout column for uniform status bar top inset alignment across all app screens.
+### Extra WFO Attendance Tracking & PDF Insights Overhaul
+- **Extra WFO Attendance Detection**: Added full support for tracking office visits made on non-WFO days. Check-ins on non-WFO days now contribute accurately to overall attendance metrics without calculation errors.
+- **Uncapped Compliance Rate**: Updated compliance calculation on the Insights page to accurately reflect over-achievement (>100% compliance) when users visit the office more than designated WFO target days.
+- **Electric Blue Calendar & Log Badging**: Added dedicated `ElectricBlue` (`#0284C7`) visual markers, squircle borders, status dots, and legend filter options (`EXTRA_WFO`) across calendar cells and monthly log views.
+- **Executive PDF Export Statement**: PDF reports now include non-WFO attendance records in detailed log tables, highlight `EXCEEDED TARGET` compliance statuses, and display `EXTRA WFO` status pills in `ElectricBlue`.
+
+---
+
+## [2.6.2]
+- Laws of UX Tactile Overhaul, Fitts's Law Touch Target Sizing, 60/120fps Smooth Blur Animation.
+
+---
+
+## [2.6.1]
+- Background Wi-Fi Attendance Fix, System Clock Redirection & Status Bar Alignment.
 
 ---
 

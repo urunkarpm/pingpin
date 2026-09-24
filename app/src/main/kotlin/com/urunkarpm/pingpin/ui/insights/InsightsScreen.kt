@@ -96,6 +96,7 @@ fun InsightsScreen(
         val recordsMap = monthlyRecords.associateBy { it.dateYyyyMmDd }
 
         var attendedWfoCount = 0
+        var extraWfoCount = 0
 
         val dayCal = Calendar.getInstance()
         for (day in 1..maxDays) {
@@ -130,6 +131,8 @@ fun InsightsScreen(
                 if (recordsMap.containsKey(dateStr)) {
                     attendedWfoCount++
                 }
+            } else if (recordsMap.containsKey(dateStr)) {
+                extraWfoCount++
             }
         }
 
@@ -142,6 +145,7 @@ fun InsightsScreen(
             workingDaysTotal = workTotal,
             workingDaysElapsed = workElapsed,
             attendedWfoDays = attendedWfoCount,
+            extraWfoDays = extraWfoCount,
             missedWfoDays = missed,
             upcomingWfoDays = upcoming
         )
@@ -153,6 +157,7 @@ fun InsightsScreen(
         workingDaysTotal,
         workingDaysElapsed,
         attendedWfoDays,
+        extraWfoDays,
         missedWfoDays,
         upcomingWfoDays
     ) = metrics
@@ -160,7 +165,7 @@ fun InsightsScreen(
     val attendedTotalDays = monthlyRecords.size
 
     val wfoCompliancePct = if (wfoTargetDaysElapsed > 0) {
-        (attendedWfoDays.toFloat() / wfoTargetDaysElapsed * 100f).coerceAtMost(100f)
+        (attendedTotalDays.toFloat() / wfoTargetDaysElapsed * 100f)
     } else 0f
 
     val overallAttendancePct = if (workingDaysElapsed > 0) {
@@ -345,7 +350,11 @@ fun InsightsScreen(
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
-                                        text = "$attendedWfoDays of $wfoTargetDaysElapsed required WFO days attended ($wfoTargetDaysTotal target of $workingDaysTotal working days)",
+                                        text = if (extraWfoDays > 0) {
+                                            "$attendedTotalDays of $wfoTargetDaysElapsed required WFO days attended ($attendedWfoDays WFO + $extraWfoDays Extra WFO)"
+                                        } else {
+                                            "$attendedWfoDays of $wfoTargetDaysElapsed required WFO days attended ($wfoTargetDaysTotal target of $workingDaysTotal working days)"
+                                        },
                                         fontSize = 12.sp,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -361,7 +370,7 @@ fun InsightsScreen(
                             Spacer(modifier = Modifier.height(16.dp))
 
                             // Linear Target Progress Bar
-                            val targetRatio = if (wfoTargetDaysTotal > 0) (attendedWfoDays.toFloat() / wfoTargetDaysTotal).coerceIn(0f, 1f) else 0f
+                            val targetRatio = if (wfoTargetDaysTotal > 0) (attendedTotalDays.toFloat() / wfoTargetDaysTotal).coerceIn(0f, 1f) else 0f
                             Column {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -374,7 +383,7 @@ fun InsightsScreen(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                     Text(
-                                        text = "$attendedWfoDays / $wfoTargetDaysTotal Target Days",
+                                        text = if (extraWfoDays > 0) "$attendedTotalDays / $wfoTargetDaysTotal Target Days ($extraWfoDays Extra)" else "$attendedWfoDays / $wfoTargetDaysTotal Target Days",
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.primary
@@ -402,8 +411,8 @@ fun InsightsScreen(
                         MetricCard(
                             modifier = Modifier.weight(1f),
                             title = "WFO Attended",
-                            value = "$attendedWfoDays / $wfoTargetDaysTotal",
-                            subtitle = if (wfoTargetDaysElapsed > 0) "$attendedWfoDays of $wfoTargetDaysElapsed required (${String.format(Locale.US, "%.0f", overallAttendancePct)}% overall)" else "No WFO elapsed",
+                            value = "$attendedTotalDays / $wfoTargetDaysTotal",
+                            subtitle = if (extraWfoDays > 0) "$attendedWfoDays scheduled + $extraWfoDays Extra WFO" else if (wfoTargetDaysElapsed > 0) "$attendedWfoDays of $wfoTargetDaysElapsed required (${String.format(Locale.US, "%.0f", overallAttendancePct)}% overall)" else "No WFO elapsed",
                             icon = Icons.Default.Business,
                             iconColor = EmeraldGreen
                         )
@@ -435,7 +444,7 @@ fun InsightsScreen(
                             modifier = Modifier.weight(1f),
                             title = "Missed WFO",
                             value = "$missedWfoDays Days",
-                            subtitle = if (upcomingWfoDays > 0) "$upcomingWfoDays upcoming targets" else "Month targets complete",
+                            subtitle = if (extraWfoDays > 0) "$extraWfoDays extra visits attended" else if (upcomingWfoDays > 0) "$upcomingWfoDays upcoming targets" else "Month targets complete",
                             icon = Icons.Default.Warning,
                             iconColor = if (missedWfoDays == 0) EmeraldGreen else Color(0xFFEF4444)
                         )
@@ -474,6 +483,7 @@ fun InsightsScreen(
                                 Text(
                                     text = when {
                                         wfoTargetDaysElapsed == 0 && wfoTargetDaysTotal > 0 -> "Upcoming month with $wfoTargetDaysTotal WFO target days scheduled."
+                                        extraWfoDays > 0 -> "Great initiative! You attended office $extraWfoDays extra day(s) beyond your required WFO schedule."
                                         wfoCompliancePct >= 100f -> "Outstanding performance! You have met 100% of your required WFO days so far."
                                         wfoCompliancePct >= 75f -> "Good work! You are on track with ${String.format(Locale.US, "%.0f", wfoCompliancePct)}% WFO compliance."
                                         missedWfoDays > 0 -> "Attention: You have $missedWfoDays missed WFO day(s). Make sure to visit office on upcoming WFO days."
@@ -503,7 +513,11 @@ fun InsightsScreen(
                         installCal = installCal
                     )
 
-                    AttendanceLogSummaryCard(records = monthlyRecords)
+                    AttendanceLogSummaryCard(
+                        records = monthlyRecords,
+                        workingDaysMask = workingDaysMask,
+                        wfoDaysMask = wfoDaysMask
+                    )
 
                     Button(
                         onClick = {
@@ -574,7 +588,11 @@ fun InsightsScreen(
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "$attendedWfoDays of $wfoTargetDaysElapsed required WFO days attended ($wfoTargetDaysTotal target of $workingDaysTotal working days)",
+                                text = if (extraWfoDays > 0) {
+                                    "$attendedTotalDays of $wfoTargetDaysElapsed required WFO days attended ($attendedWfoDays WFO + $extraWfoDays Extra WFO)"
+                                } else {
+                                    "$attendedWfoDays of $wfoTargetDaysElapsed required WFO days attended ($wfoTargetDaysTotal target of $workingDaysTotal working days)"
+                                },
                                 fontSize = 12.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -590,7 +608,7 @@ fun InsightsScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     // Linear Target Progress Bar
-                    val targetRatio = if (wfoTargetDaysTotal > 0) (attendedWfoDays.toFloat() / wfoTargetDaysTotal).coerceIn(0f, 1f) else 0f
+                    val targetRatio = if (wfoTargetDaysTotal > 0) (attendedTotalDays.toFloat() / wfoTargetDaysTotal).coerceIn(0f, 1f) else 0f
                     Column {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -603,7 +621,7 @@ fun InsightsScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
-                                text = "$attendedWfoDays / $wfoTargetDaysTotal Target Days",
+                                text = if (extraWfoDays > 0) "$attendedTotalDays / $wfoTargetDaysTotal Target Days ($extraWfoDays Extra)" else "$attendedWfoDays / $wfoTargetDaysTotal Target Days",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
@@ -631,8 +649,8 @@ fun InsightsScreen(
                 MetricCard(
                     modifier = Modifier.weight(1f),
                     title = "WFO Attended",
-                    value = "$attendedWfoDays / $wfoTargetDaysTotal",
-                    subtitle = if (wfoTargetDaysElapsed > 0) "$attendedWfoDays of $wfoTargetDaysElapsed required (${String.format(Locale.US, "%.0f", overallAttendancePct)}% overall)" else "No WFO elapsed",
+                    value = "$attendedTotalDays / $wfoTargetDaysTotal",
+                    subtitle = if (extraWfoDays > 0) "$attendedWfoDays scheduled + $extraWfoDays Extra WFO" else if (wfoTargetDaysElapsed > 0) "$attendedWfoDays of $wfoTargetDaysElapsed required (${String.format(Locale.US, "%.0f", overallAttendancePct)}% overall)" else "No WFO elapsed",
                     icon = Icons.Default.Business,
                     iconColor = EmeraldGreen
                 )
@@ -664,7 +682,7 @@ fun InsightsScreen(
                     modifier = Modifier.weight(1f),
                     title = "Missed WFO",
                     value = "$missedWfoDays Days",
-                    subtitle = if (upcomingWfoDays > 0) "$upcomingWfoDays upcoming targets" else "Month targets complete",
+                    subtitle = if (extraWfoDays > 0) "$extraWfoDays extra visits attended" else if (upcomingWfoDays > 0) "$upcomingWfoDays upcoming targets" else "Month targets complete",
                     icon = Icons.Default.Warning,
                     iconColor = if (missedWfoDays == 0) EmeraldGreen else Color(0xFFEF4444)
                 )
@@ -703,6 +721,7 @@ fun InsightsScreen(
                         Text(
                             text = when {
                                 wfoTargetDaysElapsed == 0 && wfoTargetDaysTotal > 0 -> "Upcoming month with $wfoTargetDaysTotal WFO target days scheduled."
+                                extraWfoDays > 0 -> "Great initiative! You attended office $extraWfoDays extra day(s) beyond your required WFO schedule."
                                 wfoCompliancePct >= 100f -> "Outstanding performance! You have met 100% of your required WFO days so far."
                                 wfoCompliancePct >= 75f -> "Good work! You are on track with ${String.format(Locale.US, "%.0f", wfoCompliancePct)}% WFO compliance."
                                 missedWfoDays > 0 -> "Attention: You have $missedWfoDays missed WFO day(s). Make sure to visit office on upcoming WFO days."
@@ -728,7 +747,11 @@ fun InsightsScreen(
             )
 
             // Monthly Attendance Log Summary Card
-            AttendanceLogSummaryCard(records = monthlyRecords)
+            AttendanceLogSummaryCard(
+                records = monthlyRecords,
+                workingDaysMask = workingDaysMask,
+                wfoDaysMask = wfoDaysMask
+            )
 
             // Export PDF Button
             Button(
@@ -853,16 +876,15 @@ private fun WeekdayDistributionCard(
             cal.set(Calendar.MILLISECOND, 0)
             if (cal.before(installCal)) continue
 
-            if (WorkingDays.isWorkingDay(cal, workingDaysMask) && WorkingDays.isWfoDay(cal, wfoDaysMask)) {
-                // Calendar.DAY_OF_WEEK: Sun=1, Mon=2, Tue=3...
-                val dayOfWeek = cal.get(Calendar.DAY_OF_WEEK)
-                val idx = if (dayOfWeek == Calendar.SUNDAY) 6 else dayOfWeek - 2
-                if (idx in 0..6) {
+            val dayOfWeek = cal.get(Calendar.DAY_OF_WEEK)
+            val idx = if (dayOfWeek == Calendar.SUNDAY) 6 else dayOfWeek - 2
+            if (idx in 0..6) {
+                if (WorkingDays.isWorkingDay(cal, workingDaysMask) && WorkingDays.isWfoDay(cal, wfoDaysMask)) {
                     targets[idx]++
-                    val dateStr = String.format(Locale.US, "%04d-%02d-%02d", year, month, day)
-                    if (recordsMap.containsKey(dateStr)) {
-                        attended[idx]++
-                    }
+                }
+                val dateStr = String.format(Locale.US, "%04d-%02d-%02d", year, month, day)
+                if (recordsMap.containsKey(dateStr)) {
+                    attended[idx]++
                 }
             }
         }
@@ -899,16 +921,20 @@ private fun WeekdayDistributionCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 weekdayStats.forEach { (dayName, attended, target) ->
-                    val ratio = if (target > 0) (attended.toFloat() / target).coerceIn(0f, 1f) else 0f
+                    val isExtra = target == 0 && attended > 0
+                    val ratio = if (target > 0) (attended.toFloat() / target).coerceIn(0f, 1f) else if (isExtra) 1.0f else 0f
+                    val barColor = if (isExtra) com.urunkarpm.pingpin.ui.theme.ElectricBlue else if (ratio >= 1.0f) EmeraldGreen else MaterialTheme.colorScheme.primary
+                    val labelText = if (target > 0) "$attended/$target" else if (isExtra) "$attended" else "-"
+                    val labelColor = if (isExtra) com.urunkarpm.pingpin.ui.theme.ElectricBlue else if (attended > 0) EmeraldGreen else MaterialTheme.colorScheme.onSurfaceVariant
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier.weight(1f)
                     ) {
                         Text(
-                            text = if (target > 0) "$attended/$target" else "-",
+                            text = labelText,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (attended > 0) EmeraldGreen else MaterialTheme.colorScheme.onSurfaceVariant
+                            color = labelColor
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Box(
@@ -924,7 +950,7 @@ private fun WeekdayDistributionCard(
                                     .fillMaxWidth()
                                     .fillMaxHeight(ratio)
                                     .clip(RoundedCornerShape(6.dp))
-                                    .background(if (ratio >= 1.0f) EmeraldGreen else MaterialTheme.colorScheme.primary)
+                                    .background(barColor)
                             )
                         }
                         Spacer(modifier = Modifier.height(6.dp))
@@ -943,7 +969,9 @@ private fun WeekdayDistributionCard(
 
 @Composable
 private fun AttendanceLogSummaryCard(
-    records: List<AttendanceRecordEntity>
+    records: List<AttendanceRecordEntity>,
+    workingDaysMask: Int = 31,
+    wfoDaysMask: Int = 31
 ) {
     val sortedRecords = remember(records) {
         records.sortedByDescending { it.dateYyyyMmDd }
@@ -987,22 +1015,29 @@ private fun AttendanceLogSummaryCard(
                     )
                 }
             } else {
-                val formattedRecords = remember(sortedRecords) {
+                val formattedRecords = remember(sortedRecords, workingDaysMask, wfoDaysMask) {
                     val sdfTime = SimpleDateFormat("hh:mm a", Locale.US)
                     val sdfInput = SimpleDateFormat("yyyy-MM-dd", Locale.US)
                     val sdfDisplayDate = SimpleDateFormat("EEE, MMM dd", Locale.US)
+                    val cal = Calendar.getInstance()
                     sortedRecords.take(5).map { record ->
                         val dateObj = try { sdfInput.parse(record.dateYyyyMmDd) } catch (e: Exception) { null }
                         val dateFormatted = dateObj?.let { sdfDisplayDate.format(it) } ?: record.dateYyyyMmDd
                         val timeStr = sdfTime.format(Date(record.markedAt))
                         val isLate = record.status.equals("late", ignoreCase = true)
-                        Triple(record, dateFormatted, Pair(timeStr, isLate))
+                        val isWfo = if (dateObj != null) {
+                            cal.time = dateObj
+                            WorkingDays.isWorkingDay(cal, workingDaysMask) && WorkingDays.isWfoDay(cal, wfoDaysMask)
+                        } else true
+                        val isExtraWfo = !isWfo
+
+                        Triple(record, dateFormatted, Triple(timeStr, isLate, isExtraWfo))
                     }
                 }
 
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     formattedRecords.forEach { (record, dateFormatted, timeAndStatus) ->
-                        val (timeStr, isLate) = timeAndStatus
+                        val (timeStr, isLate, isExtraWfo) = timeAndStatus
 
                         Row(
                             modifier = Modifier
@@ -1036,23 +1071,33 @@ private fun AttendanceLogSummaryCard(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 val isDark = MaterialTheme.colorScheme.background.red < 0.5f
+                                val badgeText = when {
+                                    isExtraWfo && isLate -> "EXTRA (LATE)"
+                                    isExtraWfo -> "EXTRA WFO"
+                                    isLate -> "LATE"
+                                    else -> "ON TIME"
+                                }
+                                val badgeBg = when {
+                                    isExtraWfo -> if (isDark) com.urunkarpm.pingpin.ui.theme.ElectricBlue.copy(alpha = 0.25f) else com.urunkarpm.pingpin.ui.theme.ElectricBlue.copy(alpha = 0.15f)
+                                    isLate -> if (isDark) com.urunkarpm.pingpin.ui.theme.CrimsonRedBgDark else com.urunkarpm.pingpin.ui.theme.CrimsonRedBgLight
+                                    else -> if (isDark) com.urunkarpm.pingpin.ui.theme.EmeraldGreenBgDark else com.urunkarpm.pingpin.ui.theme.EmeraldGreenBgLight
+                                }
+                                val badgeTextColor = when {
+                                    isExtraWfo -> com.urunkarpm.pingpin.ui.theme.ElectricBlue
+                                    isLate -> com.urunkarpm.pingpin.ui.theme.CrimsonRed
+                                    else -> com.urunkarpm.pingpin.ui.theme.EmeraldGreen
+                                }
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(6.dp))
-                                        .background(
-                                            if (isLate) {
-                                                if (isDark) com.urunkarpm.pingpin.ui.theme.CrimsonRedBgDark else com.urunkarpm.pingpin.ui.theme.CrimsonRedBgLight
-                                            } else {
-                                                if (isDark) com.urunkarpm.pingpin.ui.theme.EmeraldGreenBgDark else com.urunkarpm.pingpin.ui.theme.EmeraldGreenBgLight
-                                            }
-                                        )
+                                        .background(badgeBg)
                                         .padding(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
                                     Text(
-                                        text = if (isLate) "LATE" else "ON TIME",
+                                        text = badgeText,
                                         fontSize = 9.sp,
                                         fontWeight = FontWeight.ExtraBold,
-                                        color = if (isLate) com.urunkarpm.pingpin.ui.theme.CrimsonRed else com.urunkarpm.pingpin.ui.theme.EmeraldGreen
+                                        color = badgeTextColor
                                     )
                                 }
                             }
@@ -1070,6 +1115,7 @@ private data class MonthMetricsData(
     val workingDaysTotal: Int,
     val workingDaysElapsed: Int,
     val attendedWfoDays: Int,
+    val extraWfoDays: Int,
     val missedWfoDays: Int,
     val upcomingWfoDays: Int
 )

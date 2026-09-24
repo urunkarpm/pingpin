@@ -59,6 +59,7 @@ enum class LegendFilterType {
     PRESENT,
     WFO_DAY,
     MAKEUP_WFO,
+    EXTRA_WFO,
     MISSED,
     TODAY,
     OFF_DAY
@@ -90,7 +91,8 @@ private data class MonthDayCellData(
     val isWorking: Boolean,
     val isWfo: Boolean,
     val isAttended: Boolean,
-    val isMakeupWfo: Boolean = false
+    val isMakeupWfo: Boolean = false,
+    val isExtraWfo: Boolean = false
 )
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -181,6 +183,7 @@ fun MonthlyCalendarView(
             val isMakeupWfo = acceptedMakeupDates.contains(dateStr)
             val isWfo = WorkingDays.isWfoDay(cellCal, wfoDaysMask) || isMakeupWfo
             val isFuture = cellCal.after(todayCal)
+            val isExtraWfo = isAttended && !isWfo
 
             list.add(
                 MonthDayCellData(
@@ -193,7 +196,8 @@ fun MonthlyCalendarView(
                     isWorking = isWorking,
                     isWfo = isWfo,
                     isAttended = isAttended,
-                    isMakeupWfo = isMakeupWfo
+                    isMakeupWfo = isMakeupWfo,
+                    isExtraWfo = isExtraWfo
                 )
             )
         }
@@ -204,6 +208,7 @@ fun MonthlyCalendarView(
     val presentCount = remember(monthCellsData) { monthCellsData.count { it.isCurrentMonthDay && it.isAttended } }
     val wfoCount = remember(monthCellsData) { monthCellsData.count { it.isCurrentMonthDay && it.isWorking && it.isWfo && !it.isBeforeInstall } }
     val makeupCount = remember(monthCellsData) { monthCellsData.count { it.isCurrentMonthDay && it.isMakeupWfo } }
+    val extraWfoCount = remember(monthCellsData) { monthCellsData.count { it.isCurrentMonthDay && it.isExtraWfo } }
     val missedCount = remember(monthCellsData) {
         monthCellsData.count { it.isCurrentMonthDay && it.isWorking && it.isWfo && !it.isAttended && !it.isFuture && !it.isToday && !it.isBeforeInstall }
     }
@@ -326,12 +331,13 @@ fun MonthlyCalendarView(
         // ponytail: In-place scroll wheel selector for calendar legends.
         // Ceiling: Single-slot inline scroll wheel cycling through filters. Upgrade path: Multi-track wheel or chip grid if concurrent multi-select filters are needed.
         val offDayDotColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-        val legendWheelItems = remember(presentCount, wfoCount, makeupCount, missedCount, todayCount, offCount, isDark, offDayDotColor) {
+        val legendWheelItems = remember(presentCount, wfoCount, makeupCount, extraWfoCount, missedCount, todayCount, offCount, isDark, offDayDotColor) {
             listOf(
                 LegendItemData("All Legends", null, 0, Color.Transparent, ElectricBlue),
                 LegendItemData("Present", LegendFilterType.PRESENT, presentCount, if (isDark) EmeraldGreenBgDark else EmeraldGreenBgLight, EmeraldGreen),
                 LegendItemData("WFO Day", LegendFilterType.WFO_DAY, wfoCount, if (isDark) WfoDayPurpleBgDark else WfoDayPurpleBgLight, WfoDayPurple),
                 LegendItemData("Makeup WFO", LegendFilterType.MAKEUP_WFO, makeupCount, if (isDark) AmberOrangeBgDark else AmberOrangeBgLight, AmberOrange),
+                LegendItemData("Extra WFO", LegendFilterType.EXTRA_WFO, extraWfoCount, ElectricBlue.copy(alpha = 0.25f), ElectricBlue),
                 LegendItemData("Missed", LegendFilterType.MISSED, missedCount, if (isDark) CrimsonRedBgDark else CrimsonRedBgLight, CrimsonRed),
                 LegendItemData("Today", LegendFilterType.TODAY, todayCount, ElectricBlue, ElectricBlue, isBorderOnly = true),
                 LegendItemData("Off-Day", LegendFilterType.OFF_DAY, offCount, Color.Transparent, offDayDotColor)
@@ -482,6 +488,7 @@ private fun isCellMatchingFilter(cell: MonthDayCellData, filter: LegendFilterTyp
         LegendFilterType.PRESENT -> cell.isAttended
         LegendFilterType.WFO_DAY -> cell.isWorking && cell.isWfo && !cell.isBeforeInstall
         LegendFilterType.MAKEUP_WFO -> cell.isMakeupWfo
+        LegendFilterType.EXTRA_WFO -> cell.isExtraWfo
         LegendFilterType.MISSED -> cell.isWorking && cell.isWfo && !cell.isAttended && !cell.isFuture && !cell.isToday && !cell.isBeforeInstall
         LegendFilterType.TODAY -> cell.isToday
         LegendFilterType.OFF_DAY -> !cell.isWorking
@@ -530,6 +537,7 @@ private fun MonthDayCellItem(
 
     val statusDotColor = when {
         !cell.isCurrentMonthDay -> Color.Transparent
+        cell.isExtraWfo -> ElectricBlue
         cell.isAttended -> EmeraldGreen
         cell.isMakeupWfo && !cell.isAttended -> AmberOrange
         cell.isBeforeInstall -> Color.Transparent
@@ -558,6 +566,13 @@ private fun MonthDayCellItem(
         if (cell.isToday) {
             cellModifier = cellModifier.border(
                 width = 2.5.dp,
+                color = ElectricBlue,
+                shape = squircleShape
+            )
+        } else if (cell.isCurrentMonthDay && cell.isExtraWfo) {
+            // ponytail: Electric Blue accent border marker for non-WFO office attendance (Extra WFO). Ceiling: 2dp squircle border. Upgrade: Dual-color badge.
+            cellModifier = cellModifier.border(
+                width = 2.dp,
                 color = ElectricBlue,
                 shape = squircleShape
             )
@@ -593,6 +608,7 @@ private fun MonthDayCellItem(
             if (!cell.isCurrentMonthDay) ""
             else {
                 val statusText = when {
+                    cell.isExtraWfo -> "Present (Extra WFO Day)"
                     cell.isAttended -> "Present WFO"
                     cell.isMakeupWfo -> "Makeup WFO Scheduled"
                     cell.isWfo && cell.isWorking -> if (cell.isFuture) "Scheduled WFO Day" else "Missed WFO Day"

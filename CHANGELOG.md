@@ -5,6 +5,16 @@ All notable changes to **PingPin** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.0] - 2026-09-24
+
+### Added & Refined (Extra WFO Tracking & Insights Overhaul)
+- **Extra WFO Attendance Detection**: Added full support for tracking office visits made on non-WFO days. Check-ins on non-WFO days now contribute accurately to overall attendance metrics without calculation errors.
+- **Uncapped Compliance Rate**: Updated compliance calculation on the Insights page to accurately reflect over-achievement (>100% compliance) when users visit the office more than designated WFO target days.
+- **Electric Blue Calendar & Log Badging**: Added dedicated `ElectricBlue` (`#0284C7`) visual markers, squircle borders, status dots, and legend filter options (`EXTRA_WFO`) across calendar cells and monthly log views.
+- **Executive PDF Export Statement**: PDF reports now include non-WFO attendance records in detailed log tables, highlight `EXCEEDED TARGET` compliance statuses, and display `EXTRA WFO` status pills in `ElectricBlue`.
+
+---
+
 ## [2.6.2] - 2026-09-23
 
 ### Refined & Polish (Laws of UX & Smooth Blur)

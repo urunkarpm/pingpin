@@ -17,7 +17,7 @@ object AppInstallManager {
         if (savedTime > 0L) return savedTime
 
         val packageInstallTime = try {
-            context.packageManager.getPackageInfo(context.packageName, 0).firstInstallTime
+            context.packageManager?.getPackageInfo(context.packageName ?: "", 0)?.firstInstallTime ?: System.currentTimeMillis()
         } catch (e: Exception) {
             System.currentTimeMillis()
         }

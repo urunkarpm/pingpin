@@ -68,20 +68,35 @@ class PdfExportService(private val context: Context) {
         val recordsMap = records.associateBy { it.dateYyyyMmDd }
 
         val wfoDays = mutableListOf<Calendar>()
+        val reportDaysMap = LinkedHashMap<String, Calendar>()
+
         for (day in 1..maxDays) {
             val cal = Calendar.getInstance()
             cal.set(year, month - 1, day, 0, 0, 0)
             cal.set(Calendar.MILLISECOND, 0)
             val isoDate = String.format(Locale.US, "%04d-%02d-%02d", year, month, day)
-            if ((!cal.before(installCal) || recordsMap.containsKey(isoDate)) &&
-                WorkingDays.isWorkingDay(cal, workingDaysMask) &&
-                WorkingDays.isWfoDay(cal, wfoDaysMask)
-            ) {
+            val isAttended = recordsMap.containsKey(isoDate)
+            val isWfo = WorkingDays.isWorkingDay(cal, workingDaysMask) && WorkingDays.isWfoDay(cal, wfoDaysMask)
+
+            if (isWfo) {
                 wfoDays.add(cal)
             }
+            if ((!cal.before(installCal) || isAttended) && (isWfo || isAttended)) {
+                reportDaysMap[isoDate] = cal
+            }
         }
+        val reportDays = reportDaysMap.values.toList()
 
         val totalOfficeDays = recordsMap.size
+
+        val extraWfoCount = records.count { rec ->
+            val cal = Calendar.getInstance().apply {
+                val parts = rec.dateYyyyMmDd.split("-")
+                set(parts[0].toInt(), parts[1].toInt() - 1, parts[2].toInt(), 0, 0, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+            !WorkingDays.isWfoDay(cal, wfoDaysMask) || !WorkingDays.isWorkingDay(cal, workingDaysMask)
+        }
 
         val todayCal = Calendar.getInstance()
         todayCal.set(Calendar.HOUR_OF_DAY, 0)
@@ -145,7 +160,7 @@ class PdfExportService(private val context: Context) {
         val docRefId = "PP-${year}${String.format(Locale.US, "%02d", month)}-$nameHash"
 
         // Total page estimate
-        val totalPages = if (wfoDays.size > 14) 2 else 1
+        val totalPages = if (reportDays.size > 14) 2 else 1
 
         var pageNum = 1
         var pageInfo = PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNum).create()
@@ -303,7 +318,14 @@ class PdfExportService(private val context: Context) {
         canvas.drawText("$attendancePctStr%", 360f, 126f, textPaint)
 
         // Rating Badge Pill inside compliance card
-        val ratingStatus = if (evaluatedCount == 0) "N/A" else if (pct >= 100.0) "EXCELLENT" else if (pct >= 75.0) "ON TRACK" else if (pct >= 50.0) "ATTENTION" else "LOW"
+        val ratingStatus = when {
+            evaluatedCount == 0 -> "N/A"
+            extraWfoCount > 0 && pct >= 100.0 -> "EXCEEDED TARGET"
+            pct >= 100.0 -> "EXCELLENT"
+            pct >= 75.0 -> "ON TRACK"
+            pct >= 50.0 -> "ATTENTION"
+            else -> "LOW"
+        }
         val badgeBg = if (pct >= 75.0) successGreenFg else if (pct >= 50.0) warningAmberFg else softRedFg
         val statusPillRect = RectF(465f, 106f, 545f, 124f)
         paint.color = badgeBg
@@ -318,7 +340,8 @@ class PdfExportService(private val context: Context) {
         textPaint.color = textMuted
         textPaint.textSize = 8.5f
         textPaint.typeface = Typeface.DEFAULT
-        canvas.drawText("$totalOfficeDays of $evaluatedCount evaluated days completed", 360f, 152f, textPaint)
+        val extraSubtitle = if (extraWfoCount > 0) " (incl. $extraWfoCount Extra WFO)" else ""
+        canvas.drawText("$totalOfficeDays of $evaluatedCount evaluated days completed$extraSubtitle", 360f, 152f, textPaint)
         canvas.drawText("Target WFO: ${wfoDays.size} days in month", 360f, 164f, textPaint)
 
         // 3. Stat Overview Cards (4 Columns)
@@ -376,7 +399,8 @@ class PdfExportService(private val context: Context) {
         textPaint.textSize = 8.5f
         textPaint.typeface = Typeface.DEFAULT
         canvas.drawText("• Avg Arrival Time: $avgCheckInTimeStr", 48f, 276f, textPaint)
-        canvas.drawText("• Punctuality: $onTimeCount On-time, $lateCount Late arrivals", 48f, 290f, textPaint)
+        val extraWfoNote = if (extraWfoCount > 0) " (incl. $extraWfoCount Extra WFO)" else ""
+        canvas.drawText("• Punctuality: $onTimeCount On-time, $lateCount Late$extraWfoNote", 48f, 290f, textPaint)
         val primaryWifi = officeConfig?.ssid?.takeIf { it.isNotBlank() } ?: "Office Wi-Fi / Geofence"
         canvas.drawText("• Verification: ${String.format(Locale.US, "%.0f%%", autoPunchPct)} via $primaryWifi", 48f, 304f, textPaint)
 
@@ -419,7 +443,7 @@ class PdfExportService(private val context: Context) {
         val sdfIso = SimpleDateFormat("yyyy-MM-dd", Locale.US)
 
         var rowIndex = 0
-        for (cal in wfoDays) {
+        for (cal in reportDays) {
             // If nearing bottom of page 1, split to Page 2
             if (startY + 20f > 720f && pageNum == 1) {
                 drawFooter(canvas, pageNum)
@@ -439,6 +463,8 @@ class PdfExportService(private val context: Context) {
             val isoDate = sdfIso.format(cal.time)
             val record = recordsMap[isoDate]
             val isPresent = record != null
+            val isWfo = WorkingDays.isWorkingDay(cal, workingDaysMask) && WorkingDays.isWfoDay(cal, wfoDaysMask)
+            val isExtraWfo = isPresent && !isWfo
             val isFuture = cal.after(todayCal)
             val isLate = record?.status == "late"
 
@@ -471,7 +497,7 @@ class PdfExportService(private val context: Context) {
                 if (isLate) "$tStr (Late)" else tStr
             } else "--:--"
 
-            textPaint.color = if (isPresent) (if (isLate) warningAmberFg else successGreenFg) else textMuted
+            textPaint.color = if (isPresent) (if (isExtraWfo) Color.parseColor("#0369A1") else if (isLate) warningAmberFg else successGreenFg) else textMuted
             textPaint.typeface = if (isPresent) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
             canvas.drawText(timeMarkedText, 205f, startY + 14f, textPaint)
 
@@ -488,9 +514,32 @@ class PdfExportService(private val context: Context) {
             canvas.drawText(sourceText, 315f, startY + 14f, textPaint)
 
             // Column 5: Status Badge Pill
-            val statusStr = if (isPresent) (if (isLate) "LATE" else "PRESENT") else if (isFuture) "UPCOMING" else "ABSENT"
-            val badgeBgColor = if (isPresent) (if (isLate) warningAmberBg else successGreenBg) else if (isFuture) upcomingBg else softRedBg
-            val badgeTextColor = if (isPresent) (if (isLate) warningAmberFg else successGreenFg) else if (isFuture) upcomingFg else softRedFg
+            val statusStr = when {
+                isExtraWfo && isLate -> "EXTRA (LATE)"
+                isExtraWfo -> "EXTRA WFO"
+                isPresent && isLate -> "LATE"
+                isPresent -> "PRESENT"
+                isFuture -> "UPCOMING"
+                else -> "ABSENT"
+            }
+            val extraBlueBg = Color.parseColor("#E0F2FE")
+            val extraBlueFg = Color.parseColor("#0369A1")
+
+            val badgeBgColor = when {
+                isExtraWfo -> extraBlueBg
+                isPresent && isLate -> warningAmberBg
+                isPresent -> successGreenBg
+                isFuture -> upcomingBg
+                else -> softRedBg
+            }
+
+            val badgeTextColor = when {
+                isExtraWfo -> extraBlueFg
+                isPresent && isLate -> warningAmberFg
+                isPresent -> successGreenFg
+                isFuture -> upcomingFg
+                else -> softRedFg
+            }
 
             val bRect = RectF(455f, startY + 3f, 535f, startY + 17f)
             paint.color = badgeBgColor
