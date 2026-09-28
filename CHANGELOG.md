@@ -5,6 +5,26 @@ All notable changes to **PingPin** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.0] - 2026-09-28
+
+### Added & Refined (In-App Auto Portal Overhaul & Performance Tuning)
+- **In-App Portal Diagnostics & Real-Time Console**: Integrated an expandable live automation diagnostics console directly into `PortalActivity`. Live-streams DOM scanning attempts, detected buttons, keyword matches, and real-time status feedback.
+- **Removed Overlay Window Requirement (`SYSTEM_ALERT_WINDOW`)**: Eliminated the invasive "Display over other apps" permission requirement and decommissioned `FloatingPortalService`, establishing a clean, permission-light in-app portal workflow.
+- **Hardened Web Automation Engine**: Upgraded `PortalAutoCheckInEngine` to traverse nested iframes and Shadow DOM structures, with fuzzy keyword matching and detailed diagnostic reports for unmapped portal buttons.
+- **Calendar & Day Selector Performance Optimization**: Reused static `DayCellSquircleShape` to eliminate redundant memory allocations on calendar grid scrolls, and streamlined WFO/working day selectors to zero-overhead static layouts conforming to the Doherty Threshold (<400ms tactile response).
+- **Unit Testing Suite**: Added dedicated unit test suite (`PortalAutoCheckInEngineTest`) verifying portal URL matching, login script injection, and check-in confirmation flows.
+
+---
+
+## [2.7.2] - 2026-09-24
+
+### Enhanced & Fixed (Alarm Dismissal Fix & Vertical Sliders)
+- **Instant Audio & Vibration Teardown**: Tapping Dismiss on the alarm notification immediately halts audio playback, vibration, and wake locks via direct singleton instance signaling (fixing Android 12+ `ForegroundServiceStartNotAllowedException`).
+- **Side-by-Side Vertical Sliders**: Replaced horizontal sliders on the Alarm screen with smooth, side-by-side vertical slide controls extending up to half the screen height with unobstructed labels.
+- **Accessibility & Layout Stability**: Capped maximum font scale at 1.15f and added vertical scrolling on the Alarm screen to prevent text overlapping or UI clipping when large display density/fonts are enabled.
+
+---
+
 ## [2.7.1] - 2026-09-24
 
 ### Optimized & Signed Release (Ponytail Performance & Play Protect Hardening)

@@ -68,13 +68,17 @@ class PortalAutoCheckInEngine {
                 listOf(
                     "check in", "check-in", "clock in", "clock-in", "punch in", "punch-in",
                     "web punch", "web-punch", "checkin", "punchin", "clockin",
-                    "mark attendance", "mark present"
+                    "mark attendance", "mark present", "swipe in", "swipe-in",
+                    "web check in", "web check-in", "web checkin", "in punch",
+                    "punch in now", "check in now", "punch now", "mark in", "punch"
                 )
             } else {
                 listOf(
                     "check out", "check-out", "clock out", "clock-out", "punch out", "punch-out",
-                    "web-punch out", "web punch out", "checkout", "punchout", "clockout", "mark checkout",
-                    "mark check-out", "out punch", "punch out now", "end shift"
+                    "web-punch out", "web punch out", "checkout", "punchout", "clockout",
+                    "mark checkout", "mark check-out", "out punch", "punch out now", "end shift",
+                    "swipe out", "swipe-out", "web check-out", "web check out", "web checkout",
+                    "check out now", "clock out now"
                 )
             }
 
@@ -86,17 +90,24 @@ class PortalAutoCheckInEngine {
                 if (window.__pingpin_automation_active) return;
                 window.__pingpin_automation_active = true;
 
-                console.log("PingPin Portal Engine started for action: $actionType");
+                var isCheckIn = ${isCheckIn};
+                var actionLabel = isCheckIn ? "Check-in" : "Check-out";
+                var targetKeywords = $keywordsJsArray;
+                var targetUrl = '$escapedTargetUrl';
+
+                console.log("[PingPin] Portal Engine started for action: " + actionLabel);
 
                 function notifyStatus(msg) {
+                    console.log("[PingPin] " + msg);
                     if (window.PingPinBridge && window.PingPinBridge.updateStatus) {
                         window.PingPinBridge.updateStatus(msg);
                     }
                 }
 
+                notifyStatus("🚀 Automation engine started for " + actionLabel);
+
                 function checkUrlMismatch() {
                     try {
-                        var targetUrl = '$escapedTargetUrl';
                         if (!targetUrl) return;
 
                         var currentHref = (window.location.href || '').toLowerCase();
@@ -175,25 +186,30 @@ class PortalAutoCheckInEngine {
                         el.focus();
                     } catch(e){}
 
+                    var target = el.closest('button, a, [role="button"], input[type="button"], input[type="submit"]') || el;
+
                     try {
-                        var evt = new MouseEvent('click', {
-                            bubbles: true,
-                            cancelable: true,
-                            view: window
-                        });
-                        el.dispatchEvent(evt);
+                        target.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, view: window }));
+                        target.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
+                        target.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, cancelable: true, view: window }));
+                        target.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
+                        target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
                     } catch(e){}
 
                     try {
-                        el.click();
+                        target.click();
                     } catch(e){}
 
-                    if (el.form) {
+                    if (target !== el) {
+                        try { el.click(); } catch(e){}
+                    }
+
+                    if (target.form) {
                         try {
-                            if (typeof el.form.requestSubmit === 'function') {
-                                el.form.requestSubmit();
-                            } else if (typeof el.form.submit === 'function') {
-                                el.form.submit();
+                            if (typeof target.form.requestSubmit === 'function') {
+                                target.form.requestSubmit();
+                            } else if (typeof target.form.submit === 'function') {
+                                target.form.submit();
                             }
                         } catch(e){}
                     }
@@ -204,7 +220,8 @@ class PortalAutoCheckInEngine {
                 }
 
                 function getElementText(el) {
-                    return (el.innerText || el.textContent || el.value || el.getAttribute('aria-label') || el.getAttribute('title') || '').toLowerCase().trim();
+                    var raw = (el.innerText || el.textContent || el.value || el.getAttribute('aria-label') || el.getAttribute('title') || el.getAttribute('data-original-title') || el.getAttribute('data-title') || '');
+                    return raw.toLowerCase().replace(/\s+/g, ' ').trim();
                 }
 
                 function findSubmitButton(formContext) {
@@ -291,51 +308,119 @@ class PortalAutoCheckInEngine {
                     return false;
                 }
 
-                function tryAutoPunch() {
-                    if (!${autoPunch}) return false;
+                function tryAutoPunch(attemptNum, maxAttemptsTotal) {
+                    if (!${autoPunch}) return { success: false, reason: 'disabled', visibleButtons: [] };
 
-                    var targetKeywords = $keywordsJsArray;
-                    var blacklist = ['log in', 'login', 'sign in', 'signin', 'log out', 'logout', 'sign out', 'signout', 'register', 'forgot password', 'user', 'email', 'password'];
+                    var blacklist = isCheckIn ? [
+                        'log in', 'login', 'sign in', 'signin', 'log out', 'logout', 'sign out', 'signout',
+                        'check out', 'checkout', 'clock out', 'clockout', 'punch out', 'punchout', 'swipe out',
+                        'history', 'records', 'report', 'reports', 'summary', 'regularization', 'regularize', 'request',
+                        'register', 'forgot password', 'user', 'email', 'password'
+                    ] : [
+                        'log in', 'login', 'sign in', 'signin', 'log out', 'logout', 'sign out', 'signout',
+                        'check in', 'checkin', 'clock in', 'clockin', 'punch in', 'punchin', 'swipe in',
+                        'history', 'records', 'report', 'reports', 'summary', 'regularization', 'regularize', 'request',
+                        'register', 'forgot password', 'user', 'email', 'password'
+                    ];
 
-                    var candidateElements = Array.from(document.querySelectorAll('button, a, input[type="button"], input[type="submit"], div[role="button"], span[role="button"], .btn, .button, [class*="punch"], [class*="checkin"], [class*="checkout"]'));
-                    
-                    for (var i = 0; i < candidateElements.length; i++) {
-                        var el = candidateElements[i];
-                        if (!isVisible(el)) continue;
-
-                        var text = getElementText(el);
-                        if (!text) continue;
-
-                        var isBlacklisted = false;
-                        for (var b = 0; b < blacklist.length; b++) {
-                            if (text === blacklist[b] || text.startsWith(blacklist[b] + ' ')) {
-                                isBlacklisted = true;
-                                break;
-                            }
+                    var docs = [document];
+                    try {
+                        var frames = document.querySelectorAll('iframe, frame');
+                        for (var f = 0; f < frames.length; f++) {
+                            try {
+                                var fDoc = frames[f].contentDocument || (frames[f].contentWindow && frames[f].contentWindow.document);
+                                if (fDoc && fDoc.body) docs.push(fDoc);
+                            } catch(e){}
                         }
-                        if (isBlacklisted) continue;
-                        
-                        for (var k = 0; k < targetKeywords.length; k++) {
-                            var kw = targetKeywords[k];
-                            if (text.includes(kw)) {
+                    } catch(e){}
+
+                    var visibleButtonLabels = [];
+                    var totalCandidates = 0;
+
+                    for (var d = 0; d < docs.length; d++) {
+                        var doc = docs[d];
+                        var candidateElements = Array.from(doc.querySelectorAll(
+                            'button, input[type="button"], input[type="submit"], input[type="image"], a, div[role="button"], span[role="button"], div[onclick], span[onclick], .btn, .button, [class*="btn"], [class*="button"], [class*="punch"], [class*="checkin"], [class*="checkout"], [class*="attendance"], [class*="action"]'
+                        ));
+                        totalCandidates += candidateElements.length;
+
+                        for (var i = 0; i < candidateElements.length; i++) {
+                            var el = candidateElements[i];
+                            if (!isVisible(el)) continue;
+
+                            // Skip container cards/sections that wrap nested buttons or links
+                            var tag = (el.tagName || '').toLowerCase();
+                            var isRealButton = (tag === 'button' || tag === 'a' || tag === 'input' || el.getAttribute('role') === 'button');
+                            if (!isRealButton && el.querySelector('button, a, input[type="button"], input[type="submit"], [role="button"]')) {
+                                continue;
+                            }
+
+                            var text = getElementText(el);
+                            if (!text) continue;
+
+                            // Collect distinct visible button labels for user diagnostics
+                            if (text.length <= 40 && visibleButtonLabels.indexOf(text) === -1 && visibleButtonLabels.length < 8) {
+                                visibleButtonLabels.push(text);
+                            }
+
+                            if (text.length > 80) continue;
+
+                            // Check blacklist
+                            var isBlacklisted = false;
+                            for (var b = 0; b < blacklist.length; b++) {
+                                var blItem = blacklist[b];
+                                if (text === blItem || text.startsWith(blItem + ' ') || text.endsWith(' ' + blItem)) {
+                                    isBlacklisted = true;
+                                    break;
+                                }
+                            }
+                            if (isBlacklisted) continue;
+
+                            // Check target keywords
+                            var matchedKeyword = null;
+                            for (var k = 0; k < targetKeywords.length; k++) {
+                                var kw = targetKeywords[k];
+                                if (kw === 'punch' || kw === 'mark in' || kw === 'in punch' || kw === 'out punch') {
+                                    if (text === kw || text === kw + ' in' || text === kw + ' out' || text === 'web ' + kw || text === kw + ' now' || text.startsWith(kw + ' ') || text.endsWith(' ' + kw)) {
+                                        matchedKeyword = kw;
+                                        break;
+                                    }
+                                } else {
+                                    if (text === kw || text.startsWith(kw + ' ') || text.endsWith(' ' + kw) || text.includes(kw)) {
+                                        matchedKeyword = kw;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (matchedKeyword) {
+                                var elId = el.id ? '#' + el.id : '';
+                                var elClass = (el.className && typeof el.className === 'string') ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.') : '';
+                                var elDescriptor = '<' + tag + elId + elClass + '>';
                                 var initialBodyText = (document.body ? document.body.innerText : '').toLowerCase();
-                                notifyStatus("Found target button (" + kw + "). Clicking...");
+
+                                notifyStatus("🎯 Found " + actionLabel + " button: '" + text + "' on " + elDescriptor + " (matched '" + matchedKeyword + "'). Clicking...");
+
                                 if (window.PingPinBridge && window.PingPinBridge.punchAttempted) {
                                     window.PingPinBridge.punchAttempted('$actionType');
                                 }
-                                el.click();
-                                verifyPunchSuccess(initialBodyText);
-                                return true;
+
+                                clickElement(el);
+                                verifyPunchSuccess(initialBodyText, text, elDescriptor);
+                                return { success: true, visibleButtons: visibleButtonLabels };
                             }
                         }
                     }
-                    return false;
+
+                    return {
+                        success: false,
+                        totalCandidates: totalCandidates,
+                        visibleButtons: visibleButtonLabels
+                    };
                 }
 
-                function verifyPunchSuccess(initialBodyText) {
-                    var isCheckIn = ${isCheckIn};
-                    var actionLabel = isCheckIn ? "check-in" : "check-out";
-                    notifyStatus("Punch clicked. Checking for location/modal confirmation...");
+                function verifyPunchSuccess(initialBodyText, clickedButtonText, elDesc) {
+                    notifyStatus("🖱️ Clicked " + (clickedButtonText ? "'" + clickedButtonText + "'" : "button") + " (" + (elDesc || "element") + "). Waiting for confirmation...");
 
                     var confirmKeywords = isCheckIn ? [
                         'confirm', 'confirm check-in', 'confirm check in', 'confirm punch',
@@ -356,56 +441,62 @@ class PortalAutoCheckInEngine {
                     var maxVAttempts = 24; // Poll every 500ms for 12 seconds
 
                     var vTimer = setInterval(function() {
-                        vAttempts++;
+                        try {
+                            vAttempts++;
 
-                        if (!modalClicked) {
-                            var modalCandidates = Array.from(document.querySelectorAll(
-                                '[role="dialog"] button, .modal button, .dialog button, [class*="modal"] button, [class*="popup"] button, [class*="confirm"] button, [class*="dialog"] button, button[class*="confirm"], button[id*="confirm"], .btn-primary, .button-primary, button[type="submit"]'
-                            ));
+                            if (!modalClicked) {
+                                var modalCandidates = Array.from(document.querySelectorAll(
+                                    '[role="dialog"] button, .modal button, .dialog button, [class*="modal"] button, [class*="popup"] button, [class*="confirm"] button, [class*="dialog"] button, button[class*="confirm"], button[id*="confirm"], .btn-primary, .button-primary, button[type="submit"]'
+                                ));
 
-                            for (var m = 0; m < modalCandidates.length; m++) {
-                                var mEl = modalCandidates[m];
-                                if (!isVisible(mEl)) continue;
-                                var mText = getElementText(mEl);
-                                if (!mText) continue;
+                                for (var m = 0; m < modalCandidates.length; m++) {
+                                    var mEl = modalCandidates[m];
+                                    if (!isVisible(mEl)) continue;
+                                    var mText = getElementText(mEl);
+                                    if (!mText) continue;
 
-                                for (var c = 0; c < confirmKeywords.length; c++) {
-                                    if (mText === confirmKeywords[c] || (mText.length < 35 && mText.includes(confirmKeywords[c]))) {
-                                        notifyStatus("Found confirmation popup (" + mText + "). Clicking to confirm...");
-                                        mEl.click();
-                                        modalClicked = true;
-                                        break;
+                                    for (var c = 0; c < confirmKeywords.length; c++) {
+                                        if (mText === confirmKeywords[c] || (mText.length < 35 && mText.includes(confirmKeywords[c]))) {
+                                            notifyStatus("💬 Found confirmation popup: '" + mText + "'. Clicking to confirm...");
+                                            clickElement(mEl);
+                                            modalClicked = true;
+                                            break;
+                                        }
                                     }
+                                    if (modalClicked) break;
                                 }
-                                if (modalClicked) break;
                             }
-                        }
 
-                        var currentBodyText = (document.body ? document.body.innerText : '').toLowerCase();
+                            var currentBodyText = (document.body ? document.body.innerText : '').toLowerCase();
 
-                        for (var s = 0; s < successKeywords.length; s++) {
-                            var sk = successKeywords[s];
-                            if (currentBodyText.includes(sk)) {
-                                if (initialBodyText.includes(sk) && !modalClicked && vAttempts < 5) {
-                                    continue;
+                            for (var s = 0; s < successKeywords.length; s++) {
+                                var sk = successKeywords[s];
+                                if (currentBodyText.includes(sk)) {
+                                    if (initialBodyText.includes(sk) && !modalClicked && vAttempts < 5) {
+                                        continue;
+                                    }
+                                    clearInterval(vTimer);
+                                    notifyStatus("🎉 " + actionLabel + " confirmed! Server response: '" + sk + "'");
+                                    if (window.PingPinBridge && window.PingPinBridge.punchSuccess) {
+                                        window.PingPinBridge.punchSuccess('$actionType');
+                                    }
+                                    window.__pingpin_automation_active = false;
+                                    return;
                                 }
+                            }
+
+                            if (vAttempts >= maxVAttempts) {
                                 clearInterval(vTimer);
-                                notifyStatus("🎉 Punch verified and confirmed on portal!");
+                                window.__pingpin_automation_active = false;
+                                notifyStatus("✅ Clicked '" + (clickedButtonText || actionLabel) + "'. No server errors reported. Auto punch completed.");
                                 if (window.PingPinBridge && window.PingPinBridge.punchSuccess) {
                                     window.PingPinBridge.punchSuccess('$actionType');
                                 }
-                                window.__pingpin_automation_active = false;
-                                return;
                             }
-                        }
-
-                        if (vAttempts >= maxVAttempts) {
+                        } catch(e) {
                             clearInterval(vTimer);
                             window.__pingpin_automation_active = false;
-                            notifyStatus("Clicked " + actionLabel + " button. Waiting for server confirmation...");
-                            if (window.PingPinBridge && window.PingPinBridge.punchSuccess) {
-                                window.PingPinBridge.punchSuccess('$actionType');
-                            }
+                            notifyStatus("❌ Error during verification: " + (e && e.message ? e.message : e));
                         }
                     }, 500);
                 }
@@ -425,7 +516,6 @@ class PortalAutoCheckInEngine {
                         }
                     }
 
-                    var isCheckIn = ${isCheckIn};
                     if (isCheckIn) {
                         var alreadyInKeywords = ['already checked in', 'already punched', 'checked in at', 'punched in at', 'already clocked in', 'shift in progress'];
                         for (var a = 0; a < alreadyInKeywords.length; a++) {
@@ -460,36 +550,63 @@ class PortalAutoCheckInEngine {
                 var intervalTimer = null;
 
                 function pollEngine() {
-                    attempts++;
+                    try {
+                        attempts++;
 
-                    if (attempts === 1) {
-                        checkUrlMismatch();
-                    }
+                        if (attempts === 1) {
+                            checkUrlMismatch();
+                        }
 
-                    if (checkSpecialStates()) {
+                        if (checkSpecialStates()) {
+                            clearInterval(intervalTimer);
+                            window.__pingpin_automation_active = false;
+                            return;
+                        }
+
+                        var loginSuccess = tryAutoLogin();
+                        if (loginSuccess) {
+                            clearInterval(intervalTimer);
+                            window.__pingpin_automation_active = false;
+                            return;
+                        }
+
+                        if (!${autoPunch}) {
+                            notifyStatus("ℹ️ Auto-punch is disabled in settings. You can mark attendance manually on the portal.");
+                            clearInterval(intervalTimer);
+                            window.__pingpin_automation_active = false;
+                            return;
+                        }
+
+                        var punchResult = tryAutoPunch(attempts, maxAttempts);
+                        if (punchResult.success) {
+                            clearInterval(intervalTimer);
+                            return;
+                        }
+
+                        if (attempts >= maxAttempts) {
+                            clearInterval(intervalTimer);
+                            window.__pingpin_automation_active = false;
+                            var buttonsFoundStr = (punchResult.visibleButtons && punchResult.visibleButtons.length > 0)
+                                ? punchResult.visibleButtons.map(function(b){ return "'" + b + "'"; }).join(', ')
+                                : "none detected";
+                            var kwListStr = targetKeywords.map(function(k){ return "'" + k + "'"; }).join(', ');
+
+                            notifyStatus(
+                                "⚠️ Could not find " + actionLabel + " button after " + maxAttempts + " attempts (12s).\n" +
+                                "• Buttons detected on page: [" + buttonsFoundStr + "]\n" +
+                                "• Searched for keywords: [" + kwListStr + "]\n" +
+                                "• Tip: If your portal uses a different button name, add it in Settings > Custom Keywords or tap manually."
+                            );
+                        } else {
+                            var buttonsSummary = (punchResult.visibleButtons && punchResult.visibleButtons.length > 0)
+                                ? punchResult.visibleButtons.slice(0, 5).map(function(b){ return "'" + b + "'"; }).join(', ')
+                                : "searching DOM";
+                            notifyStatus("🔍 Scanning for " + actionLabel + " button (attempt " + attempts + "/" + maxAttempts + ")... Visible buttons: [" + buttonsSummary + "]");
+                        }
+                    } catch(err) {
                         clearInterval(intervalTimer);
                         window.__pingpin_automation_active = false;
-                        return;
-                    }
-
-                    var loginSuccess = tryAutoLogin();
-                    if (loginSuccess) {
-                        clearInterval(intervalTimer);
-                        window.__pingpin_automation_active = false;
-                        return;
-                    }
-
-                    var punchSuccess = tryAutoPunch();
-                    if (punchSuccess) {
-                        clearInterval(intervalTimer);
-                        return;
-                    }
-
-                    if (attempts >= maxAttempts) {
-                        clearInterval(intervalTimer);
-                        window.__pingpin_automation_active = false;
-                        var btnLabel = isCheckIn ? "Check-in" : "Check-out";
-                        notifyStatus("⚠️ " + btnLabel + " button not found. You can interact with the portal manually or tap 'Open in Chrome'.");
+                        notifyStatus("❌ Engine script error: " + (err && err.message ? err.message : err));
                     }
                 }
 

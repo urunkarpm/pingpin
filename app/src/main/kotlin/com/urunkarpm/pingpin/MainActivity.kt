@@ -174,21 +174,7 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // 4. Display Over Apps / Overlay Permission (Android 6.0+)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !android.provider.Settings.canDrawOverlays(this)) {
-            try {
-                val intent = android.content.Intent(
-                    android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                    android.net.Uri.parse("package:$packageName")
-                )
-                startActivity(intent)
-                return
-            } catch (e: Exception) {
-                android.util.Log.e("MainActivity", "Error requesting overlay permission", e)
-            }
-        }
-
-        // 5. Full-Screen Intent Permission (Android 14+)
+        // 4. Full-Screen Intent Permission (Android 14+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             val notificationManager = getSystemService(android.content.Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
             if (notificationManager != null && !notificationManager.canUseFullScreenIntent()) {

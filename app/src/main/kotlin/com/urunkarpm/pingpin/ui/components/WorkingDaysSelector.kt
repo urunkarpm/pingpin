@@ -1,9 +1,5 @@
 package com.urunkarpm.pingpin.ui.components
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -12,11 +8,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -83,53 +77,33 @@ fun WorkingDaysSelector(
             DAY_LABELS.forEachIndexed { index, label ->
                 val isSelected = (workingDaysMask and (1 shl index)) != 0
 
-                val bgAnim by animateColorAsState(
-                    targetValue = if (isSelected) {
-                        ElectricBlue
-                    } else {
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-                    },
-                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                    label = "day_bg"
-                )
+                // ponytail: Instant zero-animation static colors and layout (Laws of UX: Doherty Threshold). Ceiling: Direct conditional evaluation. Upgrade path: Spring animations if requested.
+                val bgColor = if (isSelected) {
+                    ElectricBlue
+                } else {
+                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                }
 
-                val textAnim by animateColorAsState(
-                    targetValue = if (isSelected) {
-                        Color.White
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                    },
-                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                    label = "day_text"
-                )
+                val textColor = if (isSelected) {
+                    Color.White
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                }
 
-                val borderAnim by animateColorAsState(
-                    targetValue = if (isSelected) {
-                        ElectricBlue
-                    } else {
-                        MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
-                    },
-                    label = "day_border"
-                )
-
-                val scaleAnim by animateFloatAsState(
-                    targetValue = if (isSelected) 1.06f else 1.0f,
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessMediumLow
-                    ),
-                    label = "day_scale"
-                )
+                val borderColor = if (isSelected) {
+                    ElectricBlue
+                } else {
+                    MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+                }
 
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .aspectRatio(1f)
                         .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
-                        .scale(scaleAnim)
                         .clip(CircleShape)
-                        .background(bgAnim)
-                        .border(1.dp, borderAnim, CircleShape)
+                        .background(bgColor)
+                        .border(1.dp, borderColor, CircleShape)
                         .semantics {
                             this.role = Role.Checkbox
                             this.selected = isSelected
@@ -148,7 +122,7 @@ fun WorkingDaysSelector(
                 ) {
                     Text(
                         text = label,
-                        color = textAnim,
+                        color = textColor,
                         fontSize = 11.sp,
                         fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
                         maxLines = 1

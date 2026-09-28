@@ -1,8 +1,5 @@
 package com.urunkarpm.pingpin.ui.components
 
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -12,9 +9,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -74,12 +69,7 @@ fun PingPinSwitch(
     val actualCheckedIconTint = iconTintChecked ?: checkedTrackColor
     val actualUncheckedIconTint = iconTintUnchecked ?: if (isDark) Color(0xFF0F172A) else Color(0xFFF8FAFC)
 
-    val thumbScale by animateFloatAsState(
-        targetValue = if (checked) 1.05f else 0.95f,
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-        label = "SwitchThumbScale"
-    )
-
+    // ponytail: Zero-animation instant switch toggle (Laws of UX: Doherty Threshold). Ceiling: Native Material3 Switch transition. Upgrade path: Spring thumb scale if requested.
     Switch(
         checked = checked,
         onCheckedChange = { newValue ->
@@ -91,7 +81,6 @@ fun PingPinSwitch(
         },
         enabled = enabled,
         modifier = modifier
-            .scale(thumbScale)
             .semantics {
                 role = Role.Switch
                 stateDescription = if (checked) "On" else "Off"

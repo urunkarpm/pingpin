@@ -77,28 +77,18 @@ class NotificationActionReceiver : BroadcastReceiver() {
                     com.urunkarpm.pingpin.ui.portal.PortalActivity.ACTION_CHECK_IN
                 }
 
-                val useFloating = config?.useFloatingPortal ?: true
-
+                // ponytail: IN_APP_AUTO always routes to full PortalActivity
                 kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                     if (portalMode == "IN_APP_AUTO") {
-                        if (useFloating && android.provider.Settings.canDrawOverlays(context)) {
-                            com.urunkarpm.pingpin.service.portal.FloatingPortalService.startService(
-                                context = context,
-                                actionType = actionType,
-                                portalUrl = urlToOpen,
-                                alarmId = alarmId
-                            )
-                        } else {
-                            val portalIntent = com.urunkarpm.pingpin.ui.portal.PortalActivity.createIntent(
-                                context = context,
-                                actionType = actionType,
-                                portalUrl = urlToOpen,
-                                alarmId = alarmId
-                            ).apply {
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                            }
-                            context.startActivity(portalIntent)
+                        val portalIntent = com.urunkarpm.pingpin.ui.portal.PortalActivity.createIntent(
+                            context = context,
+                            actionType = actionType,
+                            portalUrl = urlToOpen,
+                            alarmId = alarmId
+                        ).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                         }
+                        context.startActivity(portalIntent)
                     } else {
                         launchExternalBrowser(context, urlToOpen)
                     }

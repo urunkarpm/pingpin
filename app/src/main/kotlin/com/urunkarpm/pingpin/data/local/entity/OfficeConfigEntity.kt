@@ -22,7 +22,8 @@ data class OfficeConfigEntity(
     val portalPreset: String = "GENERIC",
     val customCheckInKeywords: String = "",
     val customCheckOutKeywords: String = "",
-    val useFloatingPortal: Boolean = true,
+    // ponytail: floating window removed; kept for Room schema stability
+    val useFloatingPortal: Boolean = false,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 )

@@ -49,6 +49,16 @@ import android.content.pm.PackageManager
 import android.webkit.GeolocationPermissions
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.runtime.saveable.rememberSaveable
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallback {
 
@@ -64,6 +74,28 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
     private var hasSubmittedLogin = false
     private val maxAutoRedirects = 3
     private val redirectCauseState = mutableStateOf<String?>(null)
+    private val automationLogs = mutableStateListOf<String>()
+
+    private fun addLog(message: String) {
+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+            val time = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
+            automationLogs.add("[$time] $message")
+            if (automationLogs.size > 80) {
+                automationLogs.removeAt(0)
+            }
+        } else {
+            runOnUiThread { addLog(message) }
+        }
+    }
+
+    private fun setStatus(message: String, alsoLog: Boolean = true) {
+        runOnUiThread {
+            statusMessageState.value = message
+            if (alsoLog) {
+                addLog(message)
+            }
+        }
+    }
 
     private fun isAuthUrl(url: String): Boolean {
         val lower = url.lowercase()
@@ -181,6 +213,13 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
         actionType = intent.getStringExtra(EXTRA_ACTION_TYPE) ?: ACTION_CHECK_IN
         targetPortalUrl = intent.getStringExtra(EXTRA_PORTAL_URL) ?: ""
         alarmId = intent.getIntExtra(EXTRA_ALARM_ID, -1)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            WebView.setWebContentsDebuggingEnabled(true)
+        }
+
+        val displayAction = if (actionType.equals(ACTION_CHECK_IN, ignoreCase = true)) "Check In" else "Check Out"
+        addLog("🚀 Initialized Portal Viewer for $displayAction")
 
         if (alarmId != -1) {
             AlarmSoundService.stopAlarmSound(this)
@@ -305,6 +344,9 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
                 super.onPageStarted(view, url, favicon)
                 val loadedUrl = url ?: view?.url ?: ""
                 currentUrlState.value = loadedUrl
+                if (loadedUrl.isNotBlank()) {
+                    addLog("🌐 Loading: ${cleanUrlForDisplay(loadedUrl)}")
+                }
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
@@ -319,20 +361,20 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
 
                 if (!matches && loadedUrl.isNotBlank()) {
                     if (isAuth && !hasSubmittedLogin) {
-                        statusMessageState.value = "🔒 Login page detected. Attempting auto-login..."
+                        setStatus("🔒 Login page detected. Attempting auto-login...")
                     } else if (autoRedirectCount < maxAutoRedirects) {
                         autoRedirectCount++
-                        statusMessageState.value = "Redirecting to target portal URL for $displayAction (Attempt $autoRedirectCount/$maxAutoRedirects)..."
+                        setStatus("Redirecting to target portal URL for $displayAction (Attempt $autoRedirectCount/$maxAutoRedirects)...")
                         view?.loadUrl(targetPortalUrl)
                         return
                     } else {
-                        statusMessageState.value = "Inspecting redirect cause on 3rd attempt..."
+                        setStatus("Inspecting redirect cause on 3rd attempt...")
                         inspectRedirectCause(view, loadedUrl)
                     }
                 } else {
                     autoRedirectCount = 0
                     redirectCauseState.value = null
-                    statusMessageState.value = "Target portal loaded. Running $displayAction engine..."
+                    setStatus("Target portal loaded. Running $displayAction engine...")
                 }
 
                 val script = PortalAutoCheckInEngine.generateAutomationScript(
@@ -345,7 +387,11 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
                     customCheckOutKeywords = config.customCheckOutKeywords,
                     targetPortalUrl = targetPortalUrl
                 )
-                view?.evaluateJavascript(script, null)
+                view?.evaluateJavascript(script) { evalResult ->
+                    if (evalResult != null && evalResult != "null" && evalResult.isNotBlank()) {
+                        android.util.Log.d("PortalActivity", "JS Eval Result: $evalResult")
+                    }
+                }
             }
 
             @Deprecated("Deprecated in API 23")
@@ -356,7 +402,7 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
                 failingUrl: String?
             ) {
                 isLoadingState.value = false
-                statusMessageState.value = "⚠️ Portal Connection Error: ${description ?: "Network issue"}"
+                setStatus("⚠️ Portal Connection Error: ${description ?: "Network issue"}")
             }
         }
 
@@ -366,6 +412,18 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
                     isLoadingState.value = true
                     statusMessageState.value = "Loading portal... $newProgress%"
                 }
+            }
+
+            override fun onConsoleMessage(consoleMessage: android.webkit.ConsoleMessage?): Boolean {
+                consoleMessage?.let {
+                    val msg = it.message()
+                    if (it.messageLevel() == android.webkit.ConsoleMessage.MessageLevel.ERROR) {
+                        addLog("🔴 JS Error: $msg")
+                    } else if (msg.startsWith("[PingPin]")) {
+                        addLog(msg.removePrefix("[PingPin] ").trim())
+                    }
+                }
+                return super.onConsoleMessage(consoleMessage)
             }
 
             override fun onGeolocationPermissionsShowPrompt(
@@ -418,8 +476,12 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
             )
 
             withContext(Dispatchers.Main) {
-                statusMessageState.value = "Retrying automation script..."
-                webViewRef?.evaluateJavascript(script, null)
+                setStatus("🔄 Re-running automation script manually...")
+                webViewRef?.evaluateJavascript("window.__pingpin_automation_active = false;\n" + script) { evalResult ->
+                    if (evalResult != null && evalResult != "null" && evalResult.isNotBlank()) {
+                        android.util.Log.d("PortalActivity", "Manual JS Eval Result: $evalResult")
+                    }
+                }
             }
         }
     }
@@ -439,26 +501,29 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
     override fun onStatusUpdate(status: String) {
         runOnUiThread {
             statusMessageState.value = status
+            addLog(status)
         }
     }
 
     override fun onLoginSubmitted() {
         runOnUiThread {
             hasSubmittedLogin = true
-            statusMessageState.value = "Login submitted! Navigating to target portal URL..."
+            val msg = "🔑 Login credentials auto-filled & submitted!"
+            statusMessageState.value = msg
+            addLog(msg)
         }
     }
 
     override fun onPunchAttempted(actionType: String) {
-        runOnUiThread {
-            statusMessageState.value = "Attempting auto-punch for $actionType..."
-        }
+        // ponytail: Exact matched element, selector, and keyword are already delivered with high fidelity via onStatusUpdate.
     }
 
     override fun onPunchSuccess(actionType: String) {
         runOnUiThread {
             val displayAction = if (actionType.equals("CHECK_IN", ignoreCase = true)) "Check In" else "Check Out"
-            statusMessageState.value = "🎉 $displayAction recorded on portal! (closing in 6s)..."
+            val msg = "🎉 $displayAction recorded on portal! (closing in 6s)..."
+            statusMessageState.value = msg
+            addLog(msg)
             Toast.makeText(this@PortalActivity, "$displayAction recorded!", Toast.LENGTH_LONG).show()
 
             // Dismiss alarm if applicable
@@ -478,7 +543,9 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
 
     override fun onError(message: String) {
         runOnUiThread {
-            statusMessageState.value = "Note: $message"
+            val msg = "⚠️ $message"
+            statusMessageState.value = msg
+            addLog(msg)
         }
     }
 
@@ -562,7 +629,10 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
                     .padding(innerPadding)
                     .background(darkBg)
             ) {
-                // Status Banner
+                // Status Banner & Diagnostics Console
+                var showAutomationLogs by rememberSaveable { mutableStateOf(true) }
+                val isProblemState = statusMessageState.value.contains("⚠️") || statusMessageState.value.contains("❌")
+
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -570,24 +640,105 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
                     colors = CardDefaults.cardColors(containerColor = cardBg),
                     shape = RoundedCornerShape(10.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp)
                     ) {
-                        if (isLoadingState.value) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                color = emeraldGreen,
-                                strokeWidth = 2.dp
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.Top,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                if (isLoadingState.value) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier
+                                            .padding(top = 2.dp)
+                                            .size(16.dp),
+                                        color = emeraldGreen,
+                                        strokeWidth = 2.dp
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                }
+                                Text(
+                                    text = statusMessageState.value,
+                                    color = if (isProblemState) Color(0xFFFCA5A5) else Color.White,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    lineHeight = 16.sp
+                                )
+                            }
+
+                            if (automationLogs.isNotEmpty()) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Surface(
+                                    onClick = { showAutomationLogs = !showAutomationLogs },
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = if (showAutomationLogs || isProblemState) emeraldGreen.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.1f)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp)
+                                    ) {
+                                        Text(
+                                            text = if (showAutomationLogs || isProblemState) "Hide Logs" else "Logs (${automationLogs.size})",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (showAutomationLogs || isProblemState) emeraldGreen else Color.LightGray
+                                        )
+                                        Icon(
+                                            imageVector = if (showAutomationLogs || isProblemState) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(12.dp),
+                                            tint = if (showAutomationLogs || isProblemState) emeraldGreen else Color.LightGray
+                                        )
+                                    }
+                                }
+                            }
                         }
-                        Text(
-                            text = statusMessageState.value,
-                            color = Color.White,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium
-                        )
+
+                        // Expandable Live Automation Log Console
+                        if ((showAutomationLogs || isProblemState) && automationLogs.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            HorizontalDivider(color = Color.White.copy(alpha = 0.12f), thickness = 0.8.dp)
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            val logScrollState = rememberScrollState()
+                            LaunchedEffect(automationLogs.size) {
+                                logScrollState.scrollTo(logScrollState.maxValue)
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = 150.dp)
+                                    .background(Color(0xFF0F172A).copy(alpha = 0.9f), RoundedCornerShape(6.dp))
+                                    .border(BorderStroke(0.8.dp, Color.White.copy(alpha = 0.15f)), RoundedCornerShape(6.dp))
+                                    .padding(8.dp)
+                                    .verticalScroll(logScrollState)
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    automationLogs.forEach { log ->
+                                        Text(
+                                            text = log,
+                                            fontSize = 10.sp,
+                                            color = when {
+                                                log.contains("⚠️") || log.contains("❌") -> Color(0xFFFCA5A5)
+                                                log.contains("🎯") || log.contains("🎉") || log.contains("✅") -> Color(0xFF86EFAC)
+                                                log.contains("🔍") -> Color(0xFF93C5FD)
+                                                else -> Color(0xFFCBD5E1)
+                                            },
+                                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                            lineHeight = 14.sp
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 

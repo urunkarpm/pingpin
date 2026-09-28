@@ -95,6 +95,19 @@ private data class MonthDayCellData(
     val isExtraWfo: Boolean = false
 )
 
+private val DayCellSquircleShape = RoundedCornerShape(12.dp)
+private val LegendPillShape = RoundedCornerShape(20.dp)
+
+private data class MonthTally(
+    val present: Int,
+    val wfo: Int,
+    val makeup: Int,
+    val extraWfo: Int,
+    val missed: Int,
+    val today: Int,
+    val off: Int
+)
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MonthlyCalendarView(
@@ -114,7 +127,6 @@ fun MonthlyCalendarView(
     val context = LocalContext.current
     val installCal = remember(context) { AppInstallManager.getInstallDateCalendar(context) }
     val isDark = MaterialTheme.colorScheme.background.red < 0.5f
-    var activeFilter by remember { mutableStateOf<LegendFilterType?>(null) }
 
     val monthTitle = remember(year, month) {
         val cal = Calendar.getInstance().apply {
@@ -204,16 +216,47 @@ fun MonthlyCalendarView(
         list
     }
 
-    // Dynamic Monthly Tally Counts for Interactive Legend Badges
-    val presentCount = remember(monthCellsData) { monthCellsData.count { it.isCurrentMonthDay && it.isAttended } }
-    val wfoCount = remember(monthCellsData) { monthCellsData.count { it.isCurrentMonthDay && it.isWorking && it.isWfo && !it.isBeforeInstall } }
-    val makeupCount = remember(monthCellsData) { monthCellsData.count { it.isCurrentMonthDay && it.isMakeupWfo } }
-    val extraWfoCount = remember(monthCellsData) { monthCellsData.count { it.isCurrentMonthDay && it.isExtraWfo } }
-    val missedCount = remember(monthCellsData) {
-        monthCellsData.count { it.isCurrentMonthDay && it.isWorking && it.isWfo && !it.isAttended && !it.isFuture && !it.isToday && !it.isBeforeInstall }
+    // Dynamic Monthly Tally Counts for Interactive Legend Badges (single-pass tally)
+    val tally = remember(monthCellsData) {
+        var present = 0
+        var wfo = 0
+        var makeup = 0
+        var extraWfo = 0
+        var missed = 0
+        var today = 0
+        var off = 0
+        for (i in 0 until monthCellsData.size) {
+            val cell = monthCellsData[i]
+            if (!cell.isCurrentMonthDay) continue
+            if (cell.isAttended) present++
+            if (cell.isWorking && cell.isWfo && !cell.isBeforeInstall) wfo++
+            if (cell.isMakeupWfo) makeup++
+            if (cell.isExtraWfo) extraWfo++
+            if (cell.isWorking && cell.isWfo && !cell.isAttended && !cell.isFuture && !cell.isToday && !cell.isBeforeInstall) missed++
+            if (cell.isToday) today++
+            if (!cell.isWorking) off++
+        }
+        MonthTally(present, wfo, makeup, extraWfo, missed, today, off)
     }
-    val todayCount = remember(monthCellsData) { monthCellsData.count { it.isCurrentMonthDay && it.isToday } }
-    val offCount = remember(monthCellsData) { monthCellsData.count { it.isCurrentMonthDay && !it.isWorking } }
+
+    val offDayDotColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+    val legendWheelItems = remember(tally, isDark, offDayDotColor) {
+        listOf(
+            LegendItemData("All Legends", null, 0, Color.Transparent, ElectricBlue),
+            LegendItemData("Present", LegendFilterType.PRESENT, tally.present, if (isDark) EmeraldGreenBgDark else EmeraldGreenBgLight, EmeraldGreen),
+            LegendItemData("WFO Day", LegendFilterType.WFO_DAY, tally.wfo, if (isDark) WfoDayPurpleBgDark else WfoDayPurpleBgLight, WfoDayPurple),
+            LegendItemData("Makeup WFO", LegendFilterType.MAKEUP_WFO, tally.makeup, if (isDark) AmberOrangeBgDark else AmberOrangeBgLight, AmberOrange),
+            LegendItemData("Extra WFO", LegendFilterType.EXTRA_WFO, tally.extraWfo, ElectricBlue.copy(alpha = 0.25f), ElectricBlue),
+            LegendItemData("Missed", LegendFilterType.MISSED, tally.missed, if (isDark) CrimsonRedBgDark else CrimsonRedBgLight, CrimsonRed),
+            LegendItemData("Today", LegendFilterType.TODAY, tally.today, ElectricBlue, ElectricBlue, isBorderOnly = true),
+            LegendItemData("Off-Day", LegendFilterType.OFF_DAY, tally.off, Color.Transparent, offDayDotColor)
+        )
+    }
+
+    var wheelIndex by remember { mutableIntStateOf(0) }
+    val safeWheelIndex = wheelIndex.coerceIn(0, legendWheelItems.lastIndex)
+    val currentWheelItem = legendWheelItems[safeWheelIndex]
+    val activeFilter = currentWheelItem.type
 
     Column(modifier = modifier.fillMaxWidth()) {
         // Header with circular stepping buttons & Month Pill
@@ -307,9 +350,7 @@ fun MonthlyCalendarView(
                     val slotIndex = row * 7 + col
                     val cell = monthCellsData[slotIndex]
 
-                    val isMatchingFilter = remember(cell, activeFilter) {
-                        isCellMatchingFilter(cell, activeFilter)
-                    }
+                    val isMatchingFilter = isCellMatchingFilter(cell, activeFilter)
 
                     MonthDayCellItem(
                         cell = cell,
@@ -330,27 +371,8 @@ fun MonthlyCalendarView(
 
         // ponytail: In-place scroll wheel selector for calendar legends.
         // Ceiling: Single-slot inline scroll wheel cycling through filters. Upgrade path: Multi-track wheel or chip grid if concurrent multi-select filters are needed.
-        val offDayDotColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-        val legendWheelItems = remember(presentCount, wfoCount, makeupCount, extraWfoCount, missedCount, todayCount, offCount, isDark, offDayDotColor) {
-            listOf(
-                LegendItemData("All Legends", null, 0, Color.Transparent, ElectricBlue),
-                LegendItemData("Present", LegendFilterType.PRESENT, presentCount, if (isDark) EmeraldGreenBgDark else EmeraldGreenBgLight, EmeraldGreen),
-                LegendItemData("WFO Day", LegendFilterType.WFO_DAY, wfoCount, if (isDark) WfoDayPurpleBgDark else WfoDayPurpleBgLight, WfoDayPurple),
-                LegendItemData("Makeup WFO", LegendFilterType.MAKEUP_WFO, makeupCount, if (isDark) AmberOrangeBgDark else AmberOrangeBgLight, AmberOrange),
-                LegendItemData("Extra WFO", LegendFilterType.EXTRA_WFO, extraWfoCount, ElectricBlue.copy(alpha = 0.25f), ElectricBlue),
-                LegendItemData("Missed", LegendFilterType.MISSED, missedCount, if (isDark) CrimsonRedBgDark else CrimsonRedBgLight, CrimsonRed),
-                LegendItemData("Today", LegendFilterType.TODAY, todayCount, ElectricBlue, ElectricBlue, isBorderOnly = true),
-                LegendItemData("Off-Day", LegendFilterType.OFF_DAY, offCount, Color.Transparent, offDayDotColor)
-            )
-        }
-
-        var wheelIndex by remember { mutableIntStateOf(0) }
         val haptic = LocalHapticFeedback.current
 
-        val currentWheelItem = legendWheelItems[wheelIndex]
-        LaunchedEffect(wheelIndex) {
-            activeFilter = currentWheelItem.type
-        }
         // ponytail: Clean in-place vertical scroll wheel selector without caret buttons or press shadows.
         // Ceiling: Single-slot inline scroll wheel cycling through filters. Upgrade path: Multi-track wheel or chip grid if concurrent multi-select filters are needed.
         Column(
@@ -362,7 +384,7 @@ fun MonthlyCalendarView(
                 modifier = Modifier
                     .width(170.dp)
                     .height(36.dp)
-                    .clip(RoundedCornerShape(20.dp))
+                    .clip(LegendPillShape)
                     .background(
                         if (currentWheelItem.type != null) {
                             currentWheelItem.color.copy(alpha = 0.25f)
@@ -373,14 +395,14 @@ fun MonthlyCalendarView(
                     .border(
                         width = 1.dp,
                         color = currentWheelItem.dotColor,
-                        shape = RoundedCornerShape(20.dp)
+                        shape = LegendPillShape
                     )
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
                     ) {
                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        wheelIndex = (wheelIndex + 1) % legendWheelItems.size
+                        wheelIndex = (safeWheelIndex + 1) % legendWheelItems.size
                     }
                     .pointerInput(Unit) {
                         var totalDrag = 0f
@@ -390,11 +412,11 @@ fun MonthlyCalendarView(
                                 if (totalDrag < -20f) {
                                     // Swipe UP -> Scroll next item
                                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    wheelIndex = (wheelIndex + 1) % legendWheelItems.size
+                                    wheelIndex = (safeWheelIndex + 1) % legendWheelItems.size
                                 } else if (totalDrag > 20f) {
                                     // Swipe DOWN -> Scroll prev item
                                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    wheelIndex = if (wheelIndex == 0) legendWheelItems.size - 1 else wheelIndex - 1
+                                    wheelIndex = if (safeWheelIndex == 0) legendWheelItems.size - 1 else safeWheelIndex - 1
                                 }
                             },
                             onVerticalDrag = { _, dragAmount -> totalDrag += dragAmount }
@@ -455,7 +477,7 @@ fun MonthlyCalendarView(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 legendWheelItems.forEachIndexed { idx, item ->
-                    val isSelected = idx == wheelIndex
+                    val isSelected = idx == safeWheelIndex
                     Box(
                         modifier = Modifier
                             .size(width = if (isSelected) 12.dp else 5.dp, height = 5.dp)
@@ -542,117 +564,113 @@ private fun MonthDayCellItem(
         else -> CrimsonRed
     }
 
-    val squircleShape = RoundedCornerShape(12.dp)
+    var cellModifier = modifier
+        .aspectRatio(1f)
+        .padding(2.dp)
+        .graphicsLayer {
+            alpha = if (isFilterActive && !isMatchingFilter) 0.25f else 1.0f
+        }
+        .clip(DayCellSquircleShape)
+        .background(baseSquircleBg)
+
+    if (cell.isToday) {
+        cellModifier = cellModifier.border(
+            width = 2.5.dp,
+            color = ElectricBlue,
+            shape = DayCellSquircleShape
+        )
+    } else if (cell.isCurrentMonthDay && cell.isExtraWfo) {
+        // ponytail: Electric Blue accent border marker for non-WFO office attendance (Extra WFO). Ceiling: 2dp squircle border. Upgrade: Dual-color badge.
+        cellModifier = cellModifier.border(
+            width = 2.dp,
+            color = ElectricBlue,
+            shape = DayCellSquircleShape
+        )
+    } else if (cell.isCurrentMonthDay && cell.isMakeupWfo && !cell.isAttended) {
+        cellModifier = cellModifier.border(
+            width = 1.5.dp,
+            color = AmberOrange,
+            shape = DayCellSquircleShape
+        )
+    } else if (cell.isCurrentMonthDay && cell.isWfo && cell.isWorking && !cell.isAttended && cell.isFuture && !cell.isBeforeInstall) {
+        cellModifier = cellModifier.border(
+            width = 1.2.dp,
+            color = WfoDayPurple.copy(alpha = 0.6f),
+            shape = DayCellSquircleShape
+        )
+    } else if (cell.isCurrentMonthDay && cell.isWfo && cell.isWorking && !cell.isAttended && !cell.isFuture && !cell.isBeforeInstall) {
+        cellModifier = cellModifier.border(
+            width = 1.dp,
+            color = CrimsonRed.copy(alpha = 0.5f),
+            shape = DayCellSquircleShape
+        )
+    }
+
+    if (isFilterActive && isMatchingFilter && cell.isCurrentMonthDay) {
+        cellModifier = cellModifier.border(
+            width = 1.8.dp,
+            color = statusDotColor.copy(alpha = 0.9f),
+            shape = DayCellSquircleShape
+        )
+    }
+
+    val cellAccessibilityText = remember(cell) {
+        if (!cell.isCurrentMonthDay) ""
+        else {
+            val statusText = when {
+                cell.isExtraWfo -> "Present (Extra WFO Day)"
+                cell.isAttended -> "Present WFO"
+                cell.isMakeupWfo -> "Makeup WFO Scheduled"
+                cell.isWfo && cell.isWorking -> if (cell.isFuture) "Scheduled WFO Day" else "Missed WFO Day"
+                cell.isWorking -> "Off-site or WFH Working Day"
+                else -> "Non-working Day"
+            }
+            val todayTag = if (cell.isToday) ", Today" else ""
+            "Date ${cell.dateStr}: $statusText$todayTag"
+        }
+    }
+
+    if (!cell.isFuture) {
+        cellModifier = if (onDayLongClick != null) {
+            cellModifier.combinedClickable(
+                onClick = { onDayClick?.invoke(cell.dayNum, cell.dateStr) },
+                onLongClick = { onDayLongClick.invoke(cell.dayNum, cell.dateStr) }
+            )
+        } else {
+            cellModifier.clickable { onDayClick?.invoke(cell.dayNum, cell.dateStr) }
+        }
+    }
+
+    cellModifier = cellModifier.semantics(mergeDescendants = true) {
+        if (cell.isCurrentMonthDay) {
+            this.role = Role.Button
+            this.contentDescription = cellAccessibilityText
+        }
+    }
 
     Box(
-        modifier = modifier
-            .aspectRatio(1f)
-            .padding(2.dp)
-            .graphicsLayer {
-                alpha = if (isFilterActive && !isMatchingFilter) 0.25f else 1.0f
-            },
+        modifier = cellModifier,
         contentAlignment = Alignment.Center
     ) {
-        var cellModifier = Modifier
-            .fillMaxSize()
-            .clip(squircleShape)
-            .background(baseSquircleBg)
-
-        if (cell.isToday) {
-            cellModifier = cellModifier.border(
-                width = 2.5.dp,
-                color = ElectricBlue,
-                shape = squircleShape
-            )
-        } else if (cell.isCurrentMonthDay && cell.isExtraWfo) {
-            // ponytail: Electric Blue accent border marker for non-WFO office attendance (Extra WFO). Ceiling: 2dp squircle border. Upgrade: Dual-color badge.
-            cellModifier = cellModifier.border(
-                width = 2.dp,
-                color = ElectricBlue,
-                shape = squircleShape
-            )
-        } else if (cell.isCurrentMonthDay && cell.isMakeupWfo && !cell.isAttended) {
-            cellModifier = cellModifier.border(
-                width = 1.5.dp,
-                color = AmberOrange,
-                shape = squircleShape
-            )
-        } else if (cell.isCurrentMonthDay && cell.isWfo && cell.isWorking && !cell.isAttended && cell.isFuture && !cell.isBeforeInstall) {
-            cellModifier = cellModifier.border(
-                width = 1.2.dp,
-                color = WfoDayPurple.copy(alpha = 0.6f),
-                shape = squircleShape
-            )
-        } else if (cell.isCurrentMonthDay && cell.isWfo && cell.isWorking && !cell.isAttended && !cell.isFuture && !cell.isBeforeInstall) {
-            cellModifier = cellModifier.border(
-                width = 1.dp,
-                color = CrimsonRed.copy(alpha = 0.5f),
-                shape = squircleShape
-            )
-        }
-
-        if (isFilterActive && isMatchingFilter && cell.isCurrentMonthDay) {
-            cellModifier = cellModifier.border(
-                width = 1.8.dp,
-                color = statusDotColor.copy(alpha = 0.9f),
-                shape = squircleShape
-            )
-        }
-
-        val cellAccessibilityText = remember(cell) {
-            if (!cell.isCurrentMonthDay) ""
-            else {
-                val statusText = when {
-                    cell.isExtraWfo -> "Present (Extra WFO Day)"
-                    cell.isAttended -> "Present WFO"
-                    cell.isMakeupWfo -> "Makeup WFO Scheduled"
-                    cell.isWfo && cell.isWorking -> if (cell.isFuture) "Scheduled WFO Day" else "Missed WFO Day"
-                    cell.isWorking -> "Off-site or WFH Working Day"
-                    else -> "Non-working Day"
-                }
-                val todayTag = if (cell.isToday) ", Today" else ""
-                "Date ${cell.dateStr}: $statusText$todayTag"
-            }
-        }
-
-        if (!cell.isFuture) {
-            cellModifier = cellModifier.combinedClickable(
-                onClick = { onDayClick?.invoke(cell.dayNum, cell.dateStr) },
-                onLongClick = { onDayLongClick?.invoke(cell.dayNum, cell.dateStr) }
-            )
-        }
-
-        cellModifier = cellModifier.semantics(mergeDescendants = true) {
-            if (cell.isCurrentMonthDay) {
-                this.role = Role.Button
-                this.contentDescription = cellAccessibilityText
-            }
-        }
-
-        Box(
-            modifier = cellModifier,
-            contentAlignment = Alignment.Center
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = "${cell.dayNum}",
-                    fontSize = 12.sp,
-                    fontWeight = if (cell.isToday || cell.isAttended || cell.isMakeupWfo || cell.isWfo) FontWeight.ExtraBold else FontWeight.SemiBold,
-                    color = textColor
-                )
+            Text(
+                text = "${cell.dayNum}",
+                fontSize = 12.sp,
+                fontWeight = if (cell.isToday || cell.isAttended || cell.isMakeupWfo || cell.isWfo) FontWeight.ExtraBold else FontWeight.SemiBold,
+                color = textColor
+            )
 
-                if (cell.isCurrentMonthDay && (cell.isAttended || (cell.isWorking && !cell.isBeforeInstall && (cell.isMakeupWfo || cell.isWfo || (!cell.isFuture && !cell.isToday))))) {
-                    Spacer(modifier = Modifier.height(1.dp))
-                    Box(
-                        modifier = Modifier
-                            .size(4.dp)
-                            .clip(CircleShape)
-                            .background(statusDotColor)
-                    )
-                }
+            if (cell.isCurrentMonthDay && (cell.isAttended || (cell.isWorking && !cell.isBeforeInstall && (cell.isMakeupWfo || cell.isWfo || (!cell.isFuture && !cell.isToday))))) {
+                Spacer(modifier = Modifier.height(1.dp))
+                Box(
+                    modifier = Modifier
+                        .size(4.dp)
+                        .clip(CircleShape)
+                        .background(statusDotColor)
+                )
             }
         }
     }

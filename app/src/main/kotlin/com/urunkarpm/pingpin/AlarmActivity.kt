@@ -229,28 +229,18 @@ class AlarmActivity : ComponentActivity() {
             val config = db.officeConfigDao().getConfig()
             val portalMode = config?.portalMode ?: "EXTERNAL_BROWSER"
             val url = if (currentPortalUrl.isNotBlank()) currentPortalUrl else (config?.portalUrl ?: "")
-            val useFloating = config?.useFloatingPortal ?: true
-
+            // ponytail: IN_APP_AUTO always routes to full PortalActivity without overlay window overhead
             withContext(Dispatchers.Main) {
                 if (portalMode == "IN_APP_AUTO") {
-                    if (useFloating && android.provider.Settings.canDrawOverlays(this@AlarmActivity)) {
-                        com.urunkarpm.pingpin.service.portal.FloatingPortalService.startService(
-                            context = this@AlarmActivity,
-                            actionType = actionType,
-                            portalUrl = url,
-                            alarmId = currentAlarmId
-                        )
-                    } else {
-                        val intent = com.urunkarpm.pingpin.ui.portal.PortalActivity.createIntent(
-                            context = this@AlarmActivity,
-                            actionType = actionType,
-                            portalUrl = url,
-                            alarmId = currentAlarmId
-                        ).apply {
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                        }
-                        startActivity(intent)
+                    val intent = com.urunkarpm.pingpin.ui.portal.PortalActivity.createIntent(
+                        context = this@AlarmActivity,
+                        actionType = actionType,
+                        portalUrl = url,
+                        alarmId = currentAlarmId
+                    ).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                     }
+                    startActivity(intent)
                 } else {
                     openBrowser(url)
                 }

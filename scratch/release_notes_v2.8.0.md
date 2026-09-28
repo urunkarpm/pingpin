@@ -1,4 +1,4 @@
-# PingPin v2.8.0 Release
+# PingPin v2.8.0 Release Notes 🚀
 
 ## What's New & Enhancements
 

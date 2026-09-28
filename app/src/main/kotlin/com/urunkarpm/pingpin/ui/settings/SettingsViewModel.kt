@@ -88,8 +88,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         portalUsername: String = "",
         portalPassword: String = "",
         customCheckInKeywords: String = "",
-        customCheckOutKeywords: String = "",
-        useFloatingPortal: Boolean = true
+        customCheckOutKeywords: String = ""
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             val currentConfig = configState.value
@@ -108,7 +107,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 portalPreset = portalPreset,
                 customCheckInKeywords = customCheckInKeywords.trim(),
                 customCheckOutKeywords = customCheckOutKeywords.trim(),
-                useFloatingPortal = useFloatingPortal
+                useFloatingPortal = false
             )
             officeConfigRepo.saveConfig(newConfig)
 

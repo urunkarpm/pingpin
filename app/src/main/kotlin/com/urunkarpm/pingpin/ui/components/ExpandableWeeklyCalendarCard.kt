@@ -44,6 +44,8 @@ import com.urunkarpm.pingpin.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
 
+private val DaySquircleShape = RoundedCornerShape(12.dp)
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ExpandableWeeklyCalendarCard(
@@ -238,8 +240,8 @@ fun ExpandableWeeklyCalendarCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     AnimatedVisibility(
                         visible = !currentIsExpanded,
-                        enter = fadeIn(animationSpec = tween(180)) + expandHorizontally(),
-                        exit = fadeOut(animationSpec = tween(120)) + shrinkHorizontally()
+                        enter = fadeIn(animationSpec = tween(160)),
+                        exit = fadeOut(animationSpec = tween(100))
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             IconButton(
@@ -289,14 +291,18 @@ fun ExpandableWeeklyCalendarCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            // ponytail: SizeTransform with GPU clipping and crossfade eliminates 60fps child re-measurement during calendar expansion.
+            // Ceiling: Container bounds resize with FastOutSlowInEasing. Upgrade path: Shared element transition on day nodes.
             AnimatedContent(
                 targetState = currentIsExpanded,
                 transitionSpec = {
-                    val duration = 260
-                    (fadeIn(animationSpec = tween(duration, easing = FastOutSlowInEasing)) +
-                     expandVertically(animationSpec = tween(duration, easing = FastOutSlowInEasing), expandFrom = Alignment.Top)) togetherWith
-                    (fadeOut(animationSpec = tween(duration / 2, easing = FastOutSlowInEasing)) +
-                     shrinkVertically(animationSpec = tween(duration, easing = FastOutSlowInEasing), shrinkTowards = Alignment.Top))
+                    (fadeIn(animationSpec = tween(200, delayMillis = 40, easing = FastOutSlowInEasing)) togetherWith
+                     fadeOut(animationSpec = tween(120, easing = FastOutSlowInEasing)))
+                        .using(
+                            SizeTransform(clip = true) { _, _ ->
+                                tween(260, easing = FastOutSlowInEasing)
+                            }
+                        )
                 },
                 contentAlignment = Alignment.TopCenter,
                 label = "calendar_view_transition"
@@ -477,83 +483,76 @@ private fun WeeklyDayItem(
 
         Spacer(modifier = Modifier.height(6.dp))
 
+        var circleModifier = Modifier
+            .aspectRatio(1f)
+            .fillMaxWidth()
+            .clip(DaySquircleShape)
+            .background(baseCircleBg)
+
+        if (data.isToday) {
+            circleModifier = circleModifier.border(
+                width = 2.5.dp,
+                color = ElectricBlue,
+                shape = DaySquircleShape
+            )
+        } else if (data.isMakeupWfo && !data.isAttended) {
+            circleModifier = circleModifier.border(
+                width = 1.5.dp,
+                color = AmberOrange,
+                shape = DaySquircleShape
+            )
+        } else if (data.isWfo && data.isWorking && !data.isAttended && data.isFuture && !data.isBeforeInstall) {
+            circleModifier = circleModifier.border(
+                width = 1.2.dp,
+                color = WfoDayPurple.copy(alpha = 0.6f),
+                shape = DaySquircleShape
+            )
+        } else if (data.isWfo && data.isWorking && !data.isAttended && !data.isFuture && !data.isBeforeInstall) {
+            circleModifier = circleModifier.border(
+                width = 1.dp,
+                color = CrimsonRed.copy(alpha = 0.5f),
+                shape = DaySquircleShape
+            )
+        }
+
+        val haptic = LocalHapticFeedback.current
+
+        if (!data.isFuture) {
+            circleModifier = circleModifier.combinedClickable(
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onDayClick()
+                },
+                onLongClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onDayLongClick()
+                }
+            )
+        }
+
         Box(
-            modifier = Modifier
-                .aspectRatio(1f)
-                .fillMaxWidth(),
+            modifier = circleModifier,
             contentAlignment = Alignment.Center
         ) {
-            val squircleShape = RoundedCornerShape(12.dp)
-            var circleModifier = Modifier
-                .fillMaxSize()
-                .clip(squircleShape)
-                .background(baseCircleBg)
-
-            if (data.isToday) {
-                circleModifier = circleModifier.border(
-                    width = 2.5.dp,
-                    color = ElectricBlue,
-                    shape = squircleShape
-                )
-            } else if (data.isMakeupWfo && !data.isAttended) {
-                circleModifier = circleModifier.border(
-                    width = 1.5.dp,
-                    color = AmberOrange,
-                    shape = squircleShape
-                )
-            } else if (data.isWfo && data.isWorking && !data.isAttended && data.isFuture && !data.isBeforeInstall) {
-                circleModifier = circleModifier.border(
-                    width = 1.2.dp,
-                    color = WfoDayPurple.copy(alpha = 0.6f),
-                    shape = squircleShape
-                )
-            } else if (data.isWfo && data.isWorking && !data.isAttended && !data.isFuture && !data.isBeforeInstall) {
-                circleModifier = circleModifier.border(
-                    width = 1.dp,
-                    color = CrimsonRed.copy(alpha = 0.5f),
-                    shape = squircleShape
-                )
-            }
-
-            val haptic = LocalHapticFeedback.current
-
-            if (!data.isFuture) {
-                circleModifier = circleModifier.combinedClickable(
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onDayClick()
-                    },
-                    onLongClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onDayLongClick()
-                    }
-                )
-            }
-
-            Box(
-                modifier = circleModifier,
-                contentAlignment = Alignment.Center
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text = "${data.dayNum}",
-                        fontSize = 13.sp,
-                        fontWeight = if (data.isToday || data.isAttended || data.isMakeupWfo || data.isWfo) FontWeight.ExtraBold else FontWeight.SemiBold,
-                        color = textColor
-                    )
+                Text(
+                    text = "${data.dayNum}",
+                    fontSize = 13.sp,
+                    fontWeight = if (data.isToday || data.isAttended || data.isMakeupWfo || data.isWfo) FontWeight.ExtraBold else FontWeight.SemiBold,
+                    color = textColor
+                )
 
-                    if (data.isAttended || (data.isWorking && !data.isBeforeInstall && (data.isMakeupWfo || data.isWfo || (!data.isFuture && !data.isToday)))) {
-                        Spacer(modifier = Modifier.height(1.dp))
-                        Box(
-                            modifier = Modifier
-                                .size(4.dp)
-                                .clip(CircleShape)
-                                .background(statusDotColor)
-                        )
-                    }
+                if (data.isAttended || (data.isWorking && !data.isBeforeInstall && (data.isMakeupWfo || data.isWfo || (!data.isFuture && !data.isToday)))) {
+                    Spacer(modifier = Modifier.height(1.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(4.dp)
+                            .clip(CircleShape)
+                            .background(statusDotColor)
+                    )
                 }
             }
         }

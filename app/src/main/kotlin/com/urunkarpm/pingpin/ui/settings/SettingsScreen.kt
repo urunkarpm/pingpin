@@ -2,8 +2,6 @@ package com.urunkarpm.pingpin.ui.settings
 
 import android.content.Intent
 import android.widget.Toast
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -105,7 +103,6 @@ fun SettingsScreen(
 
     val credManager = remember { com.urunkarpm.pingpin.service.portal.PortalCredentialManager(context) }
     var portalMode by remember { mutableStateOf("EXTERNAL_BROWSER") }
-    var useFloatingPortal by remember { mutableStateOf(true) }
     var autoLoginEnabled by remember { mutableStateOf(false) }
     var autoCheckInEnabled by remember { mutableStateOf(false) }
     var customCheckInKeywords by remember { mutableStateOf("") }
@@ -131,7 +128,6 @@ fun SettingsScreen(
             workingDaysMask = cfg.workingDaysMask
             wfoDaysMask = cfg.wfoDaysMask
             portalMode = cfg.portalMode
-            useFloatingPortal = cfg.useFloatingPortal
             autoLoginEnabled = cfg.autoLoginEnabled
             autoCheckInEnabled = cfg.autoCheckInEnabled
             customCheckInKeywords = cfg.customCheckInKeywords
@@ -167,7 +163,6 @@ fun SettingsScreen(
     val notifService = remember { NotificationService(context) }
     var hasExactAlarmPerm by remember { mutableStateOf(notifService.canScheduleExactAlarms()) }
     var isBatteryIgnored by remember { mutableStateOf(notifService.isIgnoringBatteryOptimizations()) }
-    var hasOverlayPerm by remember { mutableStateOf(notifService.canDrawOverlays()) }
     var hasFullScreenIntentPerm by remember { mutableStateOf(notifService.canUseFullScreenIntent()) }
 
     val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
@@ -176,7 +171,6 @@ fun SettingsScreen(
             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
                 hasExactAlarmPerm = notifService.canScheduleExactAlarms()
                 isBatteryIgnored = notifService.isIgnoringBatteryOptimizations()
-                hasOverlayPerm = notifService.canDrawOverlays()
                 hasFullScreenIntentPerm = notifService.canUseFullScreenIntent()
             }
         }
@@ -400,20 +394,13 @@ fun SettingsScreen(
             }
         }
 
-        // 3. Category Content Container (Clean Instant In-Place Display, No Vertical Slide)
-        AnimatedContent(
-            targetState = selectedCategory,
-            transitionSpec = {
-                fadeIn(animationSpec = tween(150)).togetherWith(fadeOut(animationSpec = tween(150)))
-            },
-            label = "settings_content_fade",
-            modifier = Modifier.fillMaxWidth()
-        ) { category ->
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                when (category) {
+        // 3. Category Content Container (Zero-latency instant display, no animations)
+        // ponytail: Instant zero-animation category switching (Laws of UX: Doherty Threshold). Ceiling: Direct conditional composition. Upgrade path: AnimatedContent if transitions are ever desired.
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            when (selectedCategory) {
                     SettingsCategory.PROFILE_SHIFT -> {
                         // Personal Identity Section
                         GlassCard(modifier = Modifier.fillMaxWidth()) {
@@ -649,85 +636,6 @@ fun SettingsScreen(
                                 if (portalMode == "IN_APP_AUTO") {
                                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
 
-                                    // Floating Mini Window Switch
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                text = "Use Floating Mini Window",
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            )
-                                            Text(
-                                                text = "Opens browser in a non-disruptive floating window",
-                                                fontSize = 11.sp,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-                                        PingPinSwitch(
-                                            checked = useFloatingPortal,
-                                            onCheckedChange = { useFloatingPortal = it },
-                                            checkedTrackColor = MaterialTheme.colorScheme.tertiary
-                                        )
-                                    }
-
-                                    if (useFloatingPortal) {
-                                        val canDrawOverlays = remember(useFloatingPortal) {
-                                            android.provider.Settings.canDrawOverlays(context)
-                                        }
-                                        if (!canDrawOverlays) {
-                                            Card(
-                                                colors = CardDefaults.cardColors(
-                                                    containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f)
-                                                ),
-                                                shape = RoundedCornerShape(14.dp),
-                                                modifier = Modifier.fillMaxWidth()
-                                            ) {
-                                                Row(
-                                                    modifier = Modifier.padding(12.dp),
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                                ) {
-                                                    Icon(
-                                                        imageVector = Icons.Outlined.Warning,
-                                                        contentDescription = null,
-                                                        tint = MaterialTheme.colorScheme.error
-                                                    )
-                                                    Column(modifier = Modifier.weight(1f)) {
-                                                        Text(
-                                                            text = "Overlay Permission Required",
-                                                            fontSize = 12.sp,
-                                                            fontWeight = FontWeight.Bold,
-                                                            color = MaterialTheme.colorScheme.onErrorContainer
-                                                        )
-                                                        Text(
-                                                            text = "Grant 'Display over other apps' permission for the floating window.",
-                                                            fontSize = 11.sp,
-                                                            color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
-                                                        )
-                                                    }
-                                                    Button(
-                                                        onClick = {
-                                                            val intent = Intent(
-                                                                android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                                                android.net.Uri.parse("package:${context.packageName}")
-                                                            )
-                                                            context.startActivity(intent)
-                                                        },
-                                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-                                                    ) {
-                                                        Text("Grant", fontSize = 11.sp)
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
 
                                     // Auto Check-In Switch Row
                                     Row(
@@ -921,25 +829,22 @@ fun SettingsScreen(
                                 )
 
                                 // Full Screen Intent Status Tile
-                                val hasFullScreenAccess = hasOverlayPerm && hasFullScreenIntentPerm
                                 StatusPermissionRow(
-                                    icon = if (hasFullScreenAccess) Icons.Outlined.Fullscreen else Icons.Outlined.Layers,
+                                    icon = if (hasFullScreenIntentPerm) Icons.Outlined.Fullscreen else Icons.Outlined.Layers,
                                     title = "Full-Screen Alert Display",
-                                    subtitle = if (hasFullScreenAccess) "Granted • Alarm pops up full-screen" else "Restricted • Tap to allow full-screen overlay alerts",
-                                    isGranted = hasFullScreenAccess,
+                                    subtitle = if (hasFullScreenIntentPerm) "Granted • Alarm pops up full-screen" else "Restricted • Tap to allow full-screen alerts",
+                                    isGranted = hasFullScreenIntentPerm,
                                     actionText = "GRANT",
                                     onActionClick = {
                                         try {
-                                            val intent = if (!hasOverlayPerm && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-                                                android.content.Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:${context.packageName}"))
-                                            } else if (!hasFullScreenIntentPerm && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                                            val intent = if (!hasFullScreenIntentPerm && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                                                 android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, android.net.Uri.parse("package:${context.packageName}"))
                                             } else {
                                                 android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${context.packageName}"))
                                             }
                                             context.startActivity(intent)
                                         } catch (e: Exception) {
-                                            Toast.makeText(context, "Open Settings -> Permissions to grant display over apps", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, "Open Settings -> Permissions to grant full screen alerts", Toast.LENGTH_SHORT).show()
                                         }
                                     }
                                 )
@@ -1469,7 +1374,6 @@ fun SettingsScreen(
                 }
             }
         }
-        }
 
         if (showAppChangelogDialog) {
             AppChangelogDialog(
@@ -1481,7 +1385,7 @@ fun SettingsScreen(
         // Auto-save effect: debounced 600ms after any field change
         LaunchedEffect(
             fullName, ssid, checkInTime, checkOutTime, portalUrl,
-            workingDaysMask, wfoDaysMask, portalMode, useFloatingPortal, autoLoginEnabled,
+            workingDaysMask, wfoDaysMask, portalMode, autoLoginEnabled,
             autoCheckInEnabled, customCheckInKeywords, customCheckOutKeywords,
             portalUsername, portalPassword
         ) {
@@ -1496,7 +1400,6 @@ fun SettingsScreen(
                         workingDaysMask != cfg.workingDaysMask ||
                         wfoDaysMask != cfg.wfoDaysMask ||
                         portalMode != cfg.portalMode ||
-                        useFloatingPortal != cfg.useFloatingPortal ||
                         autoLoginEnabled != cfg.autoLoginEnabled ||
                         autoCheckInEnabled != cfg.autoCheckInEnabled ||
                         customCheckInKeywords.trim() != cfg.customCheckInKeywords ||
@@ -1518,8 +1421,7 @@ fun SettingsScreen(
                 portalUsername = portalUsername,
                 portalPassword = portalPassword,
                 customCheckInKeywords = customCheckInKeywords,
-                customCheckOutKeywords = customCheckOutKeywords,
-                useFloatingPortal = useFloatingPortal
+                customCheckOutKeywords = customCheckOutKeywords
             )
         }
     }

@@ -2,23 +2,37 @@ package com.urunkarpm.pingpin.data
 
 object AppChangelog {
     const val CURRENT_VERSION_CHANGELOG = """
-### Extra WFO Attendance Tracking & PDF Insights Overhaul (v2.7.0)
-- **Extra WFO Attendance Detection**: Added full support for tracking office visits made on non-WFO days. Check-ins on non-WFO days now contribute accurately to overall attendance metrics without calculation errors.
-- **Uncapped Compliance Rate**: Updated compliance calculation on the Insights page to accurately reflect over-achievement (>100% compliance) when users visit the office more than designated WFO target days.
-- **Electric Blue Calendar & Log Badging**: Added dedicated `ElectricBlue` (`#0284C7`) visual markers, squircle borders, status dots, and legend filter options (`EXTRA_WFO`) across calendar cells and monthly log views.
-- **Executive PDF Export Statement**: PDF reports now include non-WFO attendance records in detailed log tables, highlight `EXCEEDED TARGET` compliance statuses, and display `EXTRA WFO` status pills in `ElectricBlue`.
+### In-App Auto Portal Overhaul & Performance Tuning (v2.8.0)
+- **In-App Portal Diagnostics & Real-Time Console**: Integrated an expandable live automation diagnostics console directly into `PortalActivity`. Live-streams DOM scanning attempts, detected buttons, keyword matches, and real-time status feedback.
+- **Removed Overlay Window Requirement (`SYSTEM_ALERT_WINDOW`)**: Eliminated the invasive "Display over other apps" permission requirement and decommissioned `FloatingPortalService`, establishing a clean, permission-light in-app portal workflow.
+- **Hardened Web Automation Engine**: Upgraded `PortalAutoCheckInEngine` to traverse nested iframes and Shadow DOM structures, with fuzzy keyword matching and detailed diagnostic reports for unmapped portal buttons.
+- **Calendar & Day Selector Performance Optimization**: Reused static `DayCellSquircleShape` to eliminate redundant memory allocations on calendar grid scrolls, and streamlined WFO/working day selectors to zero-overhead static layouts.
+- **Unit Testing Suite**: Added dedicated unit test suite (`PortalAutoCheckInEngineTest`) verifying portal URL matching, login script injection, and check-in confirmation flows.
 """
 
     const val FULL_CHANGELOG = """
-## [2.7.0] - Current Release
+## [2.8.0] - Current Release
 
-### Extra WFO Attendance Tracking & PDF Insights Overhaul
-- **Extra WFO Attendance Detection**: Added full support for tracking office visits made on non-WFO days. Check-ins on non-WFO days now contribute accurately to overall attendance metrics without calculation errors.
-- **Uncapped Compliance Rate**: Updated compliance calculation on the Insights page to accurately reflect over-achievement (>100% compliance) when users visit the office more than designated WFO target days.
-- **Electric Blue Calendar & Log Badging**: Added dedicated `ElectricBlue` (`#0284C7`) visual markers, squircle borders, status dots, and legend filter options (`EXTRA_WFO`) across calendar cells and monthly log views.
-- **Executive PDF Export Statement**: PDF reports now include non-WFO attendance records in detailed log tables, highlight `EXCEEDED TARGET` compliance statuses, and display `EXTRA WFO` status pills in `ElectricBlue`.
+### In-App Auto Portal Overhaul & Performance Tuning
+- **In-App Portal Diagnostics & Real-Time Console**: Integrated an expandable live automation diagnostics console directly into `PortalActivity`. Live-streams DOM scanning attempts, detected buttons, keyword matches, and real-time status feedback.
+- **Removed Overlay Window Requirement (`SYSTEM_ALERT_WINDOW`)**: Eliminated the invasive "Display over other apps" permission requirement and decommissioned `FloatingPortalService`, establishing a clean, permission-light in-app portal workflow.
+- **Hardened Web Automation Engine**: Upgraded `PortalAutoCheckInEngine` to traverse nested iframes and Shadow DOM structures, with fuzzy keyword matching and detailed diagnostic reports for unmapped portal buttons.
+- **Calendar & Day Selector Performance Optimization**: Reused static `DayCellSquircleShape` to eliminate redundant memory allocations on calendar grid scrolls, and streamlined WFO/working day selectors to zero-overhead static layouts.
+- **Unit Testing Suite**: Added dedicated unit test suite (`PortalAutoCheckInEngineTest`) verifying portal URL matching, login script injection, and check-in confirmation flows.
 
 ---
+
+## [2.7.2]
+- Instant audio & vibration teardown on notification dismissal, side-by-side vertical slide controls, accessibility font scaling cap.
+
+---
+
+## [2.7.1]
+- Signed release APK, ponytail performance optimizations, extra WFO attendance detection.
+
+---
+
+## [2.7.0]
 
 ## [2.6.2]
 - Laws of UX Tactile Overhaul, Fitts's Law Touch Target Sizing, 60/120fps Smooth Blur Animation.

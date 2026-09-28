@@ -641,7 +641,11 @@ fun HomeScreen(
                 }
             }
 
-            if (isCalendarExpanded) {
+            AnimatedVisibility(
+                visible = isCalendarExpanded,
+                enter = fadeIn(animationSpec = tween(200)),
+                exit = fadeOut(animationSpec = tween(150))
+            ) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
