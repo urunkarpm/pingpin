@@ -3,10 +3,9 @@ package com.urunkarpm.pingpin.ui.home
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.*
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -194,10 +193,7 @@ fun HomeScreen(
                                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.LocalFireDepartment,
-                                    contentDescription = null,
-                                    tint = AmberOrange,
+                                AnimatedFlameIcon(
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
@@ -454,10 +450,7 @@ fun HomeScreen(
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.LocalFireDepartment,
-                                contentDescription = "Streak",
-                                tint = AmberOrange,
+                            AnimatedFlameIcon(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
@@ -824,4 +817,64 @@ private fun calculateCurrentStreak(records: List<AttendanceRecordEntity>, workin
         safetyLimit++
     }
     return streak
+}
+
+// ponytail: Native Compose infinite transition with graphicsLayer avoids heavy Lottie/GIF dependencies.
+// Ceiling: pure vector wiggle/flicker; upgrade path: Lottie/Rive if multi-layer particle smoke is ever needed.
+@Composable
+private fun AnimatedFlameIcon(modifier: Modifier = Modifier) {
+    val infiniteTransition = rememberInfiniteTransition(label = "FlameTransition")
+
+    val scaleY by infiniteTransition.animateFloat(
+        initialValue = 0.90f,
+        targetValue = 1.12f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(420, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "FlameScaleY"
+    )
+
+    val scaleX by infiniteTransition.animateFloat(
+        initialValue = 0.94f,
+        targetValue = 1.06f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(560, easing = LinearOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "FlameScaleX"
+    )
+
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = -5f,
+        targetValue = 5f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(480, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "FlameRotation"
+    )
+
+    val flameColor by infiniteTransition.animateColor(
+        initialValue = AmberOrange,
+        targetValue = Color(0xFFFF5722),
+        animationSpec = infiniteRepeatable(
+            animation = tween(750, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "FlameColor"
+    )
+
+    Icon(
+        imageVector = Icons.Default.LocalFireDepartment,
+        contentDescription = "Streak",
+        tint = flameColor,
+        modifier = modifier
+            .graphicsLayer {
+                this.scaleY = scaleY
+                this.scaleX = scaleX
+                this.rotationZ = rotation
+                this.transformOrigin = TransformOrigin(0.5f, 0.85f)
+            }
+    )
 }

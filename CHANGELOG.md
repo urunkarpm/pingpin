@@ -5,6 +5,21 @@ All notable changes to **PingPin** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.0] - 2026-09-29
+
+### Added & Refined (Executive PDF Export Redesign, Stacked Analytics & Fluid Motion)
+- **Executive PDF Attendance Report Redesign**: Completely overhauled the monthly WFO attendance export with modern corporate styling, slate dark headers, subtle zebra striping, and high-contrast bordered status pills (Present, Late, Extra WFO, Upcoming, Absent).
+- **Dynamic Layout Budgeting & Auto-Balancing Signatures**: Enforced compact row budgeting (20dp) ensuring clean, balanced single-page layout for standard monthly reports, complete with table summary totals and auto-balanced Employee & HR Administrator attestation signature blocks.
+- **Tamper-Evident Digital Verification Seal**: Added an official verification stamp featuring unique document reference IDs and verification hashes to provide audit-grade credibility.
+- **Insights Screen Stacked Weekday Analytics**: Replaced basic weekday ratio bars with segmented stacked vertical bars displaying Completed, Missed, Upcoming, and Extra WFO counts for each weekday, accompanied by an intuitive mini-legend.
+- **Metric Parity Across Insights & PDF**: Aligned calculations between the Insights dashboard and PDF exports, accurately respecting user install dates, past vs. upcoming days, and uncapped extra WFO compliance.
+- **Fluid LiquidGlass Navigation Bar**: Enhanced the bottom navigation bar with a 400ms fluid cubic-bezier morph transition (`NavTabSwitch`), providing seamless, organic icon-to-text morphing and active pill expansion.
+- **HomeScreen Animated Streak Flame**: Integrated a physics-modeled animated flame icon using native Compose infinite transitions with subtle vertical breathing, horizontal stretch, gentle rotation wiggle, and glowing flicker effect using `graphicsLayer` without external heavy dependencies.
+- **Portal Diagnostics Console Refinement**: Live automation diagnostics console in `PortalActivity` now automatically expands on problem states (warnings/errors) while preserving manual user toggle state.
+- **Comprehensive Unit Testing**: Added unit tests in `ExtraWfoTest.kt` verifying exact calculation and metric parity between Insights UI and PDF report generator.
+
+---
+
 ## [2.8.0] - 2026-09-28
 
 ### Added & Refined (In-App Auto Portal Overhaul & Performance Tuning)

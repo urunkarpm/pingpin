@@ -2,27 +2,36 @@ package com.urunkarpm.pingpin.data
 
 object AppChangelog {
     const val CURRENT_VERSION_CHANGELOG = """
-### In-App Auto Portal Overhaul & Performance Tuning (v2.8.0)
-- **In-App Portal Diagnostics & Real-Time Console**: Integrated an expandable live automation diagnostics console directly into `PortalActivity`. Live-streams DOM scanning attempts, detected buttons, keyword matches, and real-time status feedback.
-- **Removed Overlay Window Requirement (`SYSTEM_ALERT_WINDOW`)**: Eliminated the invasive "Display over other apps" permission requirement and decommissioned `FloatingPortalService`, establishing a clean, permission-light in-app portal workflow.
-- **Hardened Web Automation Engine**: Upgraded `PortalAutoCheckInEngine` to traverse nested iframes and Shadow DOM structures, with fuzzy keyword matching and detailed diagnostic reports for unmapped portal buttons.
-- **Calendar & Day Selector Performance Optimization**: Reused static `DayCellSquircleShape` to eliminate redundant memory allocations on calendar grid scrolls, and streamlined WFO/working day selectors to zero-overhead static layouts.
-- **Unit Testing Suite**: Added dedicated unit test suite (`PortalAutoCheckInEngineTest`) verifying portal URL matching, login script injection, and check-in confirmation flows.
+### Executive PDF Export Redesign, Stacked Analytics & Fluid Motion (v2.9.0)
+- **Executive PDF Attendance Report Redesign**: Completely overhauled the monthly WFO attendance export with modern corporate styling, slate dark headers, subtle zebra striping, and high-contrast bordered status pills.
+- **Dynamic Layout Budgeting & Auto-Balancing Signatures**: Enforced compact row budgeting (20dp) ensuring clean, single-page layout for monthly reports with summary totals and auto-balanced Employee & HR Administrator attestation signature blocks.
+- **Tamper-Evident Digital Verification Seal**: Added an official verification stamp featuring unique document reference IDs and verification hashes to provide audit-grade credibility.
+- **Insights Screen Stacked Weekday Analytics**: Replaced basic weekday ratio bars with segmented stacked vertical bars displaying Completed, Missed, Upcoming, and Extra WFO counts for each weekday, accompanied by an intuitive mini-legend.
+- **Metric Parity Across Insights & PDF**: Aligned calculations between the Insights dashboard and PDF exports, accurately respecting user install dates, past vs. upcoming days, and uncapped extra WFO compliance.
+- **Fluid LiquidGlass Navigation Bar**: Enhanced the bottom navigation bar with a 400ms fluid cubic-bezier morph transition (`NavTabSwitch`), providing seamless, organic icon-to-text morphing and active pill expansion.
+- **HomeScreen Animated Streak Flame**: Integrated a physics-modeled animated flame icon using native Compose infinite transitions with subtle vertical breathing, horizontal stretch, gentle rotation wiggle, and glowing flicker effect.
+- **Portal Diagnostics Console Refinement**: Live automation diagnostics console in `PortalActivity` now automatically expands on problem states (warnings/errors) while preserving manual user toggle state.
+- **Comprehensive Unit Testing**: Added unit tests in `ExtraWfoTest.kt` verifying exact calculation and metric parity between Insights UI and PDF report generator.
 """
 
     const val FULL_CHANGELOG = """
-## [2.8.0] - Current Release
+## [2.9.0] - Current Release
 
-### In-App Auto Portal Overhaul & Performance Tuning
-- **In-App Portal Diagnostics & Real-Time Console**: Integrated an expandable live automation diagnostics console directly into `PortalActivity`. Live-streams DOM scanning attempts, detected buttons, keyword matches, and real-time status feedback.
-- **Removed Overlay Window Requirement (`SYSTEM_ALERT_WINDOW`)**: Eliminated the invasive "Display over other apps" permission requirement and decommissioned `FloatingPortalService`, establishing a clean, permission-light in-app portal workflow.
-- **Hardened Web Automation Engine**: Upgraded `PortalAutoCheckInEngine` to traverse nested iframes and Shadow DOM structures, with fuzzy keyword matching and detailed diagnostic reports for unmapped portal buttons.
-- **Calendar & Day Selector Performance Optimization**: Reused static `DayCellSquircleShape` to eliminate redundant memory allocations on calendar grid scrolls, and streamlined WFO/working day selectors to zero-overhead static layouts.
-- **Unit Testing Suite**: Added dedicated unit test suite (`PortalAutoCheckInEngineTest`) verifying portal URL matching, login script injection, and check-in confirmation flows.
+### Executive PDF Export Redesign, Stacked Analytics & Fluid Motion
+- **Executive PDF Attendance Report Redesign**: Completely overhauled the monthly WFO attendance export with modern corporate styling, slate dark headers, subtle zebra striping, and high-contrast bordered status pills.
+- **Dynamic Layout Budgeting & Auto-Balancing Signatures**: Enforced compact row budgeting (20dp) ensuring clean, single-page layout for monthly reports with summary totals and auto-balanced Employee & HR Administrator attestation signature blocks.
+- **Tamper-Evident Digital Verification Seal**: Added an official verification stamp featuring unique document reference IDs and verification hashes to provide audit-grade credibility.
+- **Insights Screen Stacked Weekday Analytics**: Replaced basic weekday ratio bars with segmented stacked vertical bars displaying Completed, Missed, Upcoming, and Extra WFO counts for each weekday, accompanied by an intuitive mini-legend.
+- **Metric Parity Across Insights & PDF**: Aligned calculations between the Insights dashboard and PDF exports, accurately respecting user install dates, past vs. upcoming days, and uncapped extra WFO compliance.
+- **Fluid LiquidGlass Navigation Bar**: Enhanced the bottom navigation bar with a 400ms fluid cubic-bezier morph transition (`NavTabSwitch`), providing seamless, organic icon-to-text morphing and active pill expansion.
+- **HomeScreen Animated Streak Flame**: Integrated a physics-modeled animated flame icon using native Compose infinite transitions with subtle vertical breathing, horizontal stretch, gentle rotation wiggle, and glowing flicker effect.
+- **Portal Diagnostics Console Refinement**: Live automation diagnostics console in `PortalActivity` now automatically expands on problem states (warnings/errors) while preserving manual user toggle state.
+- **Comprehensive Unit Testing**: Added unit tests in `ExtraWfoTest.kt` verifying exact calculation and metric parity between Insights UI and PDF report generator.
 
 ---
 
-## [2.7.2]
+## [2.8.0]
+- In-App Portal Diagnostics & Real-Time Console, Removed Overlay Window Requirement (`SYSTEM_ALERT_WINDOW`), Hardened Web Automation Engine, Calendar & Day Selector Performance Optimization, Unit Testing Suite.
 - Instant audio & vibration teardown on notification dismissal, side-by-side vertical slide controls, accessibility font scaling cap.
 
 ---

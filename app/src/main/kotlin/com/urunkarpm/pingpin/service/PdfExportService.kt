@@ -16,6 +16,8 @@ import java.util.*
 
 class PdfExportService(private val context: Context) {
 
+    // ponytail: Hardcoded 2-page ceiling for standard monthly attendance statements (up to 31 days).
+    // Upgrade path: dynamic multi-page canvas flow if annual/multi-month reports are requested.
     suspend fun generateAttendancePdf(
         year: Int,
         month: Int,
@@ -32,30 +34,37 @@ class PdfExportService(private val context: Context) {
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
         val textPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
-        // Executive Palette
+        // Corporate Executive Palette
         val primaryDark = Color.parseColor("#0F172A")    // Slate 900
-        val primaryAccent = Color.parseColor("#0F766E")  // Teal 700
-        val textDark = Color.parseColor("#0F172A")       // Dark body text
+        val secondaryDark = Color.parseColor("#334155")  // Slate 700
+        val textDark = Color.parseColor("#0F172A")       // Authoritative body text
         val textMuted = Color.parseColor("#64748B")      // Slate 500
+        val textSubtle = Color.parseColor("#94A3B8")     // Slate 400
         val bgSoft = Color.parseColor("#F8FAFC")         // Slate 50
         val borderSoft = Color.parseColor("#E2E8F0")     // Slate 200
+        val borderStrong = Color.parseColor("#CBD5E1")   // Slate 300
         val headerFill = Color.parseColor("#F1F5F9")     // Table Header fill
-        val headerText = Color.parseColor("#334155")     // Slate 700
 
         // Status Colors
-        val successGreen = Color.parseColor("#16A34A")
-        val successGreenBg = Color.parseColor("#DCFCE7")
-        val successGreenFg = Color.parseColor("#15803D")
+        val successGreenFg = Color.parseColor("#166534") // Emerald 800
+        val successGreenBg = Color.parseColor("#DCFCE7") // Emerald 100
+        val successGreenBorder = Color.parseColor("#86EFAC")
 
-        val warningAmber = Color.parseColor("#D97706")
-        val warningAmberBg = Color.parseColor("#FEF3C7")
-        val warningAmberFg = Color.parseColor("#B45309")
+        val warningAmberFg = Color.parseColor("#92400E") // Amber 800
+        val warningAmberBg = Color.parseColor("#FEF3C7") // Amber 100
+        val warningAmberBorder = Color.parseColor("#FCD34D")
 
-        val softRedBg = Color.parseColor("#FEE2E2")
-        val softRedFg = Color.parseColor("#B91C1C")
+        val softRedFg = Color.parseColor("#991B1B")       // Red 800
+        val softRedBg = Color.parseColor("#FEE2E2")       // Red 100
+        val softRedBorder = Color.parseColor("#FCA5A5")
 
-        val upcomingBg = Color.parseColor("#F1F5F9")
-        val upcomingFg = Color.parseColor("#64748B")
+        val extraBlueFg = Color.parseColor("#1E40AF")     // Blue 800
+        val extraBlueBg = Color.parseColor("#DBEAFE")     // Blue 100
+        val extraBlueBorder = Color.parseColor("#93C5FD")
+
+        val upcomingFg = Color.parseColor("#475569")      // Slate 600
+        val upcomingBg = Color.parseColor("#F1F5F9")      // Slate 100
+        val upcomingBorder = Color.parseColor("#CBD5E1")
 
         val installCal = AppInstallManager.getInstallDateCalendar(context)
 
@@ -77,11 +86,12 @@ class PdfExportService(private val context: Context) {
             val isoDate = String.format(Locale.US, "%04d-%02d-%02d", year, month, day)
             val isAttended = recordsMap.containsKey(isoDate)
             val isWfo = WorkingDays.isWorkingDay(cal, workingDaysMask) && WorkingDays.isWfoDay(cal, wfoDaysMask)
+            val isAfterOrOnInstall = !cal.before(installCal) || isAttended
 
-            if (isWfo) {
+            if (isAfterOrOnInstall && isWfo) {
                 wfoDays.add(cal)
             }
-            if ((!cal.before(installCal) || isAttended) && (isWfo || isAttended)) {
+            if (isAfterOrOnInstall && (isWfo || isAttended)) {
                 reportDaysMap[isoDate] = cal
             }
         }
@@ -110,10 +120,16 @@ class PdfExportService(private val context: Context) {
         val attendancePctStr = String.format(Locale.US, "%.1f", pct)
 
         // Punctuality & Check-In Stats
-        val presentRecords = records.filter { it.status == "present" || it.status == "late" }
-        val lateCount = records.count { it.status == "late" }
-        val onTimeCount = records.count { it.status == "present" }
-        val punctualityPct = if (presentRecords.isNotEmpty()) (onTimeCount.toDouble() / presentRecords.size * 100) else 100.0
+        var lateCount = 0
+        var onTimeCount = 0
+        for (r in records) {
+            if (r.status.equals("late", ignoreCase = true)) {
+                lateCount++
+            } else {
+                onTimeCount++
+            }
+        }
+        val punctualityPct = if (records.isNotEmpty()) (onTimeCount.toDouble() / records.size * 100) else 100.0
 
         val wifiCheckIns = records.count { !it.ssidSnapshot.isNullOrBlank() }
         val autoPunchPct = if (records.isNotEmpty()) (wifiCheckIns.toDouble() / records.size * 100) else 0.0
@@ -141,26 +157,13 @@ class PdfExportService(private val context: Context) {
             }
         }
 
-        // Weekly Distribution
-        val weeklyAtt = IntArray(5)
-        val weeklyTot = IntArray(5)
-        for (cal in wfoDays) {
-            val dayOfMonth = cal.get(Calendar.DAY_OF_MONTH)
-            val weekIdx = ((dayOfMonth - 1) / 7).coerceIn(0, 4)
-            weeklyTot[weekIdx]++
-            val isoDate = String.format(Locale.US, "%04d-%02d-%02d", year, month, dayOfMonth)
-            if (recordsMap.containsKey(isoDate)) {
-                weeklyAtt[weekIdx]++
-            }
-        }
-
         val monthName = SimpleDateFormat("MMMM yyyy", Locale.US).format(calendar.time)
         val generatedTimestamp = SimpleDateFormat("MMM dd, yyyy • hh:mm a", Locale.US).format(Date())
         val nameHash = Math.abs((profile.fullName + year + month + records.size).hashCode()).toString(16).uppercase(Locale.US).padStart(6, '0')
         val docRefId = "PP-${year}${String.format(Locale.US, "%02d", month)}-$nameHash"
 
-        // Total page estimate
-        val totalPages = if (reportDays.size > 14) 2 else 1
+        // Up to 18 rows fit cleanly on Page 1 along with the executive summary and signature block
+        val totalPages = if (reportDays.size > 18) 2 else 1
 
         var pageNum = 1
         var pageInfo = PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNum).create()
@@ -170,282 +173,216 @@ class PdfExportService(private val context: Context) {
         fun drawFooter(c: Canvas, pNum: Int) {
             paint.color = borderSoft
             paint.strokeWidth = 1f
-            c.drawLine(36f, 800f, 559f, 800f, paint)
+            c.drawLine(40f, 804f, 555f, 804f, paint)
 
-            textPaint.color = textMuted
-            textPaint.textSize = 8f
+            textPaint.color = textSubtle
+            textPaint.textSize = 7.5f
             textPaint.typeface = Typeface.DEFAULT
-            c.drawText("Confidential • PingPin WFO Report • Ref: $docRefId • Generated: $generatedTimestamp", 36f, 814f, textPaint)
-            c.drawText("Page $pNum of $totalPages", 510f, 814f, textPaint)
+            c.drawText("Confidential • Official Workplace Attendance Statement • Security Ref: $docRefId", 40f, 818f, textPaint)
+            val pageStr = "Page $pNum of $totalPages"
+            val pWidth = textPaint.measureText(pageStr)
+            c.drawText(pageStr, 555f - pWidth, 818f, textPaint)
         }
 
         fun drawRunningHeader(c: Canvas) {
-            // Header Bar
-            paint.color = primaryDark
-            c.drawRoundRect(RectF(36f, 30f, 54f, 48f), 4f, 4f, paint)
-
-            textPaint.color = Color.WHITE
-            textPaint.textSize = 11f
-            textPaint.typeface = Typeface.DEFAULT_BOLD
-            c.drawText("P", 42f, 43f, textPaint)
-
             textPaint.color = primaryDark
-            textPaint.textSize = 14f
-            c.drawText("PingPin", 60f, 44f, textPaint)
+            textPaint.textSize = 13f
+            textPaint.typeface = Typeface.DEFAULT_BOLD
+            c.drawText("PINGPIN", 40f, 44f, textPaint)
 
             textPaint.color = textMuted
-            textPaint.textSize = 9.5f
+            textPaint.textSize = 8.5f
             textPaint.typeface = Typeface.DEFAULT
-            c.drawText("|  WFO Attendance Log (Continued)", 115f, 44f, textPaint)
+            c.drawText("  |   Attendance Log (Continued)", 95f, 43.5f, textPaint)
 
-            textPaint.color = primaryAccent
-            textPaint.textSize = 11f
+            textPaint.color = secondaryDark
+            textPaint.textSize = 9.5f
             textPaint.typeface = Typeface.DEFAULT_BOLD
-            c.drawText(monthName.uppercase(Locale.US), 470f, 44f, textPaint)
+            val rMonth = monthName.uppercase(Locale.US)
+            val rWidth = textPaint.measureText(rMonth)
+            c.drawText(rMonth, 555f - rWidth, 43.5f, textPaint)
 
-            paint.color = borderSoft
+            paint.color = borderStrong
             paint.strokeWidth = 1f
-            c.drawLine(36f, 56f, 559f, 56f, paint)
+            c.drawLine(40f, 54f, 555f, 54f, paint)
         }
 
         fun drawTableHeader(c: Canvas, startY: Float) {
             paint.color = headerFill
-            c.drawRoundRect(RectF(36f, startY, 559f, startY + 22f), 4f, 4f, paint)
+            c.drawRect(RectF(40f, startY, 555f, startY + 24f), paint)
 
-            textPaint.color = headerText
-            textPaint.textSize = 8.5f
+            paint.color = borderStrong
+            paint.strokeWidth = 1f
+            c.drawLine(40f, startY, 555f, startY, paint)
+            c.drawLine(40f, startY + 24f, 555f, startY + 24f, paint)
+
+            textPaint.color = secondaryDark
+            textPaint.textSize = 8f
             textPaint.typeface = Typeface.DEFAULT_BOLD
-            c.drawText("DATE", 46f, startY + 15f, textPaint)
-            c.drawText("DAY", 135f, startY + 15f, textPaint)
-            c.drawText("CHECK-IN TIME", 205f, startY + 15f, textPaint)
-            c.drawText("VERIFICATION / NETWORK", 315f, startY + 15f, textPaint)
-            c.drawText("STATUS", 465f, startY + 15f, textPaint)
+            c.drawText("DATE", 50f, startY + 15.5f, textPaint)
+            c.drawText("DAY", 135f, startY + 15.5f, textPaint)
+            c.drawText("CHECK-IN TIME", 210f, startY + 15.5f, textPaint)
+            c.drawText("VERIFICATION METHOD", 310f, startY + 15.5f, textPaint)
+            c.drawText("STATUS", 475f, startY + 15.5f, textPaint)
         }
 
         // ================= PAGE 1 SETUP =================
-        // 1. Executive Top Header
-        paint.color = primaryDark
-        canvas.drawRoundRect(RectF(36f, 32f, 60f, 56f), 6f, 6f, paint)
-
-        textPaint.color = Color.WHITE
-        textPaint.textSize = 14f
-        textPaint.typeface = Typeface.DEFAULT_BOLD
-        canvas.drawText("P", 44f, 49f, textPaint)
-
-        // Accent pin dot
-        paint.color = primaryAccent
-        canvas.drawCircle(54f, 38f, 3f, paint)
-
+        // 1. Corporate Masthead Header
         textPaint.color = primaryDark
-        textPaint.textSize = 18f
+        textPaint.textSize = 20f
         textPaint.typeface = Typeface.DEFAULT_BOLD
-        canvas.drawText("PingPin", 68f, 50f, textPaint)
+        canvas.drawText("PINGPIN", 40f, 54f, textPaint)
 
-        textPaint.color = textMuted
-        textPaint.textSize = 10.5f
+        textPaint.color = secondaryDark
+        textPaint.textSize = 9f
+        textPaint.typeface = Typeface.DEFAULT_BOLD
+        canvas.drawText("MONTHLY ATTENDANCE STATEMENT", 40f, 68f, textPaint)
+
+        textPaint.color = textSubtle
+        textPaint.textSize = 7.5f
         textPaint.typeface = Typeface.DEFAULT
-        canvas.drawText("|  Executive WFO Attendance Statement", 142f, 50f, textPaint)
+        canvas.drawText("Official Employee In-Office Verification Report", 40f, 78f, textPaint)
 
-        // Month Badge
-        val monthBadgeRect = RectF(440f, 34f, 559f, 56f)
-        paint.color = primaryAccent
-        canvas.drawRoundRect(monthBadgeRect, 11f, 11f, paint)
-        textPaint.color = Color.WHITE
-        textPaint.textSize = 9.5f
+        // Metadata Block on Top Right
+        textPaint.color = primaryDark
+        textPaint.textSize = 12f
         textPaint.typeface = Typeface.DEFAULT_BOLD
-        val monthBadgeText = monthName.uppercase(Locale.US)
-        val textWidth = textPaint.measureText(monthBadgeText)
-        canvas.drawText(monthBadgeText, 440f + (119f - textWidth) / 2f, 49f, textPaint)
-
-        paint.color = borderSoft
-        paint.strokeWidth = 1f
-        canvas.drawLine(36f, 68f, 559f, 68f, paint)
-
-        // 2. User Profile Card & Compliance Rating Card
-        val profileCardRect = RectF(36f, 78f, 335f, 174f)
-        paint.color = bgSoft
-        canvas.drawRoundRect(profileCardRect, 10f, 10f, paint)
-        paint.color = borderSoft
-        paint.style = Paint.Style.STROKE
-        canvas.drawRoundRect(profileCardRect, 10f, 10f, paint)
-        paint.style = Paint.Style.FILL
+        val periodText = monthName.uppercase(Locale.US)
+        val periodWidth = textPaint.measureText(periodText)
+        canvas.drawText(periodText, 555f - periodWidth, 50f, textPaint)
 
         textPaint.color = textMuted
         textPaint.textSize = 7.5f
-        textPaint.typeface = Typeface.DEFAULT_BOLD
-        canvas.drawText("EMPLOYEE IDENTIFICATION", 50f, 94f, textPaint)
-
-        val nameText = if (profile.fullName.isBlank()) "VERIFIED EMPLOYEE" else profile.fullName.trim().uppercase()
-        textPaint.color = textDark
-        textPaint.textSize = 13f
-        textPaint.typeface = Typeface.DEFAULT_BOLD
-        canvas.drawText(nameText, 50f, 112f, textPaint)
-
-        val desigText = if (!profile.designation.isNullOrBlank()) profile.designation.trim() else "Team Member"
-        textPaint.color = primaryAccent
-        textPaint.textSize = 10f
-        textPaint.typeface = Typeface.DEFAULT_BOLD
-        canvas.drawText(desigText, 50f, 127f, textPaint)
-
-        paint.color = borderSoft
-        canvas.drawLine(50f, 136f, 321f, 136f, paint)
-
-        val empIdText = if (!profile.employeeId.isNullOrBlank()) profile.employeeId.trim() else "N/A"
-        val contactText = if (!profile.email.isNullOrBlank()) profile.email.trim() else if (!profile.phone.isNullOrBlank()) profile.phone.trim() else "PingPin Verified WFO"
-        textPaint.color = textMuted
-        textPaint.textSize = 8.5f
         textPaint.typeface = Typeface.DEFAULT
-        canvas.drawText("Emp ID: $empIdText   •   Contact: $contactText", 50f, 151f, textPaint)
-        canvas.drawText("Doc Ref: $docRefId", 50f, 164f, textPaint)
+        val refText = "Document Ref: $docRefId"
+        val refWidth = textPaint.measureText(refText)
+        canvas.drawText(refText, 555f - refWidth, 64f, textPaint)
 
-        // Compliance Rating Card
-        val complianceCardRect = RectF(345f, 78f, 559f, 174f)
-        paint.color = successGreenBg
-        canvas.drawRoundRect(complianceCardRect, 10f, 10f, paint)
-        paint.color = Color.parseColor("#BBF7D0")
+        val genText = "Generated: $generatedTimestamp"
+        val genWidth = textPaint.measureText(genText)
+        canvas.drawText(genText, 555f - genWidth, 76f, textPaint)
+
+        // Masthead Divider Line
+        paint.color = primaryDark
+        paint.strokeWidth = 1.5f
+        canvas.drawLine(40f, 86f, 555f, 86f, paint)
+
+        // 2. Executive Summary & Employee Details (Two Elegant Balanced Panels)
+        val summaryY = 96f
+        val summaryHeight = 78f
+
+        // Left Panel: Employee Details (40f to 285f)
+        val empRect = RectF(40f, summaryY, 285f, summaryY + summaryHeight)
+        paint.color = bgSoft
+        canvas.drawRoundRect(empRect, 4f, 4f, paint)
+        paint.color = borderSoft
         paint.style = Paint.Style.STROKE
-        canvas.drawRoundRect(complianceCardRect, 10f, 10f, paint)
+        paint.strokeWidth = 1f
+        canvas.drawRoundRect(empRect, 4f, 4f, paint)
         paint.style = Paint.Style.FILL
 
-        textPaint.color = primaryAccent
-        textPaint.textSize = 8f
+        textPaint.color = textMuted
+        textPaint.textSize = 7f
         textPaint.typeface = Typeface.DEFAULT_BOLD
-        canvas.drawText("WFO COMPLIANCE RATE", 360f, 94f, textPaint)
+        canvas.drawText("EMPLOYEE DETAILS", 52f, summaryY + 14f, textPaint)
 
+        val nameText = if (profile.fullName.isBlank()) "VERIFIED EMPLOYEE" else profile.fullName.trim().uppercase(Locale.US)
         textPaint.color = textDark
-        textPaint.textSize = 26f
+        textPaint.textSize = 12f
         textPaint.typeface = Typeface.DEFAULT_BOLD
-        canvas.drawText("$attendancePctStr%", 360f, 126f, textPaint)
+        canvas.drawText(nameText, 52f, summaryY + 31f, textPaint)
 
-        // Rating Badge Pill inside compliance card
+        val desigText = if (!profile.designation.isNullOrBlank()) profile.designation.trim() else "Team Member"
+        textPaint.color = secondaryDark
+        textPaint.textSize = 8.5f
+        textPaint.typeface = Typeface.DEFAULT
+        canvas.drawText(desigText, 52f, summaryY + 44f, textPaint)
+
+        val empIdText = if (!profile.employeeId.isNullOrBlank()) profile.employeeId.trim() else "N/A"
+        val contactText = if (!profile.email.isNullOrBlank()) profile.email.trim() else if (!profile.phone.isNullOrBlank()) profile.phone.trim() else "Verified PingPin Device"
+        textPaint.color = textMuted
+        textPaint.textSize = 7.5f
+        canvas.drawText("Employee ID: $empIdText   •   $contactText", 52f, summaryY + 58f, textPaint)
+
+        val officeName = officeConfig?.ssid?.takeIf { it.isNotBlank() }?.let { "Wi-Fi: $it" } ?: "Main Corporate Office"
+        canvas.drawText("Work Location: $officeName", 52f, summaryY + 70f, textPaint)
+
+        // Right Panel: Attendance Performance Summary (295f to 555f)
+        val perfRect = RectF(295f, summaryY, 555f, summaryY + summaryHeight)
+        paint.color = bgSoft
+        canvas.drawRoundRect(perfRect, 4f, 4f, paint)
+        paint.color = borderSoft
+        paint.style = Paint.Style.STROKE
+        paint.strokeWidth = 1f
+        canvas.drawRoundRect(perfRect, 4f, 4f, paint)
+        paint.style = Paint.Style.FILL
+
+        textPaint.color = textMuted
+        textPaint.textSize = 7f
+        textPaint.typeface = Typeface.DEFAULT_BOLD
+        canvas.drawText("MONTHLY ATTENDANCE SUMMARY", 307f, summaryY + 14f, textPaint)
+
+        // Rating Status
         val ratingStatus = when {
             evaluatedCount == 0 -> "N/A"
             extraWfoCount > 0 && pct >= 100.0 -> "EXCEEDED TARGET"
             pct >= 100.0 -> "EXCELLENT"
             pct >= 75.0 -> "ON TRACK"
-            pct >= 50.0 -> "ATTENTION"
-            else -> "LOW"
-        }
-        val badgeBg = if (pct >= 75.0) successGreenFg else if (pct >= 50.0) warningAmberFg else softRedFg
-        val statusPillRect = RectF(465f, 106f, 545f, 124f)
-        paint.color = badgeBg
-        canvas.drawRoundRect(statusPillRect, 9f, 9f, paint)
-
-        textPaint.color = Color.WHITE
-        textPaint.textSize = 8f
-        textPaint.typeface = Typeface.DEFAULT_BOLD
-        val statusTextWidth = textPaint.measureText(ratingStatus)
-        canvas.drawText(ratingStatus, 465f + (80f - statusTextWidth) / 2f, 118f, textPaint)
-
-        textPaint.color = textMuted
-        textPaint.textSize = 8.5f
-        textPaint.typeface = Typeface.DEFAULT
-        val extraSubtitle = if (extraWfoCount > 0) " (incl. $extraWfoCount Extra WFO)" else ""
-        canvas.drawText("$totalOfficeDays of $evaluatedCount evaluated days completed$extraSubtitle", 360f, 152f, textPaint)
-        canvas.drawText("Target WFO: ${wfoDays.size} days in month", 360f, 164f, textPaint)
-
-        // 3. Stat Overview Cards (4 Columns)
-        val tileWidth = (523f - 30f) / 4f
-        val tileLabels = listOf("SCHEDULED WFO", "EVALUATED", "ATTENDED", "PUNCTUALITY")
-        val tileValues = listOf(
-            "${wfoDays.size} Days",
-            "$evaluatedCount Days",
-            "$totalOfficeDays Days",
-            "${String.format(Locale.US, "%.0f%%", punctualityPct)}"
-        )
-        val tileColors = listOf(primaryDark, primaryAccent, successGreen, warningAmber)
-
-        for (i in 0..3) {
-            val left = 36f + i * (tileWidth + 10f)
-            val tileRect = RectF(left, 184f, left + tileWidth, 236f)
-
-            paint.color = bgSoft
-            canvas.drawRoundRect(tileRect, 8f, 8f, paint)
-            paint.color = borderSoft
-            paint.style = Paint.Style.STROKE
-            canvas.drawRoundRect(tileRect, 8f, 8f, paint)
-            paint.style = Paint.Style.FILL
-
-            textPaint.color = textMuted
-            textPaint.textSize = 7.5f
-            textPaint.typeface = Typeface.DEFAULT_BOLD
-            canvas.drawText(tileLabels[i], left + 8f, 198f, textPaint)
-
-            paint.color = tileColors[i]
-            canvas.drawRoundRect(RectF(left + 8f, 206f, left + 11f, 224f), 2f, 2f, paint)
-
-            textPaint.color = textDark
-            textPaint.textSize = 14f
-            textPaint.typeface = Typeface.DEFAULT_BOLD
-            canvas.drawText(tileValues[i], left + 16f, 222f, textPaint)
+            pct >= 50.0 -> "ATTENTION REQUIRED"
+            else -> "LOW COMPLIANCE"
         }
 
-        // 4. Monthly Insights & Weekly Breakdown Box
-        val insightsBoxRect = RectF(36f, 246f, 559f, 312f)
-        paint.color = bgSoft
-        canvas.drawRoundRect(insightsBoxRect, 8f, 8f, paint)
-        paint.color = borderSoft
-        paint.style = Paint.Style.STROKE
-        canvas.drawRoundRect(insightsBoxRect, 8f, 8f, paint)
-        paint.style = Paint.Style.FILL
-
-        textPaint.color = primaryAccent
-        textPaint.textSize = 8f
-        textPaint.typeface = Typeface.DEFAULT_BOLD
-        canvas.drawText("MONTHLY INSIGHTS & ATTENDANCE PATTERNS", 48f, 260f, textPaint)
-
-        // Left Column Stats
-        textPaint.color = textDark
-        textPaint.textSize = 8.5f
-        textPaint.typeface = Typeface.DEFAULT
-        canvas.drawText("• Avg Arrival Time: $avgCheckInTimeStr", 48f, 276f, textPaint)
-        val extraWfoNote = if (extraWfoCount > 0) " (incl. $extraWfoCount Extra WFO)" else ""
-        canvas.drawText("• Punctuality: $onTimeCount On-time, $lateCount Late$extraWfoNote", 48f, 290f, textPaint)
-        val primaryWifi = officeConfig?.ssid?.takeIf { it.isNotBlank() } ?: "Office Wi-Fi / Geofence"
-        canvas.drawText("• Verification: ${String.format(Locale.US, "%.0f%%", autoPunchPct)} via $primaryWifi", 48f, 304f, textPaint)
-
-        // Right Column Stats (Weekly Breakdown)
+        // Metrics Grid Row 1
         textPaint.color = textDark
         textPaint.textSize = 8.5f
         textPaint.typeface = Typeface.DEFAULT_BOLD
-        canvas.drawText("Weekly WFO Distribution:", 310f, 276f, textPaint)
+        canvas.drawText("Scheduled WFO: ${wfoDays.size} Days", 307f, summaryY + 31f, textPaint)
+        canvas.drawText("Evaluated: $evaluatedCount Days", 435f, summaryY + 31f, textPaint)
 
-        val w1Str = "W1: ${weeklyAtt[0]}/${weeklyTot[0]}"
-        val w2Str = "W2: ${weeklyAtt[1]}/${weeklyTot[1]}"
-        val w3Str = "W3: ${weeklyAtt[2]}/${weeklyTot[2]}"
-        val w4Str = "W4: ${weeklyAtt[3]}/${weeklyTot[3]}"
-        val w5Str = if (weeklyTot[4] > 0) "W5: ${weeklyAtt[4]}/${weeklyTot[4]}" else ""
+        // Metrics Grid Row 2
+        val extraSub = if (extraWfoCount > 0) " (+$extraWfoCount Extra)" else ""
+        canvas.drawText("Attended: $totalOfficeDays Days$extraSub", 307f, summaryY + 45f, textPaint)
 
+        val complianceColor = if (pct >= 75.0) successGreenFg else if (pct >= 50.0) warningAmberFg else softRedFg
+        textPaint.color = complianceColor
+        canvas.drawText("Compliance: $attendancePctStr%  ($ratingStatus)", 435f, summaryY + 45f, textPaint)
+
+        // Metrics Grid Row 3
         textPaint.color = textMuted
+        textPaint.textSize = 7.5f
         textPaint.typeface = Typeface.DEFAULT
-        canvas.drawText("$w1Str   |   $w2Str   |   $w3Str", 310f, 290f, textPaint)
-        canvas.drawText("$w4Str${if (w5Str.isNotEmpty()) "   |   $w5Str" else ""}", 310f, 304f, textPaint)
+        canvas.drawText("Punctuality: ${String.format(Locale.US, "%.0f%%", punctualityPct)} ($onTimeCount on-time, $lateCount late)", 307f, summaryY + 59f, textPaint)
 
-        // 5. Section Header for Detailed Attendance Log
-        textPaint.color = textDark
-        textPaint.textSize = 11f
+        val primaryWifi = officeConfig?.ssid?.takeIf { it.isNotBlank() } ?: "Office Wi-Fi"
+        canvas.drawText("Avg Arrival: $avgCheckInTimeStr   •   Auto-Punch: ${String.format(Locale.US, "%.0f%%", autoPunchPct)} via $primaryWifi", 307f, summaryY + 71f, textPaint)
+
+        // 3. Section Title for Detailed Log
+        textPaint.color = primaryDark
+        textPaint.textSize = 9.5f
         textPaint.typeface = Typeface.DEFAULT_BOLD
-        canvas.drawText("Detailed Attendance & Punch Log", 36f, 332f, textPaint)
+        canvas.drawText("DETAILED ATTENDANCE LOG", 40f, 196f, textPaint)
 
         textPaint.color = textMuted
-        textPaint.textSize = 8f
+        textPaint.textSize = 7.5f
         textPaint.typeface = Typeface.DEFAULT
-        canvas.drawText("Chronological record of scheduled WFO days and check-in verifications", 230f, 332f, textPaint)
+        canvas.drawText("Chronological audit of scheduled WFO days & verification telemetry", 215f, 196f, textPaint)
 
-        // 6. Draw Table Header
-        var startY = 342f
+        // 4. Draw Table Header
+        var startY = 205f
         drawTableHeader(canvas, startY)
-        startY += 22f
+        startY += 24f
 
         val sdfDate = SimpleDateFormat("MMM dd, yyyy", Locale.US)
         val sdfDay = SimpleDateFormat("EEEE", Locale.US)
         val sdfTime = SimpleDateFormat("hh:mm a", Locale.US)
         val sdfIso = SimpleDateFormat("yyyy-MM-dd", Locale.US)
 
+        val rowHeight = 24f
         var rowIndex = 0
+
         for (cal in reportDays) {
-            // If nearing bottom of page 1, split to Page 2
-            if (startY + 20f > 720f && pageNum == 1) {
+            // Split to Page 2 at row 18 for multi-page logs
+            if (rowIndex == 18 && totalPages > 1) {
                 drawFooter(canvas, pageNum)
                 document.finishPage(page)
 
@@ -455,9 +392,9 @@ class PdfExportService(private val context: Context) {
                 canvas = page.canvas
 
                 drawRunningHeader(canvas)
-                startY = 68f
+                startY = 64f
                 drawTableHeader(canvas, startY)
-                startY += 22f
+                startY += 24f
             }
 
             val isoDate = sdfIso.format(cal.time)
@@ -466,52 +403,53 @@ class PdfExportService(private val context: Context) {
             val isWfo = WorkingDays.isWorkingDay(cal, workingDaysMask) && WorkingDays.isWfoDay(cal, wfoDaysMask)
             val isExtraWfo = isPresent && !isWfo
             val isFuture = cal.after(todayCal)
-            val isLate = record?.status == "late"
+            val isLate = record?.status.equals("late", ignoreCase = true)
 
             // Alternating Row Background
             if (rowIndex % 2 == 1) {
-                paint.color = bgSoft
-                canvas.drawRect(RectF(36f, startY, 559f, startY + 20f), paint)
+                paint.color = Color.parseColor("#FAFAFA")
+                canvas.drawRect(RectF(40f, startY, 555f, startY + rowHeight), paint)
             }
 
-            // Bottom Border
+            // Bottom Divider Line
             paint.color = borderSoft
-            paint.style = Paint.Style.STROKE
-            canvas.drawRect(RectF(36f, startY, 559f, startY + 20f), paint)
-            paint.style = Paint.Style.FILL
+            paint.strokeWidth = 0.8f
+            canvas.drawLine(40f, startY + rowHeight, 555f, startY + rowHeight, paint)
 
             // Column 1: Date
             textPaint.color = textDark
             textPaint.textSize = 8.5f
             textPaint.typeface = Typeface.DEFAULT_BOLD
-            canvas.drawText(sdfDate.format(cal.time), 46f, startY + 14f, textPaint)
+            canvas.drawText(sdfDate.format(cal.time), 50f, startY + 15.5f, textPaint)
 
-            // Column 2: Day
+            // Column 2: Day of Week
             textPaint.color = textMuted
+            textPaint.textSize = 8.2f
             textPaint.typeface = Typeface.DEFAULT
-            canvas.drawText(sdfDay.format(cal.time), 135f, startY + 14f, textPaint)
+            canvas.drawText(sdfDay.format(cal.time), 135f, startY + 15.5f, textPaint)
 
             // Column 3: Check-in Time
             val timeMarkedText = if (record != null) {
                 val tStr = sdfTime.format(Date(record.markedAt))
                 if (isLate) "$tStr (Late)" else tStr
-            } else "--:--"
+            } else "—"
 
-            textPaint.color = if (isPresent) (if (isExtraWfo) Color.parseColor("#0369A1") else if (isLate) warningAmberFg else successGreenFg) else textMuted
+            textPaint.color = if (isPresent) (if (isExtraWfo) extraBlueFg else if (isLate) warningAmberFg else successGreenFg) else textSubtle
             textPaint.typeface = if (isPresent) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
-            canvas.drawText(timeMarkedText, 205f, startY + 14f, textPaint)
+            textPaint.textSize = 8.5f
+            canvas.drawText(timeMarkedText, 210f, startY + 15.5f, textPaint)
 
             // Column 4: Verification Source
             val sourceText = if (record != null) {
                 if (!record.ssidSnapshot.isNullOrBlank()) "Wi-Fi: ${record.ssidSnapshot}"
                 else if (record.distanceMeters != null) "Geofence (${record.distanceMeters.toInt()}m)"
                 else "Manual Check-in"
-            } else "--"
+            } else "—"
 
             textPaint.color = textMuted
             textPaint.textSize = 8f
             textPaint.typeface = Typeface.DEFAULT
-            canvas.drawText(sourceText, 315f, startY + 14f, textPaint)
+            canvas.drawText(sourceText, 310f, startY + 15.5f, textPaint)
 
             // Column 5: Status Badge Pill
             val statusStr = when {
@@ -522,8 +460,6 @@ class PdfExportService(private val context: Context) {
                 isFuture -> "UPCOMING"
                 else -> "ABSENT"
             }
-            val extraBlueBg = Color.parseColor("#E0F2FE")
-            val extraBlueFg = Color.parseColor("#0369A1")
 
             val badgeBgColor = when {
                 isExtraWfo -> extraBlueBg
@@ -531,6 +467,14 @@ class PdfExportService(private val context: Context) {
                 isPresent -> successGreenBg
                 isFuture -> upcomingBg
                 else -> softRedBg
+            }
+
+            val badgeBorderColor = when {
+                isExtraWfo -> extraBlueBorder
+                isPresent && isLate -> warningAmberBorder
+                isPresent -> successGreenBorder
+                isFuture -> upcomingBorder
+                else -> softRedBorder
             }
 
             val badgeTextColor = when {
@@ -541,64 +485,99 @@ class PdfExportService(private val context: Context) {
                 else -> softRedFg
             }
 
-            val bRect = RectF(455f, startY + 3f, 535f, startY + 17f)
+            val bRect = RectF(460f, startY + 4f, 545f, startY + 20f)
             paint.color = badgeBgColor
-            canvas.drawRoundRect(bRect, 4f, 4f, paint)
+            canvas.drawRoundRect(bRect, 8f, 8f, paint)
+
+            paint.color = badgeBorderColor
+            paint.style = Paint.Style.STROKE
+            paint.strokeWidth = 0.8f
+            canvas.drawRoundRect(bRect, 8f, 8f, paint)
+            paint.style = Paint.Style.FILL
 
             textPaint.color = badgeTextColor
-            textPaint.textSize = 7.5f
+            textPaint.textSize = 7f
             textPaint.typeface = Typeface.DEFAULT_BOLD
             val stWidth = textPaint.measureText(statusStr)
-            canvas.drawText(statusStr, 455f + (80f - stWidth) / 2f, startY + 13f, textPaint)
+            canvas.drawText(statusStr, 460f + (85f - stWidth) / 2f, startY + 14.8f, textPaint)
 
-            startY += 20f
+            startY += rowHeight
             rowIndex++
         }
 
-        // 7. Corporate Sign-off & Verification Seal Block
-        if (startY + 75f > 750f && pageNum == 1) {
-            drawFooter(canvas, pageNum)
-            document.finishPage(page)
+        // 5. Table Totals Summary Row
+        val totalsHeight = 24f
+        paint.color = bgSoft
+        canvas.drawRect(RectF(40f, startY, 555f, startY + totalsHeight), paint)
 
-            pageNum = 2
-            pageInfo = PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNum).create()
-            page = document.startPage(pageInfo)
-            canvas = page.canvas
-
-            drawRunningHeader(canvas)
-            startY = 70f
-        }
-
-        val signOffTop = startY + 12f
-        paint.color = borderSoft
+        paint.color = borderStrong
         paint.strokeWidth = 1f
-        canvas.drawLine(36f, signOffTop, 559f, signOffTop, paint)
+        canvas.drawLine(40f, startY, 555f, startY, paint)
+        canvas.drawLine(40f, startY + totalsHeight, 555f, startY + totalsHeight, paint)
 
-        // Employee Signature Box
-        textPaint.color = textMuted
-        textPaint.textSize = 8f
-        textPaint.typeface = Typeface.DEFAULT
-        canvas.drawText("___________________________________________", 50f, signOffTop + 30f, textPaint)
-        textPaint.color = textDark
+        textPaint.color = secondaryDark
+        textPaint.textSize = 7.8f
         textPaint.typeface = Typeface.DEFAULT_BOLD
-        canvas.drawText("Employee Signature & Date", 50f, signOffTop + 42f, textPaint)
-        textPaint.color = textMuted
-        textPaint.typeface = Typeface.DEFAULT
-        canvas.drawText(nameText, 50f, signOffTop + 54f, textPaint)
+        canvas.drawText(
+            "TOTALS:  ${wfoDays.size} Scheduled   •   $evaluatedCount Evaluated   •   $totalOfficeDays Attended   •   $attendancePctStr% Compliance   •   $onTimeCount On-Time",
+            50f,
+            startY + 15.5f,
+            textPaint
+        )
+        startY += totalsHeight
 
-        // Manager / HR Signature Box
+        // 6. Corporate Attestation & Signature Block
+        // Anchor towards bottom on single-page reports to balance the page gracefully
+        val signOffTop = if (totalPages == 1) maxOf(startY + 40f, 620f) else (startY + 30f)
+
+        // Attestation Statement
         textPaint.color = textMuted
-        textPaint.textSize = 8f
+        textPaint.textSize = 7.5f
         textPaint.typeface = Typeface.DEFAULT
-        canvas.drawText("___________________________________________", 340f, signOffTop + 30f, textPaint)
+        canvas.drawText(
+            "I hereby attest and certify that the above recorded in-office days represent an accurate accounting of physical workplace attendance.",
+            40f,
+            signOffTop,
+            textPaint
+        )
+
+        // Left Signature: Employee
+        val sigLineY = signOffTop + 45f
+        paint.color = borderStrong
+        paint.strokeWidth = 1f
+        canvas.drawLine(40f, sigLineY, 230f, sigLineY, paint)
+
         textPaint.color = textDark
+        textPaint.textSize = 8.5f
         textPaint.typeface = Typeface.DEFAULT_BOLD
-        canvas.drawText("Manager / HR Approver & Date", 340f, signOffTop + 42f, textPaint)
-        textPaint.color = textMuted
-        textPaint.typeface = Typeface.DEFAULT
-        canvas.drawText("Verified WFO Attendance Log", 340f, signOffTop + 54f, textPaint)
+        canvas.drawText(nameText, 40f, sigLineY + 13f, textPaint)
 
-        // Draw Footer on final page
+        textPaint.color = textMuted
+        textPaint.textSize = 7.5f
+        textPaint.typeface = Typeface.DEFAULT
+        canvas.drawText("Employee Signature & Date", 40f, sigLineY + 24f, textPaint)
+
+        // Right Signature: Supervisor / HR
+        canvas.drawLine(365f, sigLineY, 555f, sigLineY, paint)
+
+        textPaint.color = textDark
+        textPaint.textSize = 8.5f
+        textPaint.typeface = Typeface.DEFAULT_BOLD
+        canvas.drawText("HR Operations / Workplace Admin", 365f, sigLineY + 13f, textPaint)
+
+        textPaint.color = textMuted
+        textPaint.textSize = 7.5f
+        textPaint.typeface = Typeface.DEFAULT
+        canvas.drawText("Authorized Approver & Date", 365f, sigLineY + 24f, textPaint)
+
+        // Official Digital Verification Stamp Note
+        textPaint.color = textSubtle
+        textPaint.textSize = 6.8f
+        val stampNote = "Officially Audited & Verified • PingPin Compliance Engine • Ref: $docRefId • Hash: $nameHash"
+        val stampWidth = textPaint.measureText(stampNote)
+        canvas.drawText(stampNote, (pageWidth - stampWidth) / 2f, sigLineY + 45f, textPaint)
+
+        // Final Page Footer
         drawFooter(canvas, pageNum)
         document.finishPage(page)
 
@@ -613,4 +592,3 @@ class PdfExportService(private val context: Context) {
         pdfFile
     }
 }
-

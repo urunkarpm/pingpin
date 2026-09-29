@@ -13,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -116,7 +117,7 @@ fun InsightsScreen(
             }
 
             val isWork = WorkingDays.isWorkingDay(dayCal, workingDaysMask)
-            val isWfo = WorkingDays.isWfoDay(dayCal, wfoDaysMask)
+            val isWfo = isWork && WorkingDays.isWfoDay(dayCal, wfoDaysMask)
 
             if (isWork) {
                 workTotal++
@@ -853,6 +854,19 @@ private fun MetricCard(
     }
 }
 
+private data class WeekdayStat(
+    val name: String,
+    val isWfoDay: Boolean,
+    val attended: Int,
+    val missed: Int,
+    val upcoming: Int,
+    val isExtra: Boolean
+) {
+    val evaluated: Int get() = attended + missed
+    val totalScheduled: Int get() = evaluated + upcoming
+    val complianceRate: Float get() = if (evaluated > 0) attended.toFloat() / evaluated else 0f
+}
+
 @Composable
 private fun WeekdayDistributionCard(
     year: Int,
@@ -866,31 +880,100 @@ private fun WeekdayDistributionCard(
     val dayNames = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
     val recordsMap = remember(records) { records.associateBy { it.dateYyyyMmDd } }
 
+    val todayCal = remember {
+        Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+    }
+
+    val currentYear = todayCal.get(Calendar.YEAR)
+    val currentMonth = todayCal.get(Calendar.MONTH) + 1
+    val currentDay = todayCal.get(Calendar.DAY_OF_MONTH)
+
+    val isPastMonth = (year < currentYear) || (year == currentYear && month < currentMonth)
+    val isFutureMonth = (year > currentYear) || (year == currentYear && month > currentMonth)
+
     val weekdayStats = remember(year, month, maxDays, workingDaysMask, wfoDaysMask, recordsMap, installCal) {
-        val targets = IntArray(7)
         val attended = IntArray(7)
+        val missed = IntArray(7)
+        val upcoming = IntArray(7)
 
         val cal = Calendar.getInstance()
         for (day in 1..maxDays) {
             cal.set(year, month - 1, day, 0, 0, 0)
             cal.set(Calendar.MILLISECOND, 0)
-            if (cal.before(installCal)) continue
+
+            val dateStr = String.format(Locale.US, "%04d-%02d-%02d", year, month, day)
+            val isAttended = recordsMap.containsKey(dateStr)
+            val isAfterOrOnInstall = !cal.before(installCal) || isAttended
+            if (!isAfterOrOnInstall) continue
+
+            val isPastOrToday = when {
+                isPastMonth -> true
+                isFutureMonth -> false
+                else -> day <= currentDay
+            }
+
+            val isWork = WorkingDays.isWorkingDay(cal, workingDaysMask)
+            val isWfo = isWork && WorkingDays.isWfoDay(cal, wfoDaysMask)
 
             val dayOfWeek = cal.get(Calendar.DAY_OF_WEEK)
             val idx = if (dayOfWeek == Calendar.SUNDAY) 6 else dayOfWeek - 2
+
             if (idx in 0..6) {
-                if (WorkingDays.isWorkingDay(cal, workingDaysMask) && WorkingDays.isWfoDay(cal, wfoDaysMask)) {
-                    targets[idx]++
-                }
-                val dateStr = String.format(Locale.US, "%04d-%02d-%02d", year, month, day)
-                if (recordsMap.containsKey(dateStr)) {
+                if (isAttended) {
                     attended[idx]++
+                } else if (isWfo) {
+                    if (isPastOrToday) {
+                        missed[idx]++
+                    } else {
+                        upcoming[idx]++
+                    }
                 }
             }
         }
+
+        // ponytail: Static 7-day Monday-Sunday representation; upgrade path: customizable first day of week.
         dayNames.mapIndexed { idx, name ->
-            Triple(name, attended[idx], targets[idx])
+            val dayShift = idx
+            val isWfoConfigured = (wfoDaysMask and (1 shl dayShift)) != 0 && (workingDaysMask and (1 shl dayShift)) != 0
+            val isExtra = !isWfoConfigured && attended[idx] > 0
+            WeekdayStat(
+                name = name,
+                isWfoDay = isWfoConfigured,
+                attended = attended[idx],
+                missed = missed[idx],
+                upcoming = upcoming[idx],
+                isExtra = isExtra
+            )
         }
+    }
+
+    val bestDays = remember(weekdayStats) {
+        weekdayStats.filter { it.isWfoDay && it.evaluated > 0 && it.complianceRate >= 1.0f }.map { it.name }
+    }
+    val missedDays = remember(weekdayStats) {
+        weekdayStats.filter { it.isWfoDay && it.missed > 0 }.map { it.name }
+    }
+    val totalEvaluated = remember(weekdayStats) { weekdayStats.sumOf { it.evaluated } }
+    val totalAttended = remember(weekdayStats) { weekdayStats.sumOf { it.attended } }
+
+    val insightText = remember(bestDays, missedDays, totalEvaluated, totalAttended) {
+        when {
+            totalEvaluated == 0 -> "Upcoming month • No evaluated office days yet."
+            missedDays.isEmpty() && bestDays.isNotEmpty() -> "100% attendance on all evaluated weekdays! 🎉"
+            bestDays.isNotEmpty() && missedDays.isNotEmpty() -> "Most consistent on ${bestDays.joinToString(", ")} • Missed on ${missedDays.joinToString(", ")}"
+            bestDays.isNotEmpty() -> "Consistently attended on ${bestDays.joinToString(", ")}"
+            missedDays.isNotEmpty() -> "Missed scheduled days on ${missedDays.joinToString(", ")}"
+            else -> "$totalAttended of $totalEvaluated scheduled office days completed."
+        }
+    }
+
+    val maxSlots = remember(weekdayStats) {
+        maxOf(weekdayStats.maxOf { maxOf(it.totalScheduled, it.attended) }, 1)
     }
 
     GlassCard(modifier = Modifier.fillMaxWidth()) {
@@ -908,57 +991,209 @@ private fun WeekdayDistributionCard(
                     letterSpacing = 0.8.sp
                 )
                 Text(
-                    text = "WFO Days",
+                    text = "$totalAttended / $totalEvaluated Completed",
                     fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
+            // Behavioral Insight Banner
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f))
+                    .padding(horizontal = 10.dp, vertical = 7.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.TrendingUp,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(14.dp)
+                )
+                Text(
+                    text = insightText,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 7 Weekday Columns
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                weekdayStats.forEach { (dayName, attended, target) ->
-                    val isExtra = target == 0 && attended > 0
-                    val ratio = if (target > 0) (attended.toFloat() / target).coerceIn(0f, 1f) else if (isExtra) 1.0f else 0f
-                    val barColor = if (isExtra) com.urunkarpm.pingpin.ui.theme.ElectricBlue else if (ratio >= 1.0f) EmeraldGreen else MaterialTheme.colorScheme.primary
-                    val labelText = if (target > 0) "$attended/$target" else if (isExtra) "$attended" else "-"
-                    val labelColor = if (isExtra) com.urunkarpm.pingpin.ui.theme.ElectricBlue else if (attended > 0) EmeraldGreen else MaterialTheme.colorScheme.onSurfaceVariant
+                weekdayStats.forEach { stat ->
+                    val topLabel = when {
+                        stat.evaluated > 0 -> "${stat.attended}/${stat.evaluated}"
+                        stat.isExtra -> "+${stat.attended}"
+                        stat.upcoming > 0 -> "${stat.upcoming} left"
+                        else -> "—"
+                    }
+                    val topLabelColor = when {
+                        stat.isExtra -> com.urunkarpm.pingpin.ui.theme.ElectricBlue
+                        stat.evaluated > 0 && stat.complianceRate >= 1.0f -> EmeraldGreen
+                        stat.evaluated > 0 && stat.complianceRate > 0f -> Color(0xFFD97706)
+                        stat.evaluated > 0 -> Color(0xFFEF4444)
+                        stat.upcoming > 0 -> MaterialTheme.colorScheme.onSurfaceVariant
+                        else -> MaterialTheme.colorScheme.outlineVariant
+                    }
+
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier.weight(1f)
                     ) {
                         Text(
-                            text = labelText,
-                            fontSize = 10.sp,
+                            text = topLabel,
+                            fontSize = 9.5.sp,
                             fontWeight = FontWeight.Bold,
-                            color = labelColor
+                            color = topLabelColor
                         )
+
                         Spacer(modifier = Modifier.height(6.dp))
+
+                        // Stacked / Segmented Vertical Bar (56dp height)
                         Box(
                             modifier = Modifier
-                                .height(50.dp)
-                                .width(12.dp)
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+                                .height(56.dp)
+                                .width(14.dp)
+                                .clip(RoundedCornerShape(7.dp))
+                                .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)),
                             contentAlignment = Alignment.BottomCenter
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .fillMaxHeight(ratio)
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(barColor)
-                            )
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.Bottom
+                            ) {
+                                if (stat.upcoming > 0) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(56.dp * (stat.upcoming.toFloat() / maxSlots))
+                                            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
+                                    )
+                                }
+                                if (stat.missed > 0) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(56.dp * (stat.missed.toFloat() / maxSlots))
+                                            .background(Color(0xFFF87171))
+                                    )
+                                }
+                                if (stat.attended > 0) {
+                                    val attColor = if (stat.isExtra) com.urunkarpm.pingpin.ui.theme.ElectricBlue else EmeraldGreen
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(56.dp * (stat.attended.toFloat() / maxSlots))
+                                            .background(attColor)
+                                    )
+                                }
+                            }
                         }
+
                         Spacer(modifier = Modifier.height(6.dp))
+
                         Text(
-                            text = dayName,
+                            text = stat.name,
                             fontSize = 11.sp,
+                            fontWeight = if (stat.isWfoDay) FontWeight.Bold else FontWeight.Normal,
+                            color = if (stat.isWfoDay) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        )
+
+                        Text(
+                            text = if (stat.isWfoDay) "WFO" else if (stat.isExtra) "Extra" else "Off",
+                            fontSize = 8.5.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = if (stat.isWfoDay) MaterialTheme.colorScheme.primary else if (stat.isExtra) com.urunkarpm.pingpin.ui.theme.ElectricBlue else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Mini Legend
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(EmeraldGreen)
+                    )
+                    Text(
+                        text = "Completed",
+                        fontSize = 9.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFF87171))
+                    )
+                    Text(
+                        text = "Missed",
+                        fontSize = 9.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f))
+                    )
+                    Text(
+                        text = "Upcoming",
+                        fontSize = 9.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                if (weekdayStats.any { it.isExtra }) {
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                            .background(com.urunkarpm.pingpin.ui.theme.ElectricBlue)
+                        )
+                        Text(
+                            text = "Extra",
+                            fontSize = 9.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }

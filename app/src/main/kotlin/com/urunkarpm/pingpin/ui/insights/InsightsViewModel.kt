@@ -71,7 +71,7 @@ class InsightsViewModel(application: Application) : AndroidViewModel(application
         val year = selectedYear.value
         val month = selectedMonth.value
         val profile = profileRepo.getProfile() ?: profileState.value ?: UserProfileEntity()
-        val records = monthlyRecords.value
+        val records = if (monthlyRecords.value.isNotEmpty()) monthlyRecords.value else attendanceRepo.getForMonth(year, month)
         val config = configState.value
         val workingDaysMask = config?.workingDaysMask ?: 31
         val wfoDaysMask = config?.wfoDaysMask ?: 31

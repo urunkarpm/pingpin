@@ -1,21 +1,24 @@
-# PingPin v2.8.0 Release
+# PingPin v2.9.0 Release Notes 🚀
 
 ## What's New & Enhancements
 
-### 🖥️ In-App Portal Diagnostics & Real-Time Console
-- **Interactive Live Logging**: Integrated an expandable live automation diagnostics console directly into `PortalActivity`. Live-streams DOM scanning attempts, detected buttons, keyword matches, and real-time status feedback during auto check-in.
-- **Problem State Alerts**: Automatically surfaces diagnostic notices and actionable suggestions (e.g. detected page buttons, keyword hints) if an expected check-in or check-out button isn't matched within the retry threshold.
+### 📄 Executive PDF Attendance Export Overhaul
+- **Corporate Visual Styling**: Fully redesigned the monthly attendance statement with executive slate-dark headers, subtle zebra striping, and high-contrast, color-coded status badges with border outlines (`Present`, `Late`, `Extra WFO`, `Upcoming`, `Absent`).
+- **Dynamic Layout Math & Single-Page Budgeting**: Re-engineered vertical layout budgeting (20dp row heights) and auto-balancing signature placement so standard monthly reports fit on an elegant, professional single page.
+- **Tamper-Evident Verification Seal**: Integrated an official audit stamp with document reference IDs and verification hashes.
+- **Calculations Parity**: Reconciled install date cutoffs, target vs. elapsed vs. attended days, and uncapped extra WFO compliance to match the Insights dashboard with 100% parity.
 
-### 🛡️ Clean Permission-Light Architecture
-- **Overlay Window Decommissioned**: Completely removed the invasive "Display over other apps" (`SYSTEM_ALERT_WINDOW`) permission requirement.
-- **Streamlined Workflow**: Retired the background `FloatingPortalService` overlay in favor of a fast, native in-app portal workflow that eliminates OS-level permission friction and background service restrictions.
+### 📊 Stacked Weekday Analytics & Distribution
+- **Multi-State Segmented Bars**: Upgraded the day-of-week attendance breakdown from simple single bars to segmented stacked vertical bars depicting Completed, Missed, Upcoming, and Extra WFO counts for each weekday.
+- **Mini-Legend & Fallback Loading**: Added an informative status legend and hardened the PDF export background job against unpopulated record state caches.
 
-### ⚡ Hardened Web Automation Engine
-- **Deep DOM & iFrame Traversal**: `PortalAutoCheckInEngine` now seamlessly penetrates nested iframes and Shadow DOM boundaries commonly used in modern enterprise HR/payroll portals.
-- **Smart Heuristics**: Improved fuzzy keyword matching for check-in and check-out actions, and enhanced automated punch verification to distinguish pre-existing status text from real-time punch acknowledgements.
-- **Unit Testing Coverage**: Backed by a comprehensive unit testing suite verifying URL parsing, script injection, and verification logic.
+### 🌊 Fluid LiquidGlass Navigation & Tactile Motion
+- **Fluid Morphing Transitions**: Transitioned the bottom navigation bar to 400ms fluid cubic-bezier easing (`CubicBezierEasing(0.16f, 1.0f, 0.3f, 1.0f)`), creating an organic icon-to-text morph and smooth pill expansion.
+- **Dynamic Padding & Polish**: Polished touch-down feedback and active tab transitions according to modern fluid UI principles.
 
-### 🚀 High-Performance Rendering & Tactile UX
-- **Calendar Squircle Allocation**: Reused static squircle shape singletons (`DayCellSquircleShape`) and optimized click modifiers across monthly calendar views, eliminating memory pressure and frame drops during scrolling.
-- **Instantaneous Day Selectors**: Streamlined WFO and working day selector pills to zero-overhead static layouts, providing sub-100ms tactile feedback conforming to the Doherty Threshold.
-- **Backdrop Animations**: Smooth fade transitions for full calendar overlays on the home dashboard.
+### 🔥 Animated Streak Flame & Portal Console Polish
+- **Physics-Modeled Flame**: Added a lightweight, dependency-free native Compose infinite transition for the streak flame icon with organic breathing, stretch, rotation wiggle, and glowing flicker.
+- **Smart Portal Diagnostics**: Auto-expands the live diagnostics console upon detecting automation issues or unmapped buttons while preserving user manual collapse state.
+
+### 🧪 Robust Test Coverage
+- **Metric Verification Tests**: Added comprehensive unit tests in `ExtraWfoTest.kt` verifying exact numerical alignment between in-app analytics and exported PDF calculations.

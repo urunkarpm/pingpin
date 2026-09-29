@@ -1,16 +1,12 @@
 package com.urunkarpm.pingpin.ui.components
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.*
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandHorizontally
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -140,15 +136,17 @@ fun LiquidGlassBottomBar(
                 val interactionSource = remember { MutableInteractionSource() }
                 val isPressed by interactionSource.collectIsPressedAsState()
 
+                val fluidEase = remember { CubicBezierEasing(0.16f, 1.0f, 0.3f, 1.0f) }
+
                 val pillBgColor by animateColorAsState(
                     targetValue = if (isSelected) activePillBg else Color.Transparent,
-                    animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
+                    animationSpec = tween(durationMillis = 360, easing = fluidEase),
                     label = "pill_bg_$index"
                 )
 
                 val contentColor by animateColorAsState(
                     targetValue = if (isSelected) activeContentColor else inactiveContentColor,
-                    animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+                    animationSpec = tween(durationMillis = 320, easing = fluidEase),
                     label = "content_color_$index"
                 )
 
@@ -159,8 +157,8 @@ fun LiquidGlassBottomBar(
                 )
 
                 val horizontalPadding by animateDpAsState(
-                    targetValue = if (isSelected) 20.dp else 14.dp,
-                    animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                    targetValue = if (isSelected) 22.dp else 16.dp,
+                    animationSpec = tween(durationMillis = 400, easing = fluidEase),
                     label = "horizontal_padding_$index"
                 )
 
@@ -193,36 +191,56 @@ fun LiquidGlassBottomBar(
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = if (isSelected) item.activeIcon else item.icon,
-                            contentDescription = null,
-                            tint = contentColor,
-                            modifier = Modifier.size(22.dp)
-                        )
-
-                        AnimatedVisibility(
-                            visible = isSelected,
-                            enter = fadeIn(animationSpec = tween(180, easing = FastOutSlowInEasing)) + expandHorizontally(
-                                animationSpec = tween(220, easing = FastOutSlowInEasing),
-                                expandFrom = Alignment.Start
-                            ),
-                            exit = fadeOut(animationSpec = tween(120, easing = FastOutSlowInEasing)) + shrinkHorizontally(
-                                animationSpec = tween(180, easing = FastOutSlowInEasing),
-                                shrinkTowards = Alignment.Start
+                    // ponytail: 400ms fluid cubic bezier AnimatedContent for smooth, luxurious icon <-> text morph.
+                    // Ceiling: standard vector/text cross-slide; upgrade path: custom canvas vector morph if path interpolation is needed.
+                    AnimatedContent(
+                        targetState = isSelected,
+                        transitionSpec = {
+                            if (targetState) {
+                                (slideInVertically(animationSpec = tween(400, easing = fluidEase)) { height -> (height * 0.6f).toInt() } +
+                                    fadeIn(animationSpec = tween(320, easing = fluidEase)) +
+                                    scaleIn(initialScale = 0.80f, animationSpec = tween(400, easing = fluidEase)))
+                                    .togetherWith(
+                                        slideOutVertically(animationSpec = tween(280, easing = fluidEase)) { height -> -(height * 0.5f).toInt() } +
+                                            fadeOut(animationSpec = tween(200, easing = fluidEase)) +
+                                            scaleOut(targetScale = 0.80f, animationSpec = tween(280, easing = fluidEase))
+                                    )
+                            } else {
+                                (slideInVertically(animationSpec = tween(400, easing = fluidEase)) { height -> -(height * 0.6f).toInt() } +
+                                    fadeIn(animationSpec = tween(320, easing = fluidEase)) +
+                                    scaleIn(initialScale = 0.80f, animationSpec = tween(400, easing = fluidEase)))
+                                    .togetherWith(
+                                        slideOutVertically(animationSpec = tween(280, easing = fluidEase)) { height -> (height * 0.5f).toInt() } +
+                                            fadeOut(animationSpec = tween(200, easing = fluidEase)) +
+                                            scaleOut(targetScale = 0.80f, animationSpec = tween(280, easing = fluidEase))
+                                    )
+                            }.using(
+                                SizeTransform(clip = false) { _, _ ->
+                                    tween(400, easing = fluidEase)
+                                }
                             )
+                        },
+                        contentAlignment = Alignment.Center,
+                        label = "NavTabSwitch_$index"
+                    ) { active ->
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.heightIn(min = 22.dp)
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Spacer(modifier = Modifier.width(8.dp))
+                            if (active) {
                                 Text(
                                     text = item.label,
                                     color = contentColor,
                                     fontSize = 14.sp,
-                                    fontWeight = FontWeight.SemiBold,
+                                    fontWeight = FontWeight.Bold,
                                     maxLines = 1
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = item.icon,
+                                    contentDescription = null,
+                                    tint = contentColor,
+                                    modifier = Modifier.size(22.dp)
                                 )
                             }
                         }

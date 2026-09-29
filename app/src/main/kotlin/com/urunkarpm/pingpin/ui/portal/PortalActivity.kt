@@ -633,6 +633,13 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
                 var showAutomationLogs by rememberSaveable { mutableStateOf(true) }
                 val isProblemState = statusMessageState.value.contains("⚠️") || statusMessageState.value.contains("❌")
 
+                // Auto-expand logs once if problem occurs, while respecting user toggle
+                LaunchedEffect(isProblemState) {
+                    if (isProblemState) {
+                        showAutomationLogs = true
+                    }
+                }
+
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -678,23 +685,23 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
                                 Surface(
                                     onClick = { showAutomationLogs = !showAutomationLogs },
                                     shape = RoundedCornerShape(6.dp),
-                                    color = if (showAutomationLogs || isProblemState) emeraldGreen.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.1f)
+                                    color = if (showAutomationLogs) emeraldGreen.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.1f)
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
                                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp)
                                     ) {
                                         Text(
-                                            text = if (showAutomationLogs || isProblemState) "Hide Logs" else "Logs (${automationLogs.size})",
+                                            text = if (showAutomationLogs) "Hide Logs" else "Logs (${automationLogs.size})",
                                             fontSize = 10.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = if (showAutomationLogs || isProblemState) emeraldGreen else Color.LightGray
+                                            color = if (showAutomationLogs) emeraldGreen else Color.LightGray
                                         )
                                         Icon(
-                                            imageVector = if (showAutomationLogs || isProblemState) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                            imageVector = if (showAutomationLogs) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                                             contentDescription = null,
                                             modifier = Modifier.size(12.dp),
-                                            tint = if (showAutomationLogs || isProblemState) emeraldGreen else Color.LightGray
+                                            tint = if (showAutomationLogs) emeraldGreen else Color.LightGray
                                         )
                                     }
                                 }
@@ -702,7 +709,7 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
                         }
 
                         // Expandable Live Automation Log Console
-                        if ((showAutomationLogs || isProblemState) && automationLogs.isNotEmpty()) {
+                        if (showAutomationLogs && automationLogs.isNotEmpty()) {
                             Spacer(modifier = Modifier.height(10.dp))
                             HorizontalDivider(color = Color.White.copy(alpha = 0.12f), thickness = 0.8.dp)
                             Spacer(modifier = Modifier.height(8.dp))
