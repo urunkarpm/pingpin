@@ -30,8 +30,8 @@
 		A100000C2C90000000000005 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/MainTabView.swift; sourceTree = "<group>"; };
 		A100000C2C90000000000006 /* InsightsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/InsightsView.swift; sourceTree = "<group>"; };
 		A100000C2C90000000000007 /* HRPortalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/HRPortalView.swift; sourceTree = "<group>"; };
-		A100000R2C90000000000002 /* google_sans_semibold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Resources/google_sans_semibold.ttf; sourceTree = "<group>"; };
-		A100000R2C90000000000004 /* logo.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Resources/logo.png; sourceTree = "<group>"; };
+		A100000R2C90000000000002 /* google_sans_semibold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = iosApp/Resources/google_sans_semibold.ttf; sourceTree = "<group>"; };
+		A100000R2C90000000000004 /* logo.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = iosApp/Resources/logo.png; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
