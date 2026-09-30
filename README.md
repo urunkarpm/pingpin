@@ -25,7 +25,7 @@
 
 ## ✨ Why You’ll Love PingPin
 
-PingPin was created for working professionals and corporate employees who want to spend less time managing attendance policies and more time doing great work.
+PingPin is designed to make your daily work routine smoother and hassle-free, giving you peace of mind so you can focus on what you enjoy most.
 
 <table>
   <tr>
