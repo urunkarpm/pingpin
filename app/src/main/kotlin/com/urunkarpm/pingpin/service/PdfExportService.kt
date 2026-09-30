@@ -117,18 +117,7 @@ class PdfExportService(private val context: Context) {
         val pct = if (evaluatedCount > 0) (totalOfficeDays.toDouble() / evaluatedCount * 100) else 0.0
         val attendancePctStr = String.format(Locale.US, "%.1f", pct)
 
-        // Punctuality & Check-In Stats
-        var lateCount = 0
-        var onTimeCount = 0
-        for (r in records) {
-            if (r.status.equals("late", ignoreCase = true)) {
-                lateCount++
-            } else {
-                onTimeCount++
-            }
-        }
-        val punctualityPct = if (records.isNotEmpty()) (onTimeCount.toDouble() / records.size * 100) else 100.0
-
+        // Auto Check-In Stats
         val wifiCheckIns = records.count { !it.ssidSnapshot.isNullOrBlank() }
         val autoPunchPct = if (records.isNotEmpty()) (wifiCheckIns.toDouble() / records.size * 100) else 0.0
 
@@ -166,10 +155,8 @@ class PdfExportService(private val context: Context) {
                 "Welcome! Your monthly hybrid attendance tracking has started. PingPin will log and verify your office check-ins here."
             extraWfoCount > 0 && pct >= 100.0 ->
                 "Outstanding commitment! You've exceeded your monthly WFO target with $extraWfoCount extra office ${if (extraWfoCount == 1) "day" else "days"} logged. Excellent effort!"
-            pct >= 100.0 && lateCount == 0 ->
-                "Punctual & flawless! You achieved 100% WFO compliance with zero late check-ins this month. Great consistency across all scheduled days."
             pct >= 100.0 ->
-                "Target achieved! You successfully completed all scheduled WFO days for $monthName. Great work keeping up with your office targets."
+                "Flawless compliance! You achieved 100% WFO attendance for $monthName. Great work keeping up with your office targets."
             pct >= 75.0 ->
                 "Solid progress! You achieved ${String.format(Locale.US, "%.0f%%", pct)} attendance compliance this month. You're well on track with your hybrid schedule."
             pct >= 50.0 ->
@@ -333,7 +320,7 @@ class PdfExportService(private val context: Context) {
         val kpiItems = listOf(
             Triple("ATTENDANCE RATE", "$attendancePctStr%", if (pct >= 75.0) successGreenFg else warningAmberFg),
             Triple("DAYS ATTENDED", "$totalOfficeDays / ${wfoDays.size}", primaryDark),
-            Triple("PUNCTUALITY", String.format(Locale.US, "%.0f%%", punctualityPct), if (punctualityPct >= 80) successGreenFg else warningAmberFg),
+            Triple("POLICY COMPLIANCE", if (pct >= 75.0) "100%" else "$attendancePctStr%", successGreenFg),
             Triple("AUTO-VERIFIED", String.format(Locale.US, "%.0f%%", autoPunchPct), accentBlue)
         )
 
@@ -412,7 +399,6 @@ class PdfExportService(private val context: Context) {
             val isWfo = WorkingDays.isWorkingDay(cal, workingDaysMask) && WorkingDays.isWfoDay(cal, wfoDaysMask)
             val isExtraWfo = isPresent && !isWfo
             val isFuture = cal.after(todayCal)
-            val isLate = record?.status.equals("late", ignoreCase = true)
 
             // Alternating Row Background
             if (rowIndex % 2 == 1) {
@@ -439,11 +425,10 @@ class PdfExportService(private val context: Context) {
 
             // Col 3: Check-in Time
             val timeMarkedText = if (record != null) {
-                val tStr = sdfTime.format(Date(record.markedAt))
-                if (isLate) "$tStr (Late)" else tStr
+                sdfTime.format(Date(record.markedAt))
             } else "—"
 
-            textPaint.color = if (isPresent) (if (isExtraWfo) extraBlueFg else if (isLate) warningAmberFg else successGreenFg) else textSubtle
+            textPaint.color = if (isPresent) (if (isExtraWfo) extraBlueFg else successGreenFg) else textSubtle
             textPaint.typeface = if (isPresent) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
             textPaint.textSize = 8.2f
             canvas.drawText(timeMarkedText, 210f, startY + 14.5f, textPaint)
@@ -462,9 +447,7 @@ class PdfExportService(private val context: Context) {
 
             // Col 5: Status Badge Pill
             val statusStr = when {
-                isExtraWfo && isLate -> "EXTRA (LATE)"
                 isExtraWfo -> "EXTRA WFO"
-                isPresent && isLate -> "LATE"
                 isPresent -> "PRESENT"
                 isFuture -> "UPCOMING"
                 else -> "ABSENT"
@@ -472,7 +455,6 @@ class PdfExportService(private val context: Context) {
 
             val badgeBgColor = when {
                 isExtraWfo -> extraBlueBg
-                isPresent && isLate -> warningAmberBg
                 isPresent -> successGreenBg
                 isFuture -> upcomingBg
                 else -> softRedBg
@@ -480,7 +462,6 @@ class PdfExportService(private val context: Context) {
 
             val badgeBorderColor = when {
                 isExtraWfo -> extraBlueBorder
-                isPresent && isLate -> warningAmberBorder
                 isPresent -> successGreenBorder
                 isFuture -> upcomingBorder
                 else -> softRedBorder
@@ -488,7 +469,6 @@ class PdfExportService(private val context: Context) {
 
             val badgeTextColor = when {
                 isExtraWfo -> extraBlueFg
-                isPresent && isLate -> warningAmberFg
                 isPresent -> successGreenFg
                 isFuture -> upcomingFg
                 else -> softRedFg
@@ -528,7 +508,7 @@ class PdfExportService(private val context: Context) {
         textPaint.textSize = 7.5f
         textPaint.typeface = Typeface.DEFAULT_BOLD
         canvas.drawText(
-            "TOTALS:  ${wfoDays.size} Scheduled   •   $evaluatedCount Evaluated   •   $totalOfficeDays Attended   •   $attendancePctStr% Compliance   •   $onTimeCount On-Time",
+            "TOTALS:  ${wfoDays.size} Scheduled   •   $evaluatedCount Evaluated   •   $totalOfficeDays Attended   •   $attendancePctStr% Compliance",
             46f,
             startY + 14.5f,
             textPaint
