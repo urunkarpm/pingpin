@@ -9,6 +9,10 @@
 /* Begin PBXBuildFile section */
 		A10000012C90000000000001 /* iosAppApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000022C90000000000001 /* iosAppApp.swift */; };
 		A10000032C90000000000001 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000042C90000000000001 /* ContentView.swift */; };
+		A100000B2C90000000000002 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000C2C90000000000002 /* HomeView.swift */; };
+		A100000B2C90000000000003 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000C2C90000000000003 /* SettingsView.swift */; };
+		A100000B2C90000000000004 /* HolidaysView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000C2C90000000000004 /* HolidaysView.swift */; };
+		A100000B2C90000000000005 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000C2C90000000000005 /* MainTabView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -16,6 +20,10 @@
 		A10000022C90000000000001 /* iosAppApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iosAppApp.swift; sourceTree = "<group>"; };
 		A10000042C90000000000001 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		A10000052C90000000000001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A100000C2C90000000000002 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/HomeView.swift; sourceTree = "<group>"; };
+		A100000C2C90000000000003 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/SettingsView.swift; sourceTree = "<group>"; };
+		A100000C2C90000000000004 /* HolidaysView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/HolidaysView.swift; sourceTree = "<group>"; };
+		A100000C2C90000000000005 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/MainTabView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -42,6 +50,10 @@
 			children = (
 				A10000022C90000000000001 /* iosAppApp.swift */,
 				A10000042C90000000000001 /* ContentView.swift */,
+				A100000C2C90000000000002 /* HomeView.swift */,
+				A100000C2C90000000000003 /* SettingsView.swift */,
+				A100000C2C90000000000004 /* HolidaysView.swift */,
+				A100000C2C90000000000005 /* MainTabView.swift */,
 				A10000052C90000000000001 /* Info.plist */,
 			);
 			path = iosApp;
@@ -147,6 +159,10 @@
 			files = (
 				A10000012C90000000000001 /* iosAppApp.swift in Sources */,
 				A10000032C90000000000001 /* ContentView.swift in Sources */,
+				A100000B2C90000000000002 /* HomeView.swift in Sources */,
+				A100000B2C90000000000003 /* SettingsView.swift in Sources */,
+				A100000B2C90000000000004 /* HolidaysView.swift in Sources */,
+				A100000B2C90000000000005 /* MainTabView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
