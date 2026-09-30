@@ -57,11 +57,20 @@ struct HRPortalView: View {
                 if let url = URL(string: portalUrlString) {
                     WebViewRepresentable(url: url)
                 } else {
-                    ContentUnavailableView(
-                        "Invalid HR Portal URL",
-                        systemImage: "safari",
-                        description: Text("Please configure your company HR Portal URL in Settings.")
-                    )
+                    VStack(spacing: 12) {
+                        Image(systemName: "safari")
+                            .font(.system(size: 48))
+                            .foregroundColor(.gray)
+                        Text("Invalid HR Portal URL")
+                            .font(.title2)
+                            .bold()
+                        Text("Please configure your company HR Portal URL in Settings.")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
             .navigationTitle("HR Web Portal")
