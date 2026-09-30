@@ -1,132 +1,138 @@
 <p align="center">
-  <img src="logo.png" alt="PingPin Logo" width="140" height="140" />
+  <img src="logo.gif" alt="PingPin Animated Logo" width="160" height="160" />
 </p>
 
 <h1 align="center">📍 PingPin</h1>
 
 <p align="center">
-  <b>The Ultimate Privacy-First Hybrid Work & Attendance Assistant for Android</b>
+  <b>Work-Life Balance, Simplified. Your Personal WFO & Attendance Assistant.</b><br />
+  <i>One less alarm to set. 5 less steps to log in. Just 1 tap to do the magic.</i>
 </p>
 
 <p align="center">
   <a href="https://github.com/urunkarpm/pingpin/releases/latest"><img src="https://img.shields.io/github/v/release/urunkarpm/pingpin?color=blue&logo=github" alt="Latest Release" /></a>
-  <a href="#-100-privacy-guarantee"><img src="https://img.shields.io/badge/Privacy-100%25%20On--Device%20Local-success?logo=shieldcheck&logoColor=white" alt="Privacy" /></a>
-  <a href="https://developer.android.com"><img src="https://img.shields.io/badge/Android-7.0%2B%20(API%2024%2B)-brightgreen?logo=android&logoColor=white" alt="Android" /></a>
+  <a href="#-100-privacy-guarantee--on-device"><img src="https://img.shields.io/badge/Privacy-100%25%20On--Device-success?logo=shieldcheck&logoColor=white" alt="Privacy" /></a>
+  <a href="https://developer.android.com"><img src="https://img.shields.io/badge/Android-7.0%2B-brightgreen?logo=android&logoColor=white" alt="Android" /></a>
+  <a href="https://developer.apple.com/ios/"><img src="https://img.shields.io/badge/iOS-16.0%2B-black?logo=apple&logoColor=white" alt="iOS" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License" /></a>
 </p>
 
 <p align="center">
-  Never miss an office mandate again. Automatically log local attendance on office Wi-Fi, reschedule missed WFO days, monitor commute weather, auto-punch your company HR portal, and export executive PDF analytics reports — 100% privately on your device.
+  <b>PingPin</b> takes the pain out of corporate attendance compliance. Walk into office, connect to Wi-Fi, and your attendance is logged automatically. Need to punch into your company HR portal? Skip the 5-step browser login and do it with <b>1 tap</b>. Missed an office day? PingPin automatically reschedules it for you so you stay 100% compliant with zero HR emails.
 </p>
 
 ---
 
-## 🌟 What Can PingPin Do?
+## ✨ Why You’ll Love PingPin
 
-PingPin is your personal assistant for managing hybrid work schedules (WFO / WFH). It handles daily attendance tracking, company HR portal check-ins, missed day recovery, executive PDF reporting, and commute planning so you don't have to worry about missing attendance targets.
+PingPin was created for working professionals and corporate employees who want to spend less time managing attendance policies and more time doing great work.
+
+<table>
+  <tr>
+    <td width="50%">
+      <h3>⏰ One Less Alarm to Worry About</h3>
+      <p>No more setting repetitive daily alarms. PingPin checks your shift start time, commute weather, and attendance status to notify you <i>only when it matters</i>.</p>
+    </td>
+    <td width="50%">
+      <h3>🚀 5 Less Steps to Punch In</h3>
+      <p>Forget opening a web browser, typing your HR portal URL, logging in, navigating 5 sub-menus, and finding the check-in button. Open PingPin and tap <b>Auto Punch</b> — magic done in 1 second.</p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <h3>📡 Zero-Touch Wi-Fi Check-In</h3>
+      <p>Walk into your office building. The moment your phone connects to office Wi-Fi, PingPin automatically logs your attendance on your calendar. You don't even need to open the app!</p>
+    </td>
+    <td width="50%">
+      <h3>🔄 Missed WFO Day? Automatically Fixed!</h3>
+      <p>Took a sick day or worked from home on a mandatory office day? PingPin automatically suggests the best upcoming WFH day to swap, keeping your monthly WFO percentage green without HR follow-ups.</p>
+    </td>
+  </tr>
+</table>
 
 ---
 
-## 🔥 Key Features
+## 🌟 Everyday Magic Features
 
-### 📡 1. Automated Wi-Fi Attendance Tracking
-- **Automatic Office Detection**: Logs attendance on your calendar automatically as soon as your phone connects to your office Wi-Fi network.
-- **On-Time vs. Late Marking**: Automatically classifies check-ins as **Present** or **Late** based on your configured shift start time.
-- **Smart Afternoon Verifier**: Verifies afternoon office arrivals to prevent false missed-day notifications.
+### 🏢 1. Automated Office Detection & Wi-Fi Check-In
+- **Automatic Arrival Logging**: Connects to your office Wi-Fi and logs your presence on your personal attendance calendar.
+- **Punctuality Rating**: Automatically tags your check-in as **On-Time** or **Late** based on your official shift time.
+- **Afternoon Smart Verifier**: Re-verifies afternoon arrivals so half-day office visits are never accidentally marked as absent.
 
-### 🌐 2. HR Portal Auto-Punch & In-App Viewer
-- **Integrated HR Portal Viewer**: Directly view and log into your company HR web portal with persistent session cookies.
-- **Auto-Login & Auto-Punch**: Fills in your credentials and triggers Check-In/Check-Out buttons automatically.
-- **1-Tap Alarm Actions**: Perform check-ins or check-outs directly from punctual alarm screens.
+### 🌐 2. 1-Tap HR Portal Auto-Punch
+- **In-App HR Web Viewer**: Access your company HR portal directly inside PingPin with persistent, secure login sessions.
+- **Auto-Punch Script**: Fills credentials and clicks the HR portal **Check-In** / **Check-Out** buttons with 1 click.
+- **Lock-Screen Action**: Punch in or out directly from your morning notification or alarm screen.
 
-### 🔄 3. Smart "Makeup WFO" Rescheduler
-- **Missed Day Recovery**: Detects missed WFO days and proposes optimal replacement dates on upcoming WFH days.
-- **Target Tracking**: Recovery suggestions automatically resolve as soon as weekly office attendance targets are fulfilled.
+### 🔄 3. Smart "Makeup WFO" Day Rescheduler
+- **Compliance Recovery**: Detects missed office days and calculates the optimal replacement date on an upcoming WFH day.
+- **HR Peace of Mind**: Automatically resolves recovery prompts as soon as your weekly WFO percentage target (e.g. 85%) is met.
 
-### 📊 4. Executive PDF Analytics & Human Insights
-- **Smart Narrative Digest**: Generates personalized performance commentary tailored to your attendance data.
-- **Executive KPI Cards**: Displays Attendance Rate, Days Attended, Punctuality Score, and Auto-Verification percentages.
-- **Clean Audit Log Table**: Exports formatted attendance logs with status badges (`PRESENT`, `LATE`, `EXTRA WFO`, `ABSENT`).
+### 📊 4. Executive PDF Analytics & Appraisal Reports
+- **Smart Narrative Digest**: Generates a human-written summary of your monthly attendance, punctuality rating, and WFO compliance.
+- **Appraisal-Ready Statement**: Download a clean, formatted PDF statement with 1 tap for monthly HR submissions or appraisal reviews.
+- **Audit Log Table**: Includes detailed check-in timestamps, status badges (`PRESENT`, `LATE`, `EXTRA WFO`, `ABSENT`), and Wi-Fi verification flags.
 
 ### 🌦️ 5. Commute Weather & Travel Advisories
-- **Live Commute Weather**: Displays hourly weather forecasts for key travel hours (8 AM, 9 AM, 5 PM, 6 PM, 8 PM).
-- **Rain & Heat Alerts**: Sends timely advisories for severe rain or extreme heat to plan your commute mode.
+- **Commute Window Forecast**: Check hourly weather predictions specifically during your commute hours (8–9 AM & 5–6 PM).
+- **Rain & Heat Alerts**: Receive early advisories for heavy rain or severe heat to plan whether to drive, take a cab, or adjust departure times.
 
-### 📅 6. Multi-Year Indian Holiday Directory
-- **36 States & UTs Filter**: Filter official holidays across 2024–2036 by region.
-- **Long Weekend Badges**: Highlights holidays adjacent to weekends with `LONG WEEKEND` tags.
-
-### ⏰ 7. Guaranteed Alarm Alerts & Leave Application
-- **Punctual Alarm Alerts**: Non-stop ringtone alerts that fire reliably even in deep sleep mode.
-- **1-Tap Leave Request**: Send leave application emails with 1 tap directly from the alarm screen.
+### 📅 6. Multi-Year Indian Holiday Directory (2024–2036)
+- **36 States & UTs Filter**: Select your state to view official regional holidays instantly.
+- **Long Weekend Badges**: Automatically highlights holidays adjacent to weekends with **LONG WEEKEND** badges to help you plan vacations effortlessly.
 
 ---
 
-## 🛠 Architecture & Tech Stack
+## 🔒 100% Privacy Guarantee — On-Device & Private
 
-PingPin is built strictly following modern Android architecture guidelines:
+> **Your corporate and personal data never leaves your phone.**
 
-- **UI Framework**: 100% Jetpack Compose with Material 3 Design System
-- **Database**: Room Database with Coroutines & Flow
-- **Background Execution**: WorkManager & BroadcastReceivers for Wi-Fi polling
-- **PDF Engine**: Android Native `PdfDocument` Canvas Rendering
-- **Async Runtime**: Kotlin Coroutines & StateFlow
+PingPin is built with a strict **Privacy-First Architecture**:
+- ❌ **NO** cloud servers, analytics, or background tracking.
+- ❌ **NO** location data or Wi-Fi passwords stored anywhere outside your device.
+- ❌ **NO** mandatory user accounts or sign-ups required.
 
-```
-com.urunkarpm.pingpin
- ├── data
- │    ├── local (Room DB Entities & DAOs)
- │    ├── model (Data Transfer Objects & Models)
- │    └── repository (Attendance, Profile & Config Repositories)
- ├── receiver (Alarm, Boot & Wi-Fi Connection Receivers)
- ├── service (Attendance Logic, PDF Exporter, Weather & Alarms)
- └── ui
-      ├── components (Reusable Glassmorphic UI Cards, Nav Bars & Dialogs)
-      ├── home (HomeScreen & HomeViewModel)
-      ├── insights (Analytics Dashboard & PDF Export ViewModel)
-      ├── onboarding (Initial Setup Flow)
-      ├── portal (In-App HR Portal Web Viewer)
-      ├── settings (Settings Dashboard & Category Navigation)
-      └── theme (Colors, Fonts, Typography & Glassmorphism Tokens)
-```
+All attendance records, shift settings, and HR portal credentials stay encrypted locally on your device.
 
 ---
 
-## 🔒 100% Privacy Guarantee
+## 📱 Platform Support
 
-> **Your data belongs to you.**
+PingPin is available on both **Android** and **iOS**:
 
-PingPin runs **entirely on your local Android device**:
-- ❌ **NO** analytics or telemetry collected.
-- ❌ **NO** location data or Wi-Fi passwords uploaded to cloud servers.
-- ❌ **NO** mandatory cloud accounts or sign-ups required.
-
-All logs, credentials, and attendance records stay encrypted on your phone.
+- 🤖 **Android**: Native Kotlin + Jetpack Compose app (`app-release.apk`)
+- 🍎 **iOS**: Kotlin Multiplatform (KMP) shared engine + Native SwiftUI app (`pingpin.ipa`)
 
 ---
 
-## 🚀 Building & Running
+## 🛠 Tech Stack
 
-### Prerequisites
-- Android Studio Ladybug (2024.2+) or JDK 17+
-- Android SDK 34 (Android 14)
+- **UI & UX**: Jetpack Compose (Android) / SwiftUI (iOS) with Material 3 & Glassmorphism Design
+- **Cross-Platform Shared Core**: Kotlin Multiplatform (KMP) for shared domain models & business logic
+- **Local Database**: Room Database with Coroutines & Flow
+- **Background Engine**: WorkManager & BroadcastReceivers for Wi-Fi polling
+- **PDF Engine**: Android Native `PdfDocument` Canvas Renderer
 
-### Build Commands
+---
+
+## 📥 Download & Getting Started
+
+Download the latest release for your platform:
+
+- 📦 **[Download Latest APK / IPA Release (v3.0.0)](https://github.com/urunkarpm/pingpin/releases/latest)**
+
+### Build from Source
 ```bash
-# Debug Build & Test
-./gradlew assembleDebug
+# Clone repository
+git clone https://github.com/urunkarpm/pingpin.git
+cd pingpin
 
-# Signed Release APK
-./gradlew assembleRelease
+# Build Android Debug APK
+./gradlew :app:assembleDebug
+
+# Build KMP Shared Framework & Android Release
+./gradlew :shared:assemble :app:assembleRelease
 ```
-
----
-
-## 📖 Documentation & Architecture
-
-- **[Full Documentation](docs/DOCUMENTATION.md)**: Comprehensive guide on PingPin's features, setup, and settings.
-- **[Architecture Deep Dive](docs/ARCHITECTURE.md)**: Detailed breakdown of the technical design, data flows, and security model.
-- **[Changelog](docs/CHANGELOG.md)**: Complete release history and version notes.
 
 ---
 
