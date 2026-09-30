@@ -49,8 +49,6 @@ class PdfExportService(private val context: Context) {
         val successGreenBorder = Color.parseColor("#86EFAC")
 
         val warningAmberFg = Color.parseColor("#92400E") // Amber 800
-        val warningAmberBg = Color.parseColor("#FEF3C7") // Amber 100
-        val warningAmberBorder = Color.parseColor("#FCD34D")
 
         val softRedFg = Color.parseColor("#991B1B")       // Red 800
         val softRedBg = Color.parseColor("#FEE2E2")       // Red 100
@@ -120,29 +118,6 @@ class PdfExportService(private val context: Context) {
         // Auto Check-In Stats
         val wifiCheckIns = records.count { !it.ssidSnapshot.isNullOrBlank() }
         val autoPunchPct = if (records.isNotEmpty()) (wifiCheckIns.toDouble() / records.size * 100) else 0.0
-
-        // Average Check-in Time Calculation
-        var avgCheckInTimeStr = "--:--"
-        if (records.isNotEmpty()) {
-            val sdfTime = SimpleDateFormat("hh:mm a", Locale.US)
-            val calTmp = Calendar.getInstance()
-            var totalMinutes = 0L
-            var validCount = 0
-            for (rec in records) {
-                calTmp.timeInMillis = rec.markedAt
-                val mins = calTmp.get(Calendar.HOUR_OF_DAY) * 60 + calTmp.get(Calendar.MINUTE)
-                totalMinutes += mins
-                validCount++
-            }
-            if (validCount > 0) {
-                val avgMins = (totalMinutes / validCount).toInt()
-                val avgHour = avgMins / 60
-                val avgMin = avgMins % 60
-                calTmp.set(Calendar.HOUR_OF_DAY, avgHour)
-                calTmp.set(Calendar.MINUTE, avgMin)
-                avgCheckInTimeStr = sdfTime.format(calTmp.time)
-            }
-        }
 
         val monthName = SimpleDateFormat("MMMM yyyy", Locale.US).format(calendar.time)
         val generatedTimestamp = SimpleDateFormat("MMM dd, yyyy • hh:mm a", Locale.US).format(Date())
