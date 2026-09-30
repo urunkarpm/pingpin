@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  <b>PingPin</b> takes the pain out of corporate attendance compliance. Walk into office, connect to Wi-Fi, and your attendance is logged automatically. Need to punch into your company HR portal? Skip the 5-step browser login and do it with <b>1 tap</b>. Missed an office day? PingPin automatically reschedules it for you so you stay 100% compliant with zero HR emails.
+  <b>PingPin</b> makes managing hybrid work and office attendance feel completely effortless. Walk into your office, connect to Wi-Fi, and your attendance is logged automatically. Need to punch into your HR portal? Skip the 5-step browser login and do it with <b>1 tap</b>. Missed an office day? PingPin gently helps you reschedule it on an upcoming WFH day so you stay 100% on track without any stress.
 </p>
 
 ---
