@@ -9,7 +9,7 @@ on:
 
 jobs:
   build-kmp-ios:
-    name: Build KMP Shared Framework & Android Baseline
+    name: Build KMP Shared Framework, iOS App & Android Baseline
     runs-on: macos-14
 
     steps:
@@ -33,6 +33,30 @@ jobs:
 
       - name: Build Android Debug APK
         run: ./gradlew :app:assembleDebug
+
+      - name: Build iOS App with Xcode
+        run: |
+          cd iosApp
+          xcodebuild -project iosApp.xcodeproj \
+                     -scheme iosApp \
+                     -configuration Release \
+                     -sdk iphoneos \
+                     -derivedDataPath build \
+                     CODE_SIGNING_ALLOWED=NO \
+                     CODE_SIGNING_REQUIRED=NO \
+                     CODE_SIGN_IDENTITY=""
+
+      - name: Package iOS App into IPA
+        run: |
+          mkdir -p Payload
+          cp -r iosApp/build/Build/Products/Release-iphoneos/iosApp.app Payload/
+          zip -r pingpin.ipa Payload
+
+      - name: Upload iOS App IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pingpin-ios-app-ipa
+          path: pingpin.ipa
 
       - name: Upload Android Debug APK Artifact
         uses: actions/upload-artifact@v4
