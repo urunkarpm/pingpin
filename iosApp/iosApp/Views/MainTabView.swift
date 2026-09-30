@@ -8,6 +8,16 @@ struct MainTabView: View {
                     Label("Home", systemImage: "house.fill")
                 }
             
+            InsightsView()
+                .tabItem {
+                    Label("Analytics", systemImage: "chart.bar.doc.horizontal.fill")
+                }
+            
+            HRPortalView()
+                .tabItem {
+                    Label("HR Portal", systemImage: "safari.fill")
+                }
+            
             HolidaysView()
                 .tabItem {
                     Label("Holidays", systemImage: "calendar.badge.clock")
