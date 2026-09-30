@@ -9,7 +9,7 @@ on:
 
 jobs:
   build-kmp-ios:
-    name: Build KMP Shared Framework, iOS App & Android Baseline
+    name: Build KMP Shared Framework & iOS App IPA
     runs-on: macos-14
     permissions:
       contents: write
@@ -30,14 +30,11 @@ jobs:
       - name: Grant Execute Permission for Gradlew
         run: chmod +x gradlew
 
-      - name: Build KMP Shared Framework for iOS & Android
+      - name: Build KMP Shared Framework for iOS
         run: |
-          ./gradlew :shared:assemble :shared:linkReleaseFrameworkIosArm64
+          ./gradlew :shared:linkReleaseFrameworkIosArm64
           mkdir -p shared/build/xcode-frameworks/Release/iphoneos
           cp -R shared/build/bin/iosArm64/releaseFramework/shared.framework shared/build/xcode-frameworks/Release/iphoneos/
-
-      - name: Build Android Debug APK
-        run: ./gradlew :app:assembleDebug
 
       - name: Build iOS App with Xcode
         run: |
@@ -66,18 +63,6 @@ jobs:
         with:
           name: pingpin-ios-app-ipa
           path: pingpin.ipa
-
-      - name: Upload Android Debug APK Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: pingpin-android-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
-
-      - name: Upload KMP Shared AAR Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: pingpin-shared-aar
-          path: shared/build/outputs/aar/shared-debug.aar
 
       - name: Publish IPA to Latest GitHub Release (v3.0.0)
         if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
