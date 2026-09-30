@@ -122,6 +122,14 @@ All logs, credentials, and attendance records stay encrypted on your phone.
 
 ---
 
+## 📖 Documentation & Architecture
+
+- **[Full Documentation](docs/DOCUMENTATION.md)**: Comprehensive guide on PingPin's features, setup, and settings.
+- **[Architecture Deep Dive](docs/ARCHITECTURE.md)**: Detailed breakdown of the technical design, data flows, and security model.
+- **[Changelog](docs/CHANGELOG.md)**: Complete release history and version notes.
+
+---
+
 ## 📜 License
 
 PingPin is open-source software licensed under the **Apache 2.0 License**. See [LICENSE](LICENSE) for details.
