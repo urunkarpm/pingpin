@@ -20,6 +20,11 @@ key.properties
 playwright_tests/node_modules/
 playwright_tests/test-results/
 playwright_tests/playwright-report/
+tests/artifacts/*
+!tests/artifacts/.gitkeep
 
-
-
+.mcp.json
+.agentsroom/handoff-transcript-*.txt
+.agentsroom/handoff-summary-*.md
+.agentsroom/fork-context-*.txt
+.agents/mcp_config.json
