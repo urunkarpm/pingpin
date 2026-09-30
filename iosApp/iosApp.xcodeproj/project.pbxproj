@@ -257,6 +257,8 @@
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)",
+					"$(SRCROOT)/../shared/build/bin/iosArm64/releaseFramework",
+					"$(SRCROOT)/../shared/build/bin/iosArm64/debugFramework",
 				);
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = iosApp/Info.plist;
@@ -265,6 +267,11 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 3.0.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					"shared",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.urunkarpm.pingpin.iosApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_TARGET_NAME = iosApp;
@@ -283,6 +290,7 @@
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)",
+					"$(SRCROOT)/../shared/build/bin/iosArm64/releaseFramework",
 				);
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = iosApp/Info.plist;
@@ -291,6 +299,11 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 3.0.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					"shared",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.urunkarpm.pingpin.iosApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_TARGET_NAME = iosApp;
