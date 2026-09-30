@@ -36,7 +36,7 @@ struct SettingsView: View {
                     }
                 }
                 
-                Section(header: Text("SHIFT TIMING & PUNCTUALITY")) {
+                Section(header: Text("WORK SHIFT TIMING")) {
                     DatePicker(selection: $shiftStartTime, displayedComponents: .hourAndMinute) {
                         Label("Configured Shift Start", systemImage: "clock")
                     }

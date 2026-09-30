@@ -56,7 +56,6 @@ PingPin is designed to make your daily work routine smoother and hassle-free, gi
 
 ### 🏢 1. Automated Office Detection & Wi-Fi Check-In
 - **Automatic Arrival Logging**: Connects to your office Wi-Fi and logs your presence on your personal attendance calendar.
-- **Punctuality Rating**: Automatically tags your check-in as **On-Time** or **Late** based on your official shift time.
 - **Afternoon Smart Verifier**: Re-verifies afternoon arrivals so half-day office visits are never accidentally marked as absent.
 
 ### 🌐 2. 1-Tap HR Portal Auto-Punch
@@ -69,9 +68,9 @@ PingPin is designed to make your daily work routine smoother and hassle-free, gi
 - **HR Peace of Mind**: Automatically resolves recovery prompts as soon as your weekly WFO percentage target (e.g. 85%) is met.
 
 ### 📊 4. Executive PDF Analytics & Appraisal Reports
-- **Smart Narrative Digest**: Generates a human-written summary of your monthly attendance, punctuality rating, and WFO compliance.
+- **Smart Narrative Digest**: Generates a human-written summary of your monthly attendance and WFO compliance.
 - **Appraisal-Ready Statement**: Download a clean, formatted PDF statement with 1 tap for monthly HR submissions or appraisal reviews.
-- **Audit Log Table**: Includes detailed check-in timestamps, status badges (`PRESENT`, `LATE`, `EXTRA WFO`, `ABSENT`), and Wi-Fi verification flags.
+- **Audit Log Table**: Includes detailed check-in timestamps, status badges (`PRESENT`, `EXTRA WFO`, `ABSENT`), and Wi-Fi verification flags.
 
 ### 🌦️ 5. Commute Weather & Travel Advisories
 - **Commute Window Forecast**: Check hourly weather predictions specifically during your commute hours (8–9 AM & 5–6 PM).

@@ -56,7 +56,7 @@ struct HomeView: View {
                             }
                             Spacer()
                             
-                            Text("PUNCTUAL")
+                            Text("VERIFIED")
                                 .font(.caption2)
                                 .bold()
                                 .padding(.horizontal, 8)

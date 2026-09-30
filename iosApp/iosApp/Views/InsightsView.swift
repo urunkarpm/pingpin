@@ -3,7 +3,6 @@ import shared
 
 struct InsightsView: View {
     @State private var attendanceRate: Double = 92.5
-    @State private var punctualityScore: Double = 95.0
     @State private var totalWfoDays: Int = 18
     @State private var autoVerificationPercent: Int = 88
 
@@ -17,7 +16,7 @@ struct InsightsView: View {
                             .font(.caption2)
                             .bold()
                             .foregroundColor(.blue)
-                        Text("Attendance & Punctuality Digest")
+                        Text("Attendance Digest")
                             .font(.title2)
                             .bold()
                         Text("100% On-Device Analytics Report")
@@ -54,17 +53,17 @@ struct InsightsView: View {
 
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
-                                Image(systemName: "clock.badge.checkmark.fill")
+                                Image(systemName: "checkmark.seal.fill")
                                     .foregroundColor(.green)
                                 Spacer()
-                                Text("PUNCTUAL")
+                                Text("COMPLIANT")
                                     .font(.caption2)
                                     .foregroundColor(.green)
                             }
-                            Text("\(String(format: "%.1f", punctualityScore))%")
+                            Text("100%")
                                 .font(.title)
                                 .bold()
-                            Text("Punctuality Score")
+                            Text("Policy Compliance")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
@@ -116,7 +115,7 @@ struct InsightsView: View {
                                 .font(.headline)
                         }
                         Divider()
-                        Text("Outstanding attendance performance this month! You have fulfilled 18 out of 20 mandatory office days with a 95.0% punctuality rating. 88% of arrivals were automatically verified via office Wi-Fi detection.")
+                        Text("Outstanding attendance performance this month! You have fulfilled 18 out of 20 mandatory office days. 88% of arrivals were automatically verified via office Wi-Fi detection.")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                             .lineSpacing(4)
