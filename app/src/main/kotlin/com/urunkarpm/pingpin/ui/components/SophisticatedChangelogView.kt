@@ -215,12 +215,12 @@ fun AppChangelogDialog(
                                 )
                                 StatChip(
                                     label = "$totalFixes Fixes",
-                                    color = Color(0xFFEF4444),
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
                                     icon = Icons.Outlined.Build
                                 )
                                 StatChip(
                                     label = "$totalOther Tuning",
-                                    color = Color(0xFFF59E0B),
+                                    color = MaterialTheme.colorScheme.secondary,
                                     icon = Icons.Outlined.Speed
                                 )
                             }

@@ -2,6 +2,7 @@ package com.urunkarpm.pingpin.ui.home
 
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.ui.graphics.TransformOrigin
@@ -351,7 +352,7 @@ fun HomeScreen(
                     AnimatedContent(
                         targetState = selectedTabIndex,
                         transitionSpec = {
-                            fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(180))
+                            fadeIn(animationSpec = tween(400, easing = FastOutSlowInEasing)) togetherWith fadeOut(animationSpec = tween(350, easing = FastOutSlowInEasing))
                         },
                         label = "HubCardTransition"
                     ) { targetIndex ->
@@ -606,7 +607,7 @@ fun HomeScreen(
                 AnimatedContent(
                     targetState = selectedTabIndex,
                     transitionSpec = {
-                        fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(180))
+                        fadeIn(animationSpec = tween(400, easing = FastOutSlowInEasing)) togetherWith fadeOut(animationSpec = tween(350, easing = FastOutSlowInEasing))
                     },
                     label = "HubCardTransition"
                 ) { targetIndex ->
@@ -636,8 +637,8 @@ fun HomeScreen(
 
             AnimatedVisibility(
                 visible = isCalendarExpanded,
-                enter = fadeIn(animationSpec = tween(200)),
-                exit = fadeOut(animationSpec = tween(150))
+                enter = fadeIn(animationSpec = tween(400, easing = FastOutSlowInEasing)),
+                exit = fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing))
             ) {
                 Box(
                     modifier = Modifier

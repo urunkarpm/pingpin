@@ -1,5 +1,6 @@
 package com.urunkarpm.pingpin.ui.components.weather
 
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
@@ -380,7 +381,7 @@ private fun SelectedHourDetailCard(
         AnimatedContent(
             targetState = forecast,
             transitionSpec = {
-                (fadeIn(animationSpec = tween(160)) togetherWith fadeOut(animationSpec = tween(120)))
+                (fadeIn(animationSpec = tween(350, easing = FastOutSlowInEasing)) togetherWith fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing)))
                     .using(androidx.compose.animation.SizeTransform(clip = false) { _, _ -> tween(0) })
             },
             label = "SelectedHourDetail"

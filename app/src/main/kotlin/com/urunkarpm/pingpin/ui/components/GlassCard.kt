@@ -72,7 +72,7 @@ fun GlassCard(
         val isPressed by interactionSource.collectIsPressedAsState()
         val scale by animateFloatAsState(
             targetValue = if (isPressed) 0.97f else 1.0f,
-            animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+            animationSpec = spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessLow),
             label = "GlassCardScale"
         )
         modifier

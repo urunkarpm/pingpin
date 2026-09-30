@@ -1,5 +1,6 @@
 package com.urunkarpm.pingpin.ui.components
 
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.*
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
@@ -430,8 +431,8 @@ fun MonthlyCalendarView(
                 AnimatedContent(
                     targetState = currentWheelItem,
                     transitionSpec = {
-                        (fadeIn(tween(180)) + slideInVertically(tween(200)) { height -> height / 2 }) togetherWith
-                        (fadeOut(tween(140)) + slideOutVertically(tween(180)) { height -> -height / 2 })
+                        (fadeIn(tween(350, easing = FastOutSlowInEasing)) + slideInVertically(tween(400, easing = FastOutSlowInEasing)) { height -> height / 2 }) togetherWith
+                        (fadeOut(tween(140)) + slideOutVertically(tween(350, easing = FastOutSlowInEasing)) { height -> -height / 2 })
                     },
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,

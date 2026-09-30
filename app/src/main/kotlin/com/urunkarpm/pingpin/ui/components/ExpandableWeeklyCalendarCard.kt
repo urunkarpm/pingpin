@@ -1,5 +1,6 @@
 package com.urunkarpm.pingpin.ui.components
 
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -223,7 +224,7 @@ fun ExpandableWeeklyCalendarCard(
                     AnimatedContent(
                         targetState = currentIsExpanded,
                         transitionSpec = {
-                            fadeIn(animationSpec = tween(180)) togetherWith fadeOut(animationSpec = tween(120))
+                            fadeIn(animationSpec = tween(350, easing = FastOutSlowInEasing)) togetherWith fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing))
                         },
                         label = "title_transition"
                     ) { expanded ->
@@ -240,7 +241,7 @@ fun ExpandableWeeklyCalendarCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     AnimatedVisibility(
                         visible = !currentIsExpanded,
-                        enter = fadeIn(animationSpec = tween(160)),
+                        enter = fadeIn(animationSpec = tween(350, easing = FastOutSlowInEasing)),
                         exit = fadeOut(animationSpec = tween(100))
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {

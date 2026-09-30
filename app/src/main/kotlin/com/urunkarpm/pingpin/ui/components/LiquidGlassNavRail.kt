@@ -1,5 +1,6 @@
 package com.urunkarpm.pingpin.ui.components
 
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -153,7 +154,7 @@ fun LiquidGlassNavRail(
 
                         val animatedColorState = animateColorAsState(
                             targetValue = if (isSelected) activeColor else inactiveColor,
-                            animationSpec = tween(durationMillis = 150),
+                            animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
                             label = "RailTabColor_$index"
                         )
 

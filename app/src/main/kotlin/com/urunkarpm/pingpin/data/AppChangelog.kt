@@ -2,35 +2,30 @@ package com.urunkarpm.pingpin.data
 
 object AppChangelog {
     const val CURRENT_VERSION_CHANGELOG = """
-### Executive PDF Export Redesign, Stacked Analytics & Fluid Motion (v2.9.0)
-- **Executive PDF Attendance Report Redesign**: Completely overhauled the monthly WFO attendance export with modern corporate styling, slate dark headers, subtle zebra striping, and high-contrast bordered status pills.
-- **Dynamic Layout Budgeting & Auto-Balancing Signatures**: Enforced compact row budgeting (20dp) ensuring clean, single-page layout for monthly reports with summary totals and auto-balanced Employee & HR Administrator attestation signature blocks.
-- **Tamper-Evident Digital Verification Seal**: Added an official verification stamp featuring unique document reference IDs and verification hashes to provide audit-grade credibility.
-- **Insights Screen Stacked Weekday Analytics**: Replaced basic weekday ratio bars with segmented stacked vertical bars displaying Completed, Missed, Upcoming, and Extra WFO counts for each weekday, accompanied by an intuitive mini-legend.
-- **Metric Parity Across Insights & PDF**: Aligned calculations between the Insights dashboard and PDF exports, accurately respecting user install dates, past vs. upcoming days, and uncapped extra WFO compliance.
-- **Fluid LiquidGlass Navigation Bar**: Enhanced the bottom navigation bar with a 400ms fluid cubic-bezier morph transition (`NavTabSwitch`), providing seamless, organic icon-to-text morphing and active pill expansion.
-- **HomeScreen Animated Streak Flame**: Integrated a physics-modeled animated flame icon using native Compose infinite transitions with subtle vertical breathing, horizontal stretch, gentle rotation wiggle, and glowing flicker effect.
-- **Portal Diagnostics Console Refinement**: Live automation diagnostics console in `PortalActivity` now automatically expands on problem states (warnings/errors) while preserving manual user toggle state.
-- **Comprehensive Unit Testing**: Added unit tests in `ExtraWfoTest.kt` verifying exact calculation and metric parity between Insights UI and PDF report generator.
+### Universal UI Redesign, Floating Glass Dock & Human-Touch PDF Analytics (v3.0.0)
+- **Unified Floating Glass Navigation Dock**: Redesigned bottom navigation bar (`LiquidGlassNavBar`) into a floating glass capsule with smooth `AnimatedContent` tab switching and 100% design alignment with the Settings category dock.
+- **Official Brand Logos & Creator Attributions**: Added official vector logos for **Antigravity (AGY)** and **GitHub** along with an updated Creator section for Prasenjeet Urunkar.
+- **Executive PDF Analytics Overhaul with Human Insights**: Re-architected PDF attendance statements with a **Smart Human Insights Narrative Digest**, 4 executive KPI stat cards, clean table formatting, and streamlined layout.
+- **Modern Dual-Segment Theme Switch**: Replaced outdated switch controls on the Settings page with a sleek dual-segment pill toggle (`☀️ Light` / `🌙 Dark`) with tactile haptic feedback.
+- **Pixel Art Branding & Transparent App Icons**: Updated app launcher and in-app branding with high-resolution transparent pixel art icons across all density buckets.
+- **In-App HR Portal Integration**: Enhanced onboarding flow with direct in-app HR portal navigation and persistent session management.
 """
 
     const val FULL_CHANGELOG = """
-## [2.9.0] - Current Release
+## [3.0.0] - Current Release
 
-### Executive PDF Export Redesign, Stacked Analytics & Fluid Motion
-- **Executive PDF Attendance Report Redesign**: Completely overhauled the monthly WFO attendance export with modern corporate styling, slate dark headers, subtle zebra striping, and high-contrast bordered status pills.
-- **Dynamic Layout Budgeting & Auto-Balancing Signatures**: Enforced compact row budgeting (20dp) ensuring clean, single-page layout for monthly reports with summary totals and auto-balanced Employee & HR Administrator attestation signature blocks.
-- **Tamper-Evident Digital Verification Seal**: Added an official verification stamp featuring unique document reference IDs and verification hashes to provide audit-grade credibility.
-- **Insights Screen Stacked Weekday Analytics**: Replaced basic weekday ratio bars with segmented stacked vertical bars displaying Completed, Missed, Upcoming, and Extra WFO counts for each weekday, accompanied by an intuitive mini-legend.
-- **Metric Parity Across Insights & PDF**: Aligned calculations between the Insights dashboard and PDF exports, accurately respecting user install dates, past vs. upcoming days, and uncapped extra WFO compliance.
-- **Fluid LiquidGlass Navigation Bar**: Enhanced the bottom navigation bar with a 400ms fluid cubic-bezier morph transition (`NavTabSwitch`), providing seamless, organic icon-to-text morphing and active pill expansion.
-- **HomeScreen Animated Streak Flame**: Integrated a physics-modeled animated flame icon using native Compose infinite transitions with subtle vertical breathing, horizontal stretch, gentle rotation wiggle, and glowing flicker effect.
-- **Portal Diagnostics Console Refinement**: Live automation diagnostics console in `PortalActivity` now automatically expands on problem states (warnings/errors) while preserving manual user toggle state.
-- **Comprehensive Unit Testing**: Added unit tests in `ExtraWfoTest.kt` verifying exact calculation and metric parity between Insights UI and PDF report generator.
+### Universal UI Redesign, Floating Glass Dock & Human-Touch PDF Analytics
+- **Unified Floating Glass Navigation Dock**: Redesigned bottom navigation bar (`LiquidGlassNavBar`) into a floating glass capsule with smooth `AnimatedContent` tab switching and 100% design alignment with the Settings category dock.
+- **Official Brand Logos & Creator Attributions**: Added official vector logos for **Antigravity (AGY)** and **GitHub** along with an updated Creator section for Prasenjeet Urunkar.
+- **Executive PDF Analytics Overhaul with Human Insights**: Re-architected PDF attendance statements with a **Smart Human Insights Narrative Digest**, 4 executive KPI stat cards, clean table formatting, and streamlined layout.
+- **Modern Dual-Segment Theme Switch**: Replaced outdated switch controls on the Settings page with a sleek dual-segment pill toggle (`☀️ Light` / `🌙 Dark`) with tactile haptic feedback.
+- **Pixel Art Branding & Transparent App Icons**: Updated app launcher and in-app branding with high-resolution transparent pixel art icons across all density buckets.
+- **In-App HR Portal Integration**: Enhanced onboarding flow with direct in-app HR portal navigation and persistent session management.
 
 ---
 
-## [2.8.0]
+## [2.9.0]
+- Executive PDF Attendance Report Redesign, Stacked Analytics & Fluid Motion, Metric Parity across Insights & PDF.
 - In-App Portal Diagnostics & Real-Time Console, Removed Overlay Window Requirement (`SYSTEM_ALERT_WINDOW`), Hardened Web Automation Engine, Calendar & Day Selector Performance Optimization, Unit Testing Suite.
 - Instant audio & vibration teardown on notification dismissal, side-by-side vertical slide controls, accessibility font scaling cap.
 

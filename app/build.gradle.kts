@@ -15,8 +15,8 @@ android {
         applicationId = "com.urunkarpm.pingpin"
         minSdk = 24
         targetSdk = 34
-        versionCode = 29
-        versionName = "2.9.0"
+        versionCode = 30
+        versionName = "3.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

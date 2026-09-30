@@ -36,7 +36,7 @@ fun ProgressRadialRing(
 ) {
     val animatedPercentage by animateFloatAsState(
         targetValue = percentage.coerceIn(0f, 100f),
-        animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing),
+        animationSpec = tween(durationMillis = 1200, easing = FastOutSlowInEasing),
         label = "ProgressSweep"
     )
 

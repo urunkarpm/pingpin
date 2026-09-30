@@ -35,7 +35,7 @@ fun shimmerBrush(showShimmer: Boolean = true, targetValue: Float = 1000f): Brush
             initialValue = 0f,
             targetValue = targetValue,
             animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 1200, easing = LinearEasing),
+                animation = tween(durationMillis = 2000, easing = LinearEasing),
                 repeatMode = RepeatMode.Restart
             ),
             label = "ShimmerTranslate"

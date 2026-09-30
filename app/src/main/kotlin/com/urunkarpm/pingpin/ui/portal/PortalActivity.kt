@@ -51,11 +51,22 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.text.style.TextOverflow
+import com.urunkarpm.pingpin.ui.components.GlassCard
+import com.urunkarpm.pingpin.ui.theme.PingPinTheme
+import com.urunkarpm.pingpin.ui.theme.ThemePreference
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -226,7 +237,10 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
         }
 
         setContent {
-            PortalScreenContent()
+            val isDark = ThemePreference.isDarkMode(this)
+            PingPinTheme(darkTheme = isDark) {
+                PortalScreenContent()
+            }
         }
 
         loadConfigAndInit()
@@ -554,70 +568,162 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     private fun PortalScreenContent() {
-        val emeraldGreen = Color(0xFF10B981)
-        val darkBg = Color(0xFF0F172A)
-        val cardBg = Color(0xFF1E293B)
+        val isCheckIn = actionType.equals("CHECK_IN", ignoreCase = true)
+        val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+
+        val primaryGradient = if (isCheckIn) {
+            Brush.horizontalGradient(
+                colors = listOf(
+                    Color(0xFF00C853),
+                    Color(0xFF00E676),
+                    Color(0xFF0288D1)
+                )
+            )
+        } else {
+            Brush.horizontalGradient(
+                colors = listOf(
+                    Color(0xFFFF3D00),
+                    Color(0xFFFF6E40),
+                    Color(0xFFFF9100)
+                )
+            )
+        }
 
         Scaffold(
             topBar = {
-                TopAppBar(
-                    title = {
-                        Column {
-                            Text(
-                                text = "HR Portal Viewer",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                            Text(
-                                text = if (actionType.equals("CHECK_IN", ignoreCase = true)) "Action: Check In" else "Action: Check Out",
-                                fontSize = 11.sp,
-                                color = emeraldGreen
-                            )
-                        }
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = { finish() }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = { openExternalBrowser() }) {
-                            Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = "Open in Chrome", tint = Color.White)
-                        }
-                        IconButton(onClick = { webViewRef?.reload() }) {
-                            Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = Color.White)
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = darkBg
-                    )
-                )
-            },
-            bottomBar = {
                 Surface(
-                    color = darkBg,
-                    shadowElevation = 8.dp
+                    color = MaterialTheme.colorScheme.background,
+                    modifier = Modifier.statusBarsPadding()
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Button(
-                            onClick = { triggerManualScriptRun() },
-                            colors = ButtonDefaults.buttonColors(containerColor = emeraldGreen),
-                            shape = RoundedCornerShape(12.dp)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Icon(Icons.Default.TouchApp, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Re-Run Auto Punch", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            IconButton(
+                                onClick = { finish() },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Back",
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                            Column {
+                                Text(
+                                    text = "HR Portal Viewer",
+                                    fontSize = 17.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(6.dp)
+                                            .background(if (isCheckIn) Color(0xFF00E676) else Color(0xFFFF5252), CircleShape)
+                                    )
+                                    Text(
+                                        text = if (isCheckIn) "ACTION: CHECK IN" else "ACTION: CHECK OUT",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isCheckIn) Color(0xFF00E676) else Color(0xFFFF5252)
+                                    )
+                                }
+                            }
                         }
 
-                        TextButton(onClick = { openExternalBrowser() }) {
-                            Text("Open in Chrome", color = Color.LightGray, fontSize = 12.sp)
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            IconButton(onClick = { openExternalBrowser() }) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                                    contentDescription = "Open in Chrome",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            IconButton(onClick = { webViewRef?.reload() }) {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = "Refresh",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            bottomBar = {
+                Surface(
+                    color = MaterialTheme.colorScheme.background,
+                    tonalElevation = 8.dp
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .navigationBarsPadding()
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        // HIGHLY EMPHASIZED HERO BUTTON
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(58.dp)
+                                .clip(RoundedCornerShape(18.dp))
+                                .background(primaryGradient)
+                                .border(
+                                    1.5.dp,
+                                    Brush.linearGradient(
+                                        listOf(
+                                            Color.White.copy(alpha = 0.5f),
+                                            Color.White.copy(alpha = 0.1f)
+                                        )
+                                    ),
+                                    RoundedCornerShape(18.dp)
+                                )
+                                .clickable {
+                                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                                    triggerManualScriptRun()
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = Color.White.copy(alpha = 0.25f),
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Default.TouchApp,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = if (isCheckIn) "RE-RUN AUTO CHECK-IN" else "RE-RUN AUTO CHECK-OUT",
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 15.sp,
+                                    color = Color.White,
+                                    letterSpacing = 1.sp
+                                )
+                            }
                         }
                     }
                 }
@@ -627,56 +733,59 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
-                    .background(darkBg)
+                    .background(MaterialTheme.colorScheme.background)
             ) {
-                // Status Banner & Diagnostics Console
+                // Status Banner & Diagnostics Console using GlassCard
                 var showAutomationLogs by rememberSaveable { mutableStateOf(true) }
                 val isProblemState = statusMessageState.value.contains("⚠️") || statusMessageState.value.contains("❌")
 
-                // Auto-expand logs once if problem occurs, while respecting user toggle
                 LaunchedEffect(isProblemState) {
                     if (isProblemState) {
                         showAutomationLogs = true
                     }
                 }
 
-                Card(
+                GlassCard(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                    colors = CardDefaults.cardColors(containerColor = cardBg),
-                    shape = RoundedCornerShape(10.dp)
+                        .padding(horizontal = 14.dp, vertical = 6.dp),
+                    cornerRadius = 18.dp
                 ) {
                     Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp)
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.Top,
+                            verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Row(
                                 modifier = Modifier.weight(1f),
-                                verticalAlignment = Alignment.Top
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
                                 if (isLoadingState.value) {
                                     CircularProgressIndicator(
-                                        modifier = Modifier
-                                            .padding(top = 2.dp)
-                                            .size(16.dp),
-                                        color = emeraldGreen,
+                                        modifier = Modifier.size(16.dp),
+                                        color = if (isCheckIn) Color(0xFF00E676) else MaterialTheme.colorScheme.secondary,
                                         strokeWidth = 2.dp
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                } else {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                            .background(if (isProblemState) Color(0xFFEF4444) else Color(0xFF10B981), CircleShape)
                                     )
                                     Spacer(modifier = Modifier.width(10.dp))
                                 }
                                 Text(
                                     text = statusMessageState.value,
-                                    color = if (isProblemState) Color(0xFFFCA5A5) else Color.White,
-                                    fontSize = 12.sp,
+                                    color = if (isProblemState) Color(0xFFEF4444) else MaterialTheme.colorScheme.onSurface,
+                                    fontSize = 13.sp,
                                     fontWeight = FontWeight.Medium,
-                                    lineHeight = 16.sp
+                                    lineHeight = 17.sp,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
 
@@ -684,35 +793,46 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Surface(
                                     onClick = { showAutomationLogs = !showAutomationLogs },
-                                    shape = RoundedCornerShape(6.dp),
-                                    color = if (showAutomationLogs) emeraldGreen.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.1f)
+                                    shape = RoundedCornerShape(50),
+                                    color = if (showAutomationLogs) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                    border = BorderStroke(1.dp, if (showAutomationLogs) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f) else MaterialTheme.colorScheme.outlineVariant)
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp)
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Terminal,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(12.dp),
+                                            tint = if (showAutomationLogs) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
                                         Text(
                                             text = if (showAutomationLogs) "Hide Logs" else "Logs (${automationLogs.size})",
-                                            fontSize = 10.sp,
+                                            fontSize = 11.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = if (showAutomationLogs) emeraldGreen else Color.LightGray
+                                            color = if (showAutomationLogs) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                         Icon(
                                             imageVector = if (showAutomationLogs) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                                             contentDescription = null,
-                                            modifier = Modifier.size(12.dp),
-                                            tint = if (showAutomationLogs) emeraldGreen else Color.LightGray
+                                            modifier = Modifier.size(14.dp),
+                                            tint = if (showAutomationLogs) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
                                 }
                             }
                         }
 
-                        // Expandable Live Automation Log Console
+                        // Expandable Terminal Log Console
                         if (showAutomationLogs && automationLogs.isNotEmpty()) {
                             Spacer(modifier = Modifier.height(10.dp))
-                            HorizontalDivider(color = Color.White.copy(alpha = 0.12f), thickness = 0.8.dp)
-                            Spacer(modifier = Modifier.height(8.dp))
+                            HorizontalDivider(
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                                thickness = 1.dp
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
 
                             val logScrollState = rememberScrollState()
                             LaunchedEffect(automationLogs.size) {
@@ -722,25 +842,37 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .heightIn(max = 150.dp)
-                                    .background(Color(0xFF0F172A).copy(alpha = 0.9f), RoundedCornerShape(6.dp))
-                                    .border(BorderStroke(0.8.dp, Color.White.copy(alpha = 0.15f)), RoundedCornerShape(6.dp))
-                                    .padding(8.dp)
+                                    .heightIn(max = 140.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(Color(0xFF0F172A).copy(alpha = 0.95f))
+                                    .border(
+                                        BorderStroke(
+                                            1.dp,
+                                            Brush.linearGradient(
+                                                listOf(
+                                                    Color.White.copy(alpha = 0.25f),
+                                                    Color.White.copy(alpha = 0.05f)
+                                                )
+                                            )
+                                        ),
+                                        RoundedCornerShape(14.dp)
+                                    )
+                                    .padding(10.dp)
                                     .verticalScroll(logScrollState)
                             ) {
                                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                     automationLogs.forEach { log ->
                                         Text(
                                             text = log,
-                                            fontSize = 10.sp,
+                                            fontSize = 10.5.sp,
                                             color = when {
                                                 log.contains("⚠️") || log.contains("❌") -> Color(0xFFFCA5A5)
                                                 log.contains("🎯") || log.contains("🎉") || log.contains("✅") -> Color(0xFF86EFAC)
-                                                log.contains("🔍") -> Color(0xFF93C5FD)
+                                                log.contains("🌐") || log.contains("🚀") -> Color(0xFF93C5FD)
                                                 else -> Color(0xFFCBD5E1)
                                             },
                                             fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                                            lineHeight = 14.sp
+                                            lineHeight = 15.sp
                                         )
                                     }
                                 }
@@ -749,31 +881,32 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
                     }
                 }
 
-                // 3rd Redirect Cause Diagnostic Card
+                // Redirect Loop Warning Diagnostic Card
                 val causeMsg = redirectCauseState.value
                 if (causeMsg != null) {
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 4.dp),
+                            .padding(horizontal = 14.dp, vertical = 4.dp),
                         colors = CardDefaults.cardColors(containerColor = Color(0xFF451A03)),
-                        shape = RoundedCornerShape(10.dp)
+                        shape = RoundedCornerShape(14.dp),
+                        border = BorderStroke(1.dp, Color(0xFFD97706).copy(alpha = 0.6f))
                     ) {
                         Row(
-                            modifier = Modifier.padding(10.dp),
+                            modifier = Modifier.padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "⚠️ Redirect Loop Cause (3rd Attempt)",
+                                    text = "⚠️ Redirect Loop Cause",
                                     color = Color(0xFFFDBA74),
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = "Cause: $causeMsg",
+                                    text = causeMsg,
                                     color = Color(0xFFFED7AA),
                                     fontSize = 11.sp
                                 )
@@ -795,23 +928,91 @@ class PortalActivity : ComponentActivity(), PortalAutoCheckInEngine.PortalCallba
                     }
                 }
 
-                // WebView Container
-                AndroidView(
-                    factory = { ctx ->
-                        WebView(ctx).apply {
-                            layoutParams = android.view.ViewGroup.LayoutParams(
-                                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                                android.view.ViewGroup.LayoutParams.MATCH_PARENT
-                            )
-                            setBackgroundColor(android.graphics.Color.WHITE)
-                            webViewRef = this
-                            cachedConfig?.let { bundle ->
-                                initWebView(this, bundle)
+                // GLASSMORPHIC BROWSER FRAME CONTAINER
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(start = 14.dp, end = 14.dp, top = 6.dp, bottom = 12.dp)
+                        .shadow(
+                            elevation = 8.dp,
+                            shape = RoundedCornerShape(20.dp)
+                        )
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(MaterialTheme.colorScheme.surface)
+                        .border(
+                            width = 1.8.dp,
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    if (isCheckIn) Color(0xFF00E676).copy(alpha = 0.6f) else Color(0xFFFF5252).copy(alpha = 0.6f),
+                                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+                                )
+                            ),
+                            shape = RoundedCornerShape(20.dp)
+                        )
+                ) {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        // Top Browser Header & Address Pill
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Lock,
+                                        contentDescription = "SSL Secure",
+                                        tint = Color(0xFF10B981),
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Text(
+                                        text = cleanUrlForDisplay(currentUrlState.value).ifBlank { "HR Portal Browser" },
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .size(7.dp)
+                                        .background(if (isLoadingState.value) Color(0xFFF59E0B) else Color(0xFF10B981), CircleShape)
+                                )
                             }
                         }
-                    },
-                    modifier = Modifier.fillMaxSize()
-                )
+
+                        // Web View
+                        AndroidView(
+                            factory = { ctx ->
+                                WebView(ctx).apply {
+                                    layoutParams = android.view.ViewGroup.LayoutParams(
+                                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                                        android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                                    )
+                                    setBackgroundColor(android.graphics.Color.WHITE)
+                                    webViewRef = this
+                                    cachedConfig?.let { bundle ->
+                                        initWebView(this, bundle)
+                                    }
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp))
+                        )
+                    }
+                }
             }
         }
     }
