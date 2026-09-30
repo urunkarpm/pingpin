@@ -11,6 +11,8 @@ jobs:
   build-kmp-ios:
     name: Build KMP Shared Framework, iOS App & Android Baseline
     runs-on: macos-14
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout Code
