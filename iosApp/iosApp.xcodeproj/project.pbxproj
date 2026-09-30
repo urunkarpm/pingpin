@@ -82,7 +82,6 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = A100000B2C90000000000001 /* Build configuration list for PBXNativeTarget "iosApp" */;
 			buildPhases = (
-				A100000C2C90000000000001 /* Run Script - KMP Framework Embed */,
 				A100000D2C90000000000001 /* Sources */,
 				A10000062C90000000000001 /* Frameworks */,
 				A100000E2C90000000000001 /* Resources */,
