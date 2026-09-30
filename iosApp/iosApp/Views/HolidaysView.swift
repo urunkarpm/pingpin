@@ -2,7 +2,7 @@ import SwiftUI
 import shared
 
 struct HolidaysView: View {
-    @State private: var searchText: String = ""
+    @State private var searchText: String = ""
     
     let sampleHolidays = [
         IndianHoliday(

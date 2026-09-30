@@ -2,11 +2,11 @@ import SwiftUI
 import shared
 
 struct SettingsView: View {
-    @State private: var officeSsid: String = "Office_5G_Guest"
-    @State private: var shiftStartTime: Date = Date()
-    @State private: var selectedState: String = "Maharashtra (MH)"
-    @State private: var autoCheckInEnabled: Bool = true
-    @State private: var autoPunchHrPortal: Bool = true
+    @State private var officeSsid: String = "Office_5G_Guest"
+    @State private var shiftStartTime: Date = Date()
+    @State private var selectedState: String = "Maharashtra (MH)"
+    @State private var autoCheckInEnabled: Bool = true
+    @State private var autoPunchHrPortal: Bool = true
     
     let indianStates = [
         "All States (National)",

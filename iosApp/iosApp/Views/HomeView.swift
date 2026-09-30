@@ -2,9 +2,9 @@ import SwiftUI
 import shared
 
 struct HomeView: View {
-    @State private: var isOfficeWifiConnected: Bool = false
-    @State private: var currentWifiSsid: String = "Office_5G_Guest"
-    @State private: var attendanceStatus: String = "Present on Time"
+    @State private var isOfficeWifiConnected: Bool = false
+    @State private var currentWifiSsid: String = "Office_5G_Guest"
+    @State private var attendanceStatus: String = "Present on Time"
     
     // Sample state data consuming shared KMP models
     let sampleWeather = WeatherState(
