@@ -173,19 +173,6 @@ fun InsightsScreen(
         (attendedTotalDays.toFloat() / workingDaysElapsed * 100f).coerceAtMost(100f)
     } else 0f
 
-    val (onTimeCount, lateCount, punctualityPct) = remember(monthlyRecords) {
-        var onTime = 0
-        var late = 0
-        for (r in monthlyRecords) {
-            if (r.status.equals("late", ignoreCase = true)) {
-                late++
-            } else {
-                onTime++
-            }
-        }
-        val pct = if (monthlyRecords.isNotEmpty()) (onTime.toFloat() / monthlyRecords.size * 100f) else 100f
-        Triple(onTime, late, pct)
-    }
 
     val avgCheckInTimeStr = remember(monthlyRecords) {
         if (monthlyRecords.isEmpty()) {
@@ -410,21 +397,12 @@ fun InsightsScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         MetricCard(
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.fillMaxWidth(),
                             title = "WFO Attended",
                             value = "$attendedTotalDays / $wfoTargetDaysTotal",
                             subtitle = if (extraWfoDays > 0) "$attendedWfoDays scheduled + $extraWfoDays Extra WFO" else if (wfoTargetDaysElapsed > 0) "$attendedWfoDays of $wfoTargetDaysElapsed required (${String.format(Locale.US, "%.0f", overallAttendancePct)}% overall)" else "No WFO elapsed",
                             icon = Icons.Default.Business,
                             iconColor = EmeraldGreen
-                        )
-
-                        MetricCard(
-                            modifier = Modifier.weight(1f),
-                            title = "Punctuality",
-                            value = "${String.format(Locale.US, "%.0f", punctualityPct)}%",
-                            subtitle = "$onTimeCount on-time • $lateCount late",
-                            icon = Icons.Default.AccessTime,
-                            iconColor = if (punctualityPct >= 80f) EmeraldGreen else Color(0xFFF59E0B)
                         )
                     }
 
@@ -648,21 +626,12 @@ fun InsightsScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 MetricCard(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.fillMaxWidth(),
                     title = "WFO Attended",
                     value = "$attendedTotalDays / $wfoTargetDaysTotal",
                     subtitle = if (extraWfoDays > 0) "$attendedWfoDays scheduled + $extraWfoDays Extra WFO" else if (wfoTargetDaysElapsed > 0) "$attendedWfoDays of $wfoTargetDaysElapsed required (${String.format(Locale.US, "%.0f", overallAttendancePct)}% overall)" else "No WFO elapsed",
                     icon = Icons.Default.Business,
                     iconColor = EmeraldGreen
-                )
-
-                MetricCard(
-                    modifier = Modifier.weight(1f),
-                    title = "Punctuality",
-                    value = "${String.format(Locale.US, "%.0f", punctualityPct)}%",
-                    subtitle = "$onTimeCount on-time • $lateCount late",
-                    icon = Icons.Default.AccessTime,
-                    iconColor = if (punctualityPct >= 80f) EmeraldGreen else Color(0xFFF59E0B)
                 )
             }
 
