@@ -485,6 +485,7 @@ private fun WeeklyDayItem(
         Spacer(modifier = Modifier.height(6.dp))
 
         var circleModifier = Modifier
+            .minimumTouchTargetSize(minWidth = 44.dp, minHeight = 44.dp)
             .aspectRatio(1f)
             .fillMaxWidth()
             .clip(DaySquircleShape)

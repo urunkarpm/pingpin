@@ -247,12 +247,19 @@ fun OnboardingScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
-                shape = RoundedCornerShape(22.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (isDark) 0.65f else 0.88f),
+                shape = RoundedCornerShape(24.dp),
+                color = if (isDark) Color(0xD9141923) else Color(0xFFFFFFFF),
                 border = BorderStroke(
-                    1.dp,
-                    MaterialTheme.colorScheme.outline.copy(alpha = 0.22f)
-                )
+                    width = 1.2.dp,
+                    brush = Brush.linearGradient(
+                        listOf(
+                            ElectricBlue.copy(alpha = 0.5f),
+                            WfoDayPurple.copy(alpha = 0.3f),
+                            EmeraldGreen.copy(alpha = 0.4f)
+                        )
+                    )
+                ),
+                shadowElevation = if (isDark) 8.dp else 4.dp
             ) {
                 Column(
                     modifier = Modifier
@@ -494,13 +501,20 @@ fun OnboardingScreen(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 12.dp),
-                shape = RoundedCornerShape(20.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (isDark) 0.75f else 0.92f),
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                shape = RoundedCornerShape(24.dp),
+                color = if (isDark) Color(0xD9141923) else Color(0xF5FFFFFF),
                 border = BorderStroke(
-                    1.dp,
-                    MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
-                )
+                    width = 1.5.dp,
+                    brush = Brush.linearGradient(
+                        listOf(
+                            ElectricBlue.copy(alpha = 0.6f),
+                            WfoDayPurple.copy(alpha = 0.35f),
+                            EmeraldGreen.copy(alpha = 0.45f)
+                        )
+                    )
+                ),
+                shadowElevation = if (isDark) 12.dp else 6.dp
             ) {
                 Row(
                     modifier = Modifier
@@ -531,7 +545,8 @@ fun OnboardingScreen(
                             }
                         }
                     } else {
-                        Spacer(modifier = Modifier.width(1.dp))
+                        // F7 fix: zero-size placeholder maintains row balance without a focusable 1dp ghost element
+                        Spacer(modifier = Modifier.size(0.dp))
                     }
 
                     // Next / Complete Launch Button
@@ -839,11 +854,25 @@ private fun Step2WifiSection(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = EmeraldGreen.copy(alpha = 0.12f)
+            ) {
+                Text(
+                    text = "DETECTION",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = EmeraldGreen,
+                    letterSpacing = 0.8.sp,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                )
+            }
         Text(
             text = "Office Workspace Wi-Fi",
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Black,
+            color = MaterialTheme.colorScheme.onSurface,
+            letterSpacing = (-0.3).sp
         )
 
         StepExplanationBanner(
@@ -934,11 +963,25 @@ private fun Step3ShiftTimingsSection(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        Surface(
+            shape = RoundedCornerShape(8.dp),
+            color = ElectricBlue.copy(alpha = 0.12f)
+        ) {
+            Text(
+                text = "TIMINGS",
+                fontSize = 10.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = ElectricBlue,
+                letterSpacing = 0.8.sp,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+            )
+        }
         Text(
             text = "Shift Timings & Alarms",
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Black,
+            color = MaterialTheme.colorScheme.onSurface,
+            letterSpacing = (-0.3).sp
         )
 
         StepExplanationBanner(
@@ -1052,11 +1095,25 @@ private fun Step4ScheduleSection(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        Surface(
+            shape = RoundedCornerShape(8.dp),
+            color = WfoDayPurple.copy(alpha = 0.12f)
+        ) {
+            Text(
+                text = "SCHEDULE",
+                fontSize = 10.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = WfoDayPurple,
+                letterSpacing = 0.8.sp,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+            )
+        }
         Text(
             text = "Work & WFO Days Schedule",
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Black,
+            color = MaterialTheme.colorScheme.onSurface,
+            letterSpacing = (-0.3).sp
         )
 
         StepExplanationBanner(
@@ -1130,11 +1187,25 @@ private fun Step5PortalSection(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        Surface(
+            shape = RoundedCornerShape(8.dp),
+            color = EmeraldGreen.copy(alpha = 0.12f)
+        ) {
+            Text(
+                text = "PORTAL",
+                fontSize = 10.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = EmeraldGreen,
+                letterSpacing = 0.8.sp,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+            )
+        }
         Text(
             text = "Check-In Path & HR Portal",
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Black,
+            color = MaterialTheme.colorScheme.onSurface,
+            letterSpacing = (-0.3).sp
         )
 
         StepExplanationBanner(
@@ -1325,11 +1396,25 @@ private fun Step6ReviewAndLaunchSection(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        Surface(
+            shape = RoundedCornerShape(8.dp),
+            color = EmeraldGreen.copy(alpha = 0.12f)
+        ) {
+            Text(
+                text = "COMPLETION",
+                fontSize = 10.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = EmeraldGreen,
+                letterSpacing = 0.8.sp,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+            )
+        }
         Text(
             text = "Review Configuration & Launch",
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Black,
+            color = MaterialTheme.colorScheme.onSurface,
+            letterSpacing = (-0.3).sp
         )
 
         StepExplanationBanner(

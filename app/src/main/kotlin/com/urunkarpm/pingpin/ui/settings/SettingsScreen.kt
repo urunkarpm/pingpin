@@ -2,16 +2,20 @@ package com.urunkarpm.pingpin.ui.settings
 
 import android.content.Intent
 import android.widget.Toast
+import androidx.compose.animation.*
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import com.urunkarpm.pingpin.ui.theme.rememberTactileFeedback
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -68,10 +72,10 @@ private enum class SettingsCategory(
     val tabLabel: String,
     val icon: ImageVector
 ) {
-    PROFILE_SHIFT("Profile & Shift", "Profile", Icons.Outlined.Badge),
-    AUTOMATION("Automation", "Automation", Icons.Outlined.AutoAwesome),
+    PROFILE_SHIFT("Profile & Shift", "Profile", Icons.Outlined.Person),
+    AUTOMATION("Automation", "Automation", Icons.Outlined.SettingsSuggest),
     RELIABILITY("System Health", "Health", Icons.Outlined.Shield),
-    UPDATES("Updates", "Updates", Icons.Outlined.RocketLaunch)
+    UPDATES("Updates", "Updates", Icons.Outlined.SystemUpdate)
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -85,7 +89,7 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
-    val haptic = LocalHapticFeedback.current
+    val tactile = rememberTactileFeedback()
 
     val currentAppVersion = remember {
         try {
@@ -97,6 +101,8 @@ fun SettingsScreen(
 
     val configState by viewModel.configState.collectAsState()
     val profileState by viewModel.profileState.collectAsState()
+    val showUpdateDialog by appUpdateViewModel.showDialog.collectAsState()
+    val updateState by appUpdateViewModel.updateState.collectAsState()
 
     var fullName by remember(profileState) { mutableStateOf(profileState?.fullName ?: "") }
     var ssid by remember(configState) { mutableStateOf(configState?.ssid ?: "") }
@@ -121,30 +127,7 @@ fun SettingsScreen(
     val oemGuidance = remember { OemBatteryHelper.getGuidance() }
     val fieldShape = remember { RoundedCornerShape(14.dp) }
 
-    // Cinematic Emergence Animation State (Originating from bottom nav Settings icon)
-    var isDockEmerged by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        isDockEmerged = true
-    }
-
-    val dockScale by animateFloatAsState(
-        targetValue = if (isDockEmerged) 1.0f else 0.45f,
-        animationSpec = spring(dampingRatio = 0.72f, stiffness = Spring.StiffnessLow),
-        label = "dock_scale"
-    )
-
-    val dockAlpha by animateFloatAsState(
-        targetValue = if (isDockEmerged) 1.0f else 0.0f,
-        animationSpec = tween(durationMillis = 380, easing = FastOutSlowInEasing),
-        label = "dock_alpha"
-    )
-
-    val dockTranslationY by animateDpAsState(
-        targetValue = if (isDockEmerged) 0.dp else 52.dp,
-        animationSpec = spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessLow),
-        label = "dock_translation_y"
-    )
 
     LaunchedEffect(configState, profileState) {
         configState?.let { cfg ->
@@ -218,87 +201,40 @@ fun SettingsScreen(
                     modifier = Modifier.semantics { heading() }
                 )
 
-                Surface(
-                    shape = RoundedCornerShape(24.dp),
-                    color = if (isDarkTheme) Color(0xFF141923) else Color(0xFFF1F5F9),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                ) {
-                    Row(
-                        modifier = Modifier.padding(3.dp),
-                        horizontalArrangement = Arrangement.spacedBy(2.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Surface(
-                            onClick = {
-                                if (isDarkTheme) {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    onToggleTheme(false)
-                                }
-                            },
-                            shape = RoundedCornerShape(20.dp),
-                            color = if (!isDarkTheme) MaterialTheme.colorScheme.primary else Color.Transparent,
-                            shadowElevation = if (!isDarkTheme) 2.dp else 0.dp
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.LightMode,
-                                    contentDescription = "Light Theme",
-                                    tint = if (!isDarkTheme) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(15.dp)
-                                )
-                                Text(
-                                    text = "Light",
-                                    fontSize = 11.5.sp,
-                                    fontWeight = if (!isDarkTheme) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (!isDarkTheme) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-
-                        Surface(
-                            onClick = {
-                                if (!isDarkTheme) {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    onToggleTheme(true)
-                                }
-                            },
-                            shape = RoundedCornerShape(20.dp),
-                            color = if (isDarkTheme) MaterialTheme.colorScheme.primary else Color.Transparent,
-                            shadowElevation = if (isDarkTheme) 2.dp else 0.dp
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.DarkMode,
-                                    contentDescription = "Dark Theme",
-                                    tint = if (isDarkTheme) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(15.dp)
-                                )
-                                Text(
-                                    text = "Dark",
-                                    fontSize = 11.5.sp,
-                                    fontWeight = if (isDarkTheme) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isDarkTheme) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-                }
+                ThemeTogglePill(
+                    isDarkTheme = isDarkTheme,
+                    onToggleTheme = onToggleTheme,
+                    tactile = tactile
+                )
             }
+
+            // Liquid Glass Segmented Category Tab Bar
+            SettingsCategoryTabBar(
+                selectedCategory = selectedCategory,
+                onCategorySelected = { selectedCategory = it },
+                tactile = tactile,
+                isDarkTheme = isDarkTheme
+            )
 
             // Category Content Sections
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                when (selectedCategory) {
+                AnimatedContent(
+                    targetState = selectedCategory,
+                    transitionSpec = {
+                        if (targetState.ordinal > initialState.ordinal) {
+                            (slideInHorizontally { width -> width / 4 } + fadeIn(tween(220))) togetherWith
+                                (slideOutHorizontally { width -> -width / 4 } + fadeOut(tween(180)))
+                        } else {
+                            (slideInHorizontally { width -> -width / 4 } + fadeIn(tween(220))) togetherWith
+                                (slideOutHorizontally { width -> width / 4 } + fadeOut(tween(180)))
+                        }.using(SizeTransform(clip = false))
+                    },
+                    label = "SettingsCategoryContent"
+                ) { targetCat ->
+                    when (targetCat) {
                     SettingsCategory.PROFILE_SHIFT -> {
                         GlassCard(modifier = Modifier.fillMaxWidth()) {
                             Column(
@@ -306,11 +242,10 @@ fun SettingsScreen(
                                 verticalArrangement = Arrangement.spacedBy(14.dp)
                             ) {
                                 Text(
-                                    text = "PERSONAL PROFILE & SHIFT",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    letterSpacing = 0.8.sp
+                                    text = "Profile & Shift",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.primary
                                 )
 
                                 OutlinedTextField(
@@ -442,11 +377,10 @@ fun SettingsScreen(
                                 verticalArrangement = Arrangement.spacedBy(14.dp)
                             ) {
                                 Text(
-                                    text = "PORTAL AUTOMATION",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = MaterialTheme.colorScheme.tertiary,
-                                    letterSpacing = 0.8.sp
+                                    text = "Portal automation",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = com.urunkarpm.pingpin.ui.theme.CrimsonRed
                                 )
 
                                 Surface(
@@ -468,15 +402,49 @@ fun SettingsScreen(
 
                                         modes.forEach { (mode, label, icon) ->
                                             val isSelected = portalMode == mode
+                                            val interactionSource = remember { MutableInteractionSource() }
+                                            val isPressed by interactionSource.collectIsPressedAsState()
+
+                                            val scale by animateFloatAsState(
+                                                targetValue = if (isPressed) 0.95f else 1.0f,
+                                                animationSpec = spring(
+                                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                                    stiffness = Spring.StiffnessMedium
+                                                ),
+                                                label = "PortalModeScale"
+                                            )
+
+                                            val pillBg by animateColorAsState(
+                                                targetValue = if (isSelected) com.urunkarpm.pingpin.ui.theme.CrimsonRed else Color.Transparent,
+                                                animationSpec = tween(durationMillis = 200),
+                                                label = "PortalModeBg"
+                                            )
+
+                                            val contentColor by animateColorAsState(
+                                                targetValue = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                animationSpec = tween(durationMillis = 200),
+                                                label = "PortalModeContent"
+                                            )
+
                                             Box(
                                                 modifier = Modifier
                                                     .weight(1f)
+                                                    .graphicsLayer {
+                                                        scaleX = scale
+                                                        scaleY = scale
+                                                    }
                                                     .clip(RoundedCornerShape(10.dp))
-                                                    .background(
-                                                        if (isSelected) MaterialTheme.colorScheme.tertiary else Color.Transparent
-                                                    )
-                                                    .clickable { portalMode = mode }
-                                                    .padding(vertical = 8.dp),
+                                                    .background(pillBg)
+                                                    .clickable(
+                                                        interactionSource = interactionSource,
+                                                        indication = null
+                                                    ) {
+                                                        if (!isSelected) {
+                                                            tactile.click()
+                                                            portalMode = mode
+                                                        }
+                                                    }
+                                                    .padding(vertical = 10.dp),
                                                 contentAlignment = Alignment.Center
                                             ) {
                                                 Row(
@@ -486,15 +454,15 @@ fun SettingsScreen(
                                                     Icon(
                                                         imageVector = icon,
                                                         contentDescription = null,
-                                                        tint = if (isSelected) MaterialTheme.colorScheme.onTertiary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        tint = contentColor,
                                                         modifier = Modifier.size(15.dp)
                                                     )
-                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Spacer(modifier = Modifier.width(6.dp))
                                                     Text(
                                                         text = label,
                                                         fontSize = 12.sp,
                                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                                        color = if (isSelected) MaterialTheme.colorScheme.onTertiary else MaterialTheme.colorScheme.onSurfaceVariant
+                                                        color = contentColor
                                                     )
                                                 }
                                             }
@@ -546,7 +514,7 @@ fun SettingsScreen(
 
                                     Button(
                                         onClick = {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            tactile.click()
                                             val intent = com.urunkarpm.pingpin.ui.portal.PortalActivity.createIntent(
                                                 context = context,
                                                 actionType = com.urunkarpm.pingpin.ui.portal.PortalActivity.ACTION_CHECK_IN,
@@ -559,8 +527,8 @@ fun SettingsScreen(
                                             .height(48.dp),
                                         shape = fieldShape,
                                         colors = ButtonDefaults.buttonColors(
-                                            containerColor = MaterialTheme.colorScheme.tertiary,
-                                            contentColor = MaterialTheme.colorScheme.onTertiary
+                                            containerColor = com.urunkarpm.pingpin.ui.theme.CrimsonRed,
+                                            contentColor = Color.White
                                         )
                                     ) {
                                         Icon(Icons.Outlined.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -579,11 +547,10 @@ fun SettingsScreen(
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 Text(
-                                    text = "SYSTEM HEALTH & PERMISSIONS",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    letterSpacing = 0.8.sp
+                                    text = "System health & permissions",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.primary
                                 )
 
                                 StatusPermissionRow(
@@ -650,7 +617,7 @@ fun SettingsScreen(
                                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
                                     OutlinedButton(
                                         onClick = {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            tactile.click()
                                             OemBatteryHelper.launchOemSettings(context, oemGuidance)
                                         },
                                         modifier = Modifier.fillMaxWidth(),
@@ -673,7 +640,11 @@ fun SettingsScreen(
                     }
 
                     SettingsCategory.UPDATES -> {
-                        // ANIMATED LOGO BANNER CARD
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                        // BRANDING BANNER CARD
                         GlassCard(modifier = Modifier.fillMaxWidth()) {
                             Row(
                                 modifier = Modifier
@@ -682,21 +653,9 @@ fun SettingsScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
-                                val imageLoader = remember(context) {
-                                    ImageLoader.Builder(context)
-                                        .components {
-                                            if (android.os.Build.VERSION.SDK_INT >= 28) {
-                                                add(ImageDecoderDecoder.Factory())
-                                            } else {
-                                                add(GifDecoder.Factory())
-                                            }
-                                        }
-                                        .build()
-                                }
-
                                 Box(
                                     modifier = Modifier
-                                        .size(80.dp)
+                                        .size(64.dp)
                                         .clip(RoundedCornerShape(16.dp))
                                         .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f))
                                         .border(
@@ -705,13 +664,11 @@ fun SettingsScreen(
                                         ),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    AsyncImage(
-                                        model = R.drawable.welcome_pixel_art,
-                                        imageLoader = imageLoader,
-                                        contentDescription = "PingPin Animated Logo",
-                                        modifier = Modifier
-                                            .size(72.dp)
-                                            .clip(RoundedCornerShape(12.dp))
+                                    Icon(
+                                        imageVector = Icons.Outlined.Verified,
+                                        contentDescription = "PingPin Verified Logo",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(36.dp)
                                     )
                                 }
 
@@ -721,9 +678,9 @@ fun SettingsScreen(
                                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
                                     ) {
                                         Text(
-                                            text = "OFFICIAL BRANDING",
-                                            fontSize = 9.5.sp,
-                                            fontWeight = FontWeight.ExtraBold,
+                                            text = "Official branding",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.SemiBold,
                                             color = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                         )
@@ -751,14 +708,6 @@ fun SettingsScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalArrangement = Arrangement.spacedBy(14.dp)
                             ) {
-                                Text(
-                                    text = "APP UPDATES & RELEASES",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    letterSpacing = 0.8.sp
-                                )
-
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically,
@@ -778,16 +727,35 @@ fun SettingsScreen(
                                         )
                                     }
 
-                                    Surface(
-                                        onClick = { showAppChangelogDialog = true },
-                                        shape = RoundedCornerShape(10.dp),
-                                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
-                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+                                    val changelogInteraction = remember { MutableInteractionSource() }
+                                    val isChangelogPressed by changelogInteraction.collectIsPressedAsState()
+                                    val changelogScale by animateFloatAsState(
+                                        targetValue = if (isChangelogPressed) 0.94f else 1.0f,
+                                        animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMedium),
+                                        label = "ChangelogScale"
+                                    )
+
+                                    Box(
+                                        modifier = Modifier
+                                            .graphicsLayer {
+                                                scaleX = changelogScale
+                                                scaleY = changelogScale
+                                            }
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f))
+                                            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f), RoundedCornerShape(10.dp))
+                                            .clickable(
+                                                interactionSource = changelogInteraction,
+                                                indication = null
+                                            ) {
+                                                tactile.click()
+                                                showAppChangelogDialog = true
+                                            }
+                                            .padding(horizontal = 10.dp, vertical = 6.dp)
                                     ) {
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
                                         ) {
                                             Text(
                                                 text = "CHANGELOG",
@@ -804,24 +772,171 @@ fun SettingsScreen(
                                         }
                                     }
                                 }
+                            }
+                        }
 
-                                Button(
-                                    onClick = {
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        appUpdateViewModel.checkForUpdates(isAutoCheck = false)
-                                    },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(48.dp),
-                                    shape = fieldShape,
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = MaterialTheme.colorScheme.primary,
-                                        contentColor = MaterialTheme.colorScheme.onPrimary
-                                    )
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // GITHUB OTA UPDATE MODULE CARD
+                        GlassCard(modifier = Modifier.fillMaxWidth()) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(14.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Icon(Icons.Outlined.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Check for Updates Now", fontWeight = FontWeight.Bold)
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        Surface(
+                                            shape = RoundedCornerShape(10.dp),
+                                            color = Color(0xFF8957E5).copy(alpha = 0.15f),
+                                            border = BorderStroke(1.dp, Color(0xFF8957E5).copy(alpha = 0.3f))
+                                        ) {
+                                            Box(
+                                                modifier = Modifier.padding(8.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    painter = painterResource(R.drawable.ic_github),
+                                                    contentDescription = "GitHub Logo",
+                                                    tint = if (isDarkTheme) Color.White else Color(0xFF181717),
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+                                        }
+                                        Column {
+                                            Text(
+                                                text = "GitHub OTA Update Module",
+                                                fontSize = 15.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                            Text(
+                                                text = "Repository: urunkarpm/pingpin",
+                                                fontSize = 11.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+
+                                    Surface(
+                                        shape = RoundedCornerShape(20.dp),
+                                        color = Color(0xFF8957E5).copy(alpha = 0.15f)
+                                    ) {
+                                        Text(
+                                            text = "GitHub OTA",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = if (isDarkTheme) Color(0xFFC084FC) else Color(0xFF7E22CE),
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                        )
+                                    }
+                                }
+
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+
+                                // Live Status Panel
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        when (val state = updateState) {
+                                            is com.urunkarpm.pingpin.service.UpdateState.Checking -> {
+                                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
+                                                Text("Checking api.github.com for latest releases...", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
+                                            }
+                                            is com.urunkarpm.pingpin.service.UpdateState.UpdateAvailable -> {
+                                                Icon(Icons.Outlined.NewReleases, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text("New GitHub Release: v${state.updateInfo.versionName}", fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                                    Text("Size: ${String.format("%.1f", state.updateInfo.apkSize / (1024f * 1024f))} MB", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                }
+                                            }
+                                            is com.urunkarpm.pingpin.service.UpdateState.UpToDate -> {
+                                                Icon(Icons.Outlined.CheckCircle, contentDescription = null, tint = Color(0xFF10B981), modifier = Modifier.size(20.dp))
+                                                Text("App is up to date (v${state.currentVersion}). Matches latest release.", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
+                                            }
+                                            is com.urunkarpm.pingpin.service.UpdateState.Downloading -> {
+                                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
+                                                Text("Downloading APK: ${(state.progress * 100).toInt()}%", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                            }
+                                            is com.urunkarpm.pingpin.service.UpdateState.ReadyToInstall -> {
+                                                Icon(Icons.Outlined.SystemUpdate, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                                                Text("v${state.updateInfo.versionName} downloaded. Ready to install.", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                            }
+                                            is com.urunkarpm.pingpin.service.UpdateState.Error -> {
+                                                Icon(Icons.Outlined.ErrorOutline, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
+                                                Text("GitHub Error: ${state.message}", fontSize = 12.sp, color = MaterialTheme.colorScheme.error)
+                                            }
+                                            com.urunkarpm.pingpin.service.UpdateState.Idle -> {
+                                                Icon(Icons.Outlined.CloudDownload, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                                                Text("GitHub OTA updates active. Tap below to check latest releases.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    Button(
+                                        onClick = {
+                                            tactile.click()
+                                            appUpdateViewModel.checkForUpdates(isAutoCheck = false)
+                                        },
+                                        modifier = Modifier
+                                            .weight(1.5f)
+                                            .height(48.dp),
+                                        shape = fieldShape,
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = MaterialTheme.colorScheme.primary,
+                                            contentColor = MaterialTheme.colorScheme.onPrimary
+                                        )
+                                    ) {
+                                        Icon(Icons.Outlined.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Check GitHub Updates", fontWeight = FontWeight.Bold, fontSize = 12.5.sp)
+                                    }
+
+                                    OutlinedButton(
+                                        onClick = {
+                                            tactile.click()
+                                            try {
+                                                uriHandler.openUri("https://github.com/urunkarpm/pingpin/releases")
+                                            } catch (e: Exception) {
+                                                Toast.makeText(context, "Cannot open GitHub releases", Toast.LENGTH_SHORT).show()
+                                            }
+                                        },
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(48.dp),
+                                        shape = fieldShape,
+                                        border = BorderStroke(1.dp, Color(0xFF8957E5).copy(alpha = 0.4f))
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(R.drawable.ic_github),
+                                            contentDescription = null,
+                                            tint = if (isDarkTheme) Color.White else Color(0xFF181717),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Releases", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = if (isDarkTheme) Color(0xFFC084FC) else Color(0xFF7E22CE))
+                                    }
                                 }
                             }
                         }
@@ -883,7 +998,7 @@ fun SettingsScreen(
                                 ) {
                                     OutlinedButton(
                                         onClick = {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            tactile.click()
                                             try { uriHandler.openUri("https://uprasenjeet.vercel.app") } catch (_: Exception) {}
                                         },
                                         modifier = Modifier.weight(1f),
@@ -901,7 +1016,7 @@ fun SettingsScreen(
 
                                     OutlinedButton(
                                         onClick = {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            tactile.click()
                                             try { uriHandler.openUri("https://github.com/urunkarpm") } catch (_: Exception) {}
                                         },
                                         modifier = Modifier.weight(1f),
@@ -987,92 +1102,27 @@ fun SettingsScreen(
                         }
                     }
                 }
-            }
-        }
-
-        // 2. Cinematic Emerged Category Navigation Dock (Anchored at Bottom above Bottom Nav)
-        Surface(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(start = 14.dp, end = 14.dp, bottom = 68.dp)
-                .graphicsLayer {
-                    scaleX = dockScale
-                    scaleY = dockScale
-                    alpha = dockAlpha
-                    translationY = dockTranslationY.toPx()
-                    transformOrigin = TransformOrigin(0.85f, 1.0f) // Originating from Settings button on bottom nav!
-                },
-            shape = RoundedCornerShape(26.dp),
-            color = if (isDarkTheme) Color(0xD9141923) else Color(0xF5FFFFFF),
-            border = BorderStroke(
-                width = 1.5.dp,
-                brush = Brush.linearGradient(
-                    listOf(
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
-                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-                        MaterialTheme.colorScheme.secondary.copy(alpha = 0.4f)
-                    )
-                )
-            ),
-            shadowElevation = if (isDarkTheme) 14.dp else 8.dp
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(5.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                val categories = remember { SettingsCategory.values() }
-
-                categories.forEach { category ->
-                    val isSelected = selectedCategory == category
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(
-                                if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
-                            )
-                            .clickable {
-                                if (!isSelected) {
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    selectedCategory = category
-                                }
-                            }
-                            .padding(vertical = 10.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                imageVector = category.icon,
-                                contentDescription = category.tabLabel,
-                                tint = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = category.tabLabel,
-                                fontSize = 12.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
                 }
             }
         }
+        }
+
+
 
         if (showAppChangelogDialog) {
             AppChangelogDialog(
                 currentAppVersion = currentAppVersion,
                 onDismiss = { showAppChangelogDialog = false }
+            )
+        }
+
+        if (showUpdateDialog) {
+            com.urunkarpm.pingpin.ui.components.UpdateAvailableDialog(
+                updateState = updateState,
+                onDismiss = { appUpdateViewModel.dismissDialog() },
+                onDownloadAndInstall = { info -> appUpdateViewModel.downloadAndInstallUpdate(info) },
+                onInstallApk = { apkFile -> appUpdateViewModel.installDownloadedApk(apkFile) },
+                onRetryCheck = { appUpdateViewModel.checkForUpdates(isAutoCheck = false) }
             )
         }
 
@@ -1166,8 +1216,8 @@ private fun KeywordChipsGroup(
                         )
                     },
                     colors = InputChipDefaults.inputChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                        selectedLabelColor = MaterialTheme.colorScheme.onTertiaryContainer
+                        selectedContainerColor = com.urunkarpm.pingpin.ui.theme.CrimsonRed.copy(alpha = 0.18f),
+                        selectedLabelColor = com.urunkarpm.pingpin.ui.theme.CrimsonRed
                     )
                 )
             }
@@ -1226,52 +1276,302 @@ private fun StatusPermissionRow(
     alwaysShowAction: Boolean = false,
     onActionClick: () -> Unit
 ) {
-    Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = if (isGranted) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f) else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f),
-        modifier = Modifier.fillMaxWidth()
+    val tactile = com.urunkarpm.pingpin.ui.theme.rememberTactileFeedback()
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.98f else 1.0f,
+        animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMedium),
+        label = "PermissionRowScale"
+    )
+
+    val bgColor by androidx.compose.animation.animateColorAsState(
+        targetValue = if (isGranted) {
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
+        } else {
+            MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f)
+        },
+        label = "PermissionRowBg"
+    )
+
+    val borderColor by androidx.compose.animation.animateColorAsState(
+        targetValue = if (isGranted) {
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
+        } else {
+            MaterialTheme.colorScheme.error.copy(alpha = 0.35f)
+        },
+        label = "PermissionRowBorder"
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .clip(RoundedCornerShape(14.dp))
+            .background(bgColor)
+            .border(1.dp, borderColor, RoundedCornerShape(14.dp))
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null
+            ) {
+                tactile.click()
+                onActionClick()
+            }
+            .padding(horizontal = 14.dp, vertical = 12.dp)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.weight(1f)
             ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = if (isGranted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-                    modifier = Modifier.size(18.dp)
-                )
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (isGranted) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                            else MaterialTheme.colorScheme.error.copy(alpha = 0.15f)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = if (isGranted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
                 Column {
                     Text(
                         text = title,
-                        fontSize = 13.sp,
+                        fontSize = 13.5.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         text = subtitle,
-                        fontSize = 11.sp,
+                        fontSize = 11.5.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
             if (actionText.isNotBlank() && (!isGranted || alwaysShowAction)) {
-                TextButton(
-                    onClick = onActionClick,
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = if (isGranted) MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+                           else MaterialTheme.colorScheme.error.copy(alpha = 0.18f)
                 ) {
                     Text(
                         text = actionText,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.ExtraBold,
                         color = if (isGranted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-                        fontSize = 12.sp
+                        fontSize = 11.sp,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                     )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ThemeTogglePill(
+    isDarkTheme: Boolean,
+    onToggleTheme: (Boolean) -> Unit,
+    tactile: com.urunkarpm.pingpin.ui.theme.TactileFeedback
+) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(24.dp))
+            .background(if (isDarkTheme) Color(0xFF141923) else Color(0xFFF1F5F9))
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), RoundedCornerShape(24.dp))
+            .padding(3.dp)
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            ThemeOptionButton(
+                title = "Light",
+                icon = Icons.Outlined.LightMode,
+                isSelected = !isDarkTheme,
+                onClick = {
+                    if (isDarkTheme) {
+                        tactile.click()
+                        onToggleTheme(false)
+                    }
+                }
+            )
+            ThemeOptionButton(
+                title = "Dark",
+                icon = Icons.Outlined.DarkMode,
+                isSelected = isDarkTheme,
+                onClick = {
+                    if (!isDarkTheme) {
+                        tactile.click()
+                        onToggleTheme(true)
+                    }
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun ThemeOptionButton(
+    title: String,
+    icon: ImageVector,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.94f else 1.0f,
+        animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMedium),
+        label = "ThemeOptionScale"
+    )
+
+    val bgColor by androidx.compose.animation.animateColorAsState(
+        targetValue = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+        animationSpec = tween(durationMillis = 200),
+        label = "ThemeOptionBg"
+    )
+
+    val contentColor by androidx.compose.animation.animateColorAsState(
+        targetValue = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+        animationSpec = tween(durationMillis = 200),
+        label = "ThemeOptionContentColor"
+    )
+
+    Box(
+        modifier = Modifier
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .clip(RoundedCornerShape(20.dp))
+            .background(bgColor)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            )
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = "$title Theme",
+                tint = contentColor,
+                modifier = Modifier.size(15.dp)
+            )
+            Text(
+                text = title,
+                fontSize = 11.5.sp,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                color = contentColor
+            )
+        }
+    }
+}
+
+@Composable
+private fun SettingsCategoryTabBar(
+    selectedCategory: SettingsCategory,
+    onCategorySelected: (SettingsCategory) -> Unit,
+    tactile: com.urunkarpm.pingpin.ui.theme.TactileFeedback,
+    isDarkTheme: Boolean
+) {
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = if (isDarkTheme) Color(0xD9141923) else Color(0xFFF1F5F9),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            SettingsCategory.values().forEach { category ->
+                val isSelected = selectedCategory == category
+                val interactionSource = remember { MutableInteractionSource() }
+                val isPressed by interactionSource.collectIsPressedAsState()
+
+                val scale by animateFloatAsState(
+                    targetValue = if (isPressed) 0.94f else 1.0f,
+                    animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMedium),
+                    label = "TabPillScale"
+                )
+
+                val pillBg by androidx.compose.animation.animateColorAsState(
+                    targetValue = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                    animationSpec = tween(durationMillis = 200),
+                    label = "TabPillBg"
+                )
+
+                val contentColor by androidx.compose.animation.animateColorAsState(
+                    targetValue = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                    animationSpec = tween(durationMillis = 200),
+                    label = "TabPillContent"
+                )
+
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .graphicsLayer {
+                            scaleX = scale
+                            scaleY = scale
+                        }
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(pillBg)
+                        .clickable(
+                            interactionSource = interactionSource,
+                            indication = null
+                        ) {
+                            if (!isSelected) {
+                                tactile.click()
+                                onCategorySelected(category)
+                            }
+                        }
+                        .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Icon(
+                            imageVector = category.icon,
+                            contentDescription = category.tabLabel,
+                            tint = contentColor,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text(
+                            text = category.tabLabel,
+                            fontSize = 11.5.sp,
+                            fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
+                            color = contentColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
             }
         }

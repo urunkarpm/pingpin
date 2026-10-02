@@ -86,7 +86,7 @@ fun MakeupWfoCard(
                     Spacer(modifier = Modifier.width(10.dp))
 
                     Text(
-                        text = "Missed WFO Suggestion",
+                        text = "Missed office day",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -109,17 +109,18 @@ fun MakeupWfoCard(
 
             // Body Content Text
             if (suggestion.status == "PENDING") {
+                // F6 fix: blame-free, benefit-first, ≤20 words per sentence
                 Text(
                     text = buildAnnotatedString {
-                        append("Attendance was not recorded by 2:00 PM on ")
+                        append("You didn't check in on ")
                         withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
                             append(missedDateReadable)
                         }
-                        append(". Would you like to compensate by going to office on ")
+                        append(". Swap it with ")
                         withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)) {
                             append(suggestedDateReadable)
                         }
-                        append(" (normally a WFH day)?")
+                        append(" (a free WFH day)?")
                     },
                     fontSize = 13.sp,
                     lineHeight = 18.sp,

@@ -20,6 +20,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -221,10 +223,17 @@ fun InsightsScreen(
                     fontSize = 28.sp,
                     fontWeight = FontWeight.Black,
                     color = MaterialTheme.colorScheme.onSurface,
-                    letterSpacing = (-0.8).sp
+                    letterSpacing = (-0.8).sp,
+                    modifier = Modifier.semantics { heading() }
                 )
+                // Live contextual subtitle (F10) — shows month and WFO count instead of a generic tagline
+                val insightsSubtitle = if (attendedTotalDays == 0) {
+                    "No records yet this month"
+                } else {
+                    "$monthTitle — $attendedWfoDays of $wfoTargetDaysElapsed WFO days logged"
+                }
                 Text(
-                    text = "WFO Performance & Attendance Analytics",
+                    text = insightsSubtitle,
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

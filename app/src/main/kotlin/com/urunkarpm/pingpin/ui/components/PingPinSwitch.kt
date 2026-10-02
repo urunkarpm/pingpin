@@ -43,7 +43,6 @@ fun PingPinSwitch(
     iconTintUnchecked: Color? = null,
     contentDescription: String? = null
 ) {
-    val haptic = LocalHapticFeedback.current
     val isDark = isSystemInDarkTheme()
 
     // Vibrant high-contrast unchecked state for translucent glass backgrounds
@@ -70,12 +69,13 @@ fun PingPinSwitch(
     val actualUncheckedIconTint = iconTintUnchecked ?: if (isDark) Color(0xFF0F172A) else Color(0xFFF8FAFC)
 
     // ponytail: Zero-animation instant switch toggle (Laws of UX: Doherty Threshold). Ceiling: Native Material3 Switch transition. Upgrade path: Spring thumb scale if requested.
+    val tactile = com.urunkarpm.pingpin.ui.theme.rememberTactileFeedback()
+
     Switch(
         checked = checked,
         onCheckedChange = { newValue ->
             if (enabled && onCheckedChange != null) {
-                // ponytail: Native HapticFeedbackType.LongPress for switch feedback (Laws of UX: Doherty Threshold). Upgrade: VibrationEffect.EFFECT_CLICK.
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                tactile.click()
                 onCheckedChange(newValue)
             }
         },

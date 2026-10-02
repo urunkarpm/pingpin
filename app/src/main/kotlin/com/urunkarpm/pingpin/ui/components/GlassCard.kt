@@ -47,7 +47,6 @@ fun GlassCard(
     contentDescription: String? = null,
     content: @Composable BoxScope.() -> Unit
 ) {
-    val haptic = LocalHapticFeedback.current
     val bgColor = MaterialTheme.colorScheme.background
     val isDark = remember(bgColor) { bgColor.red < 0.5f }
 
@@ -67,12 +66,14 @@ fun GlassCard(
         }
     }
 
+    val tactile = com.urunkarpm.pingpin.ui.theme.rememberTactileFeedback()
+
     val cardModifier = if (onClick != null) {
         val interactionSource = remember { MutableInteractionSource() }
         val isPressed by interactionSource.collectIsPressedAsState()
         val scale by animateFloatAsState(
-            targetValue = if (isPressed) 0.97f else 1.0f,
-            animationSpec = spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessLow),
+            targetValue = if (isPressed) 0.98f else 1.0f,
+            animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
             label = "GlassCardScale"
         )
         modifier
@@ -80,10 +81,6 @@ fun GlassCard(
                 scaleX = scale
                 scaleY = scale
             }
-            .shadow(
-                elevation = if (isDark) 8.dp else 4.dp,
-                shape = shape
-            )
             .clip(shape)
             .background(containerBgColor)
             .border(width = 1.2.dp, color = solidBorderColor, shape = shape)
@@ -96,16 +93,11 @@ fun GlassCard(
                 indication = null,
                 onClickLabel = onClickLabel
             ) {
-                // ponytail: Native HapticFeedbackType.LongPress for immediate tactile feedback. Upgrade: Custom Vibrator waveform API.
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                tactile.click()
                 onClick()
             }
     } else {
         modifier
-            .shadow(
-                elevation = if (isDark) 6.dp else 3.dp,
-                shape = shape
-            )
             .clip(shape)
             .background(containerBgColor)
             .border(width = 1.2.dp, color = solidBorderColor, shape = shape)

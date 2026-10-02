@@ -78,6 +78,7 @@ fun HomeScreen(
     val isRefreshingWeather by viewModel.isRefreshingWeather.collectAsState()
 
     val acceptedMakeupDates by viewModel.acceptedMakeupDatesState.collectAsState()
+    val profileState by viewModel.profileState.collectAsState()
 
     val upcomingHolidays by viewModel.upcomingHolidaysState.collectAsState()
     val allIndianHolidays by viewModel.allIndianHolidaysState.collectAsState()
@@ -187,7 +188,7 @@ fun HomeScreen(
                                 AmberOrange.copy(alpha = 0.3f)
                             ),
                             modifier = Modifier.semantics(mergeDescendants = true) {
-                                contentDescription = "Current attendance streak: $currentStreak Days"
+                                contentDescription = "$currentStreak-day WFO streak"
                             }
                         ) {
                             Row(
@@ -199,7 +200,7 @@ fun HomeScreen(
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "$currentStreak Days",
+                                    text = if (currentStreak == 1) "1-day streak" else "$currentStreak-day streak",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = AmberOrange
@@ -207,6 +208,15 @@ fun HomeScreen(
                             }
                         }
                     }
+
+                    // Contextual status sentence (F5 — greeting / empty state)
+                    HomeStatusSentence(
+                        isTodayWfo = isTodayWfo,
+                        isTodayAttended = isTodayAttended,
+                        hasAnyRecord = recordsState.isNotEmpty(),
+                        fullName = profileState?.fullName ?: "",
+                        modifier = Modifier.fillMaxWidth()
+                    )
 
                     // Exact Alarm Permission Alert Banner (Android 12+)
                     if (!hasExactAlarmPerm && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
@@ -456,7 +466,7 @@ fun HomeScreen(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "$currentStreak Days",
+                                text = if (currentStreak == 1) "1-day streak" else "$currentStreak-day streak",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = AmberOrange
@@ -464,6 +474,15 @@ fun HomeScreen(
                         }
                     }
                 }
+
+                // Contextual status sentence (F5 — greeting / empty state)
+                HomeStatusSentence(
+                    isTodayWfo = isTodayWfo,
+                    isTodayAttended = isTodayAttended,
+                    hasAnyRecord = recordsState.isNotEmpty(),
+                    fullName = profileState?.fullName ?: "",
+                    modifier = Modifier.fillMaxWidth()
+                )
 
                 // Exact Alarm Permission Alert Banner (Android 12+)
                 if (!hasExactAlarmPerm && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
@@ -879,3 +898,36 @@ private fun AnimatedFlameIcon(modifier: Modifier = Modifier) {
             }
     )
 }
+
+/**
+ * One-line contextual status sentence shown beneath the PingPin title.
+ * Tells the user what today means for them — zero inference required.
+ */
+@Composable
+private fun HomeStatusSentence(
+    isTodayWfo: Boolean,
+    isTodayAttended: Boolean,
+    hasAnyRecord: Boolean,
+    fullName: String,
+    modifier: Modifier = Modifier
+) {
+    val greeting = when {
+        isTodayWfo && isTodayAttended ->
+            if (fullName.isNotBlank()) "Office logged ✓ — enjoy your day, ${fullName.substringBefore(' ')}."
+            else "Office logged ✓ — enjoy your day."
+        isTodayWfo && !isTodayAttended ->
+            "Today is a WFO day. Head to the office and we'll log you in automatically."
+        !hasAnyRecord ->
+            "Walk into your office and PingPin marks you present automatically."
+        else ->
+            "Working from home today. No action needed."
+    }
+    Text(
+        text = greeting,
+        fontSize = 13.sp,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        lineHeight = 18.sp,
+        modifier = modifier
+    )
+}
+

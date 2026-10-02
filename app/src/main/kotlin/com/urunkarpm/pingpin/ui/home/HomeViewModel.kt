@@ -26,6 +26,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val officeConfigRepo = OfficeConfigRepository(db.officeConfigDao())
     private val attendanceRepo = AttendanceRepository(db.attendanceRecordDao())
     private val makeupRepo = MakeupWfoRepository(db.makeupWfoSuggestionDao())
+    private val profileRepo = com.urunkarpm.pingpin.data.repository.UserProfileRepository(db.userProfileDao())
 
     private val wifiService = WifiService(context)
     private val attendanceService = AttendanceService(context, wifiService)
@@ -35,6 +36,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     val makeupManager = MakeupWfoManager(context, makeupRepo, attendanceRepo, wifiService, attendanceService, holidayService)
 
     val configState: StateFlow<OfficeConfigEntity?> = officeConfigRepo.configFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val profileState: StateFlow<com.urunkarpm.pingpin.data.local.entity.UserProfileEntity?> = profileRepo.profileFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     val recordsState: StateFlow<List<AttendanceRecordEntity>> = attendanceRepo.watchAll()

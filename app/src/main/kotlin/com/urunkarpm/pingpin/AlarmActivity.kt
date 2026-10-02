@@ -148,6 +148,9 @@ class AlarmActivity : ComponentActivity() {
                         if (alarmId == NotificationService.CHECK_IN_SNOOZE_ID || alarmId == NotificationService.CHECK_OUT_SNOOZE_ID) {
                             notifService.cancelAlarm(alarmId)
                         }
+                        if (initialIsCheckIn) {
+                            notifService.skipTodayCheckOutAlarm()
+                        }
                         dismissKeyguardAndExecute { openLeaveMail() }
                     },
                     onCheckOut = {
@@ -158,6 +161,15 @@ class AlarmActivity : ComponentActivity() {
                             notifService.cancelAlarm(alarmId)
                         }
                         dismissKeyguardAndExecute(shouldFinish = false) { openPortalAction(com.urunkarpm.pingpin.ui.portal.PortalActivity.ACTION_CHECK_OUT, alarmId, portalUrlState) }
+                    },
+                    onCancel = {
+                        stopAlarmSound()
+                        val notifService = NotificationService(this)
+                        notifService.dismissNotification(alarmId)
+                        if (alarmId == NotificationService.CHECK_IN_SNOOZE_ID || alarmId == NotificationService.CHECK_OUT_SNOOZE_ID) {
+                            notifService.cancelAlarm(alarmId)
+                        }
+                        finish()
                     }
                 )
             }
@@ -333,7 +345,8 @@ fun AlarmScreenContent(
     onCheckIn: () -> Unit,
     onSnooze: (durationMins: Int) -> Unit,
     onLeave: () -> Unit,
-    onCheckOut: () -> Unit
+    onCheckOut: () -> Unit,
+    onCancel: () -> Unit = {}
 ) {
     val isCheckIn = isCheckInMode
 
@@ -711,6 +724,48 @@ fun AlarmScreenContent(
                                         letterSpacing = 0.8.sp
                                     )
                                 }
+                            }
+                        }
+
+                        // Cancel Alarm Option for both Check-In and Check-Out Modes
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                            thickness = 1.dp
+                        )
+
+                        OutlinedButton(
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onCancel()
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                            )
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "CANCEL ALARM",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    letterSpacing = 0.8.sp
+                                )
                             }
                         }
                     }

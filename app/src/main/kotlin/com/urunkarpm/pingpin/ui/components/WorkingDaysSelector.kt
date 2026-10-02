@@ -1,23 +1,34 @@
 package com.urunkarpm.pingpin.ui.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.urunkarpm.pingpin.ui.theme.ElectricBlue
+import com.urunkarpm.pingpin.ui.theme.rememberTactileFeedback
 
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -69,6 +80,8 @@ fun WorkingDaysSelector(
             }
         }
 
+        val tactile = com.urunkarpm.pingpin.ui.theme.rememberTactileFeedback()
+
         // Days Row
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -76,34 +89,48 @@ fun WorkingDaysSelector(
         ) {
             DAY_LABELS.forEachIndexed { index, label ->
                 val isSelected = (workingDaysMask and (1 shl index)) != 0
+                val interactionSource = remember { MutableInteractionSource() }
+                val isPressed by interactionSource.collectIsPressedAsState()
 
-                // ponytail: Instant zero-animation static colors and layout (Laws of UX: Doherty Threshold). Ceiling: Direct conditional evaluation. Upgrade path: Spring animations if requested.
-                val bgColor = if (isSelected) {
-                    ElectricBlue
-                } else {
-                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-                }
+                val scale by androidx.compose.animation.core.animateFloatAsState(
+                    targetValue = if (isPressed) 0.90f else if (isSelected) 1.05f else 1.0f,
+                    animationSpec = androidx.compose.animation.core.spring(
+                        dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+                        stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
+                    ),
+                    label = "DayPillScale"
+                )
 
-                val textColor = if (isSelected) {
-                    Color.White
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                }
+                val bgColor by androidx.compose.animation.animateColorAsState(
+                    targetValue = if (isSelected) ElectricBlue else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                    animationSpec = androidx.compose.animation.core.tween(durationMillis = 200),
+                    label = "DayPillBg"
+                )
 
-                val borderColor = if (isSelected) {
-                    ElectricBlue
-                } else {
-                    MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
-                }
+                val textColor by androidx.compose.animation.animateColorAsState(
+                    targetValue = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                    animationSpec = androidx.compose.animation.core.tween(durationMillis = 200),
+                    label = "DayPillText"
+                )
+
+                val borderColor by androidx.compose.animation.animateColorAsState(
+                    targetValue = if (isSelected) ElectricBlue else MaterialTheme.colorScheme.outline.copy(alpha = 0.25f),
+                    animationSpec = androidx.compose.animation.core.tween(durationMillis = 200),
+                    label = "DayPillBorder"
+                )
 
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .aspectRatio(1f)
                         .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                        .graphicsLayer {
+                            scaleX = scale
+                            scaleY = scale
+                        }
                         .clip(CircleShape)
                         .background(bgColor)
-                        .border(1.dp, borderColor, CircleShape)
+                        .border(1.2.dp, borderColor, CircleShape)
                         .semantics {
                             this.role = Role.Checkbox
                             this.selected = isSelected
@@ -111,10 +138,11 @@ fun WorkingDaysSelector(
                             this.contentDescription = "${FULL_DAY_NAMES[index]} working day"
                         }
                         .clickable(
+                            interactionSource = interactionSource,
+                            indication = null,
                             onClickLabel = "Toggle ${FULL_DAY_NAMES[index]} working day"
                         ) {
-                            // ponytail: Direct bitmask update with native haptics (Laws of UX: Fitts's Law & Doherty Threshold). Upgrade: State flow event bus.
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            tactile.tick()
                             val newMask = workingDaysMask xor (1 shl index)
                             onMaskChanged(newMask)
                         },
@@ -166,29 +194,55 @@ private fun PresetChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(10.dp),
-        color = if (isSelected) ElectricBlue.copy(alpha = 0.18f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-        border = androidx.compose.foundation.BorderStroke(
-            width = 1.dp,
-            color = if (isSelected) ElectricBlue else MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
+    val tactile = com.urunkarpm.pingpin.ui.theme.rememberTactileFeedback()
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val scale by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isPressed) 0.95f else 1.0f,
+        animationSpec = androidx.compose.animation.core.spring(
+            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+            stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
         ),
-        modifier = modifier.defaultMinSize(minHeight = 48.dp)
+        label = "PresetChipScale"
+    )
+
+    val bgColor by androidx.compose.animation.animateColorAsState(
+        targetValue = if (isSelected) ElectricBlue.copy(alpha = 0.18f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+        label = "PresetChipBg"
+    )
+
+    val borderColor by androidx.compose.animation.animateColorAsState(
+        targetValue = if (isSelected) ElectricBlue else MaterialTheme.colorScheme.outline.copy(alpha = 0.15f),
+        label = "PresetChipBorder"
+    )
+
+    Box(
+        modifier = modifier
+            .defaultMinSize(minHeight = 44.dp)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .clip(RoundedCornerShape(10.dp))
+            .background(bgColor)
+            .border(1.dp, borderColor, RoundedCornerShape(10.dp))
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null
+            ) {
+                tactile.click()
+                onClick()
+            }
+            .padding(vertical = 8.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 6.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = label,
-                fontSize = 11.sp,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                color = if (isSelected) ElectricBlue else MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
+        Text(
+            text = label,
+            fontSize = 11.5.sp,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+            color = if (isSelected) ElectricBlue else MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 

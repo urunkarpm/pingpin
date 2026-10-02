@@ -2,17 +2,25 @@ package com.urunkarpm.pingpin.data
 
 object AppChangelog {
     const val CURRENT_VERSION_CHANGELOG = """
-### Universal UI Redesign, Floating Glass Dock & Human-Touch PDF Analytics (v3.0.0)
-- **Unified Floating Glass Navigation Dock**: Redesigned bottom navigation bar (`LiquidGlassNavBar`) into a floating glass capsule with smooth `AnimatedContent` tab switching and 100% design alignment with the Settings category dock.
-- **Official Brand Logos & Creator Attributions**: Added official vector logos for **Antigravity (AGY)** and **GitHub** along with an updated Creator section for Prasenjeet Urunkar.
-- **Executive PDF Analytics Overhaul with Human Insights**: Re-architected PDF attendance statements with a **Smart Human Insights Narrative Digest**, 4 executive KPI stat cards, clean table formatting, and streamlined layout.
-- **Modern Dual-Segment Theme Switch**: Replaced outdated switch controls on the Settings page with a sleek dual-segment pill toggle (`☀️ Light` / `🌙 Dark`) with tactile haptic feedback.
-- **Pixel Art Branding & Transparent App Icons**: Updated app launcher and in-app branding with high-resolution transparent pixel art icons across all density buckets.
-- **In-App HR Portal Integration**: Enhanced onboarding flow with direct in-app HR portal navigation and persistent session management.
+### Alarm Screen Cancel Option, Smart Leave Alarm Skip & Settings Polish (v3.2.0)
+- **Alarm Cancel Option**: Added a dedicated Cancel action on the full-screen alarm interface for both Check-In and Check-Out alarms.
+- **Smart Leave Suppression**: Automatically skips the evening check-out alarm when the user marks "Leave" in the morning.
+- **Settings & OTA Module Polish**: Restored the GitHub OTA Update Module tab layout in Settings (`SettingsCategory.UPDATES`) so updates and version info stack cleanly.
+- **Automation Color Theme**: Aligned Automation settings tab colors to `CrimsonRed` matching the calendar missed day theme.
 """
 
     const val FULL_CHANGELOG = """
-## [3.0.0] - Current Release
+## [3.2.0] - Current Release
+
+### Alarm Screen Cancel Option, Smart Leave Alarm Skip & Settings Polish
+- **Alarm Cancel Option**: Added a dedicated Cancel action on the full-screen alarm interface for both Check-In and Check-Out alarms.
+- **Smart Leave Suppression**: Automatically skips the evening check-out alarm when the user marks "Leave" in the morning.
+- **Settings & OTA Module Polish**: Restored the GitHub OTA Update Module tab layout in Settings (`SettingsCategory.UPDATES`) so updates and version info stack cleanly.
+- **Automation Color Theme**: Aligned Automation settings tab colors to `CrimsonRed` matching the calendar missed day theme.
+
+---
+
+## [3.0.0]
 
 ### Universal UI Redesign, Floating Glass Dock & Human-Touch PDF Analytics
 - **Unified Floating Glass Navigation Dock**: Redesigned bottom navigation bar (`LiquidGlassNavBar`) into a floating glass capsule with smooth `AnimatedContent` tab switching and 100% design alignment with the Settings category dock.

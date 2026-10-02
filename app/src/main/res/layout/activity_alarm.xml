@@ -92,6 +92,18 @@
         android:letterSpacing="0.05"
         android:text="APPLY FOR LEAVE" />
 
+    <Button
+        android:id="@+id/cancel_btn"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="@android:color/transparent"
+        android:textColor="#F7F4EB"
+        android:textAllCaps="false"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        android:letterSpacing="0.05"
+        android:text="CANCEL ALARM" />
+
     <View
         android:layout_width="match_parent"
         android:layout_height="16dp" />

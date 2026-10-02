@@ -244,7 +244,22 @@ class NotificationService(private val context: Context) {
 
     fun scheduleCheckOutAlarm(checkOutTimeStr: String, workingDaysMask: Int, portalUrl: String) {
         val (hour, minute) = parseTime(checkOutTimeStr) ?: return
-        val targetTime = getNextOccurrence(hour, minute, workingDaysMask)
+        val prefs = getAlarmPreferences(context)
+        val lastLeaveDate = prefs.getString("lastLeaveDate", null)
+        val todayStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
+
+        val baseTimeMillis = if (lastLeaveDate == todayStr) {
+            Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, hour)
+                set(Calendar.MINUTE, minute)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }.timeInMillis
+        } else {
+            System.currentTimeMillis()
+        }
+
+        val targetTime = getNextOccurrence(hour, minute, workingDaysMask, baseTimeMillis = baseTimeMillis)
 
         setExactAlarm(
             alarmId = CHECK_OUT_ALARM_ID,
@@ -252,7 +267,24 @@ class NotificationService(private val context: Context) {
             title = "CHECK-OUT ALARM",
             portalUrl = portalUrl
         )
-        Log.d(TAG, "Check-out alarm scheduled for $targetTime")
+        Log.d(TAG, "Check-out alarm scheduled for $targetTime (isLeaveToday=${lastLeaveDate == todayStr})")
+    }
+
+    fun skipTodayCheckOutAlarm() {
+        val prefs = getAlarmPreferences(context)
+        val todayStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
+        prefs.edit().putString("lastLeaveDate", todayStr).apply()
+
+        cancelCheckOutAlarm()
+
+        val checkOutTimeStr = prefs.getString("checkOutTime", null)
+        val workingDaysMask = prefs.getInt("workingDaysMask", 0x1F)
+        val portalUrl = prefs.getString("portalUrl", "") ?: ""
+
+        if (!checkOutTimeStr.isNullOrEmpty()) {
+            scheduleCheckOutAlarm(checkOutTimeStr, workingDaysMask, portalUrl)
+        }
+        Log.d(TAG, "skipTodayCheckOutAlarm: Marked $todayStr as leave and updated check-out alarm schedule.")
     }
 
     fun scheduleEveWfoReminder(wfoDaysMask: Int, workingDaysMask: Int) {

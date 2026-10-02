@@ -409,4 +409,36 @@ class AlarmReliabilityTest {
         val prefs = NotificationService.getAlarmPreferences(mockContext)
         assertNotNull("Preferences should not be null", prefs)
     }
+
+    @Test
+    fun testCheckOutRescheduleOnLeaveDaySkipsToday() {
+        // Given today is Monday 09:00 AM and user clicks Leave.
+        val mondayMorning = Calendar.getInstance().apply {
+            set(2026, Calendar.SEPTEMBER, 7, 9, 0, 0) // Mon Sep 7, 2026 09:00
+            set(Calendar.MILLISECOND, 0)
+        }
+        assertEquals(Calendar.MONDAY, mondayMorning.get(Calendar.DAY_OF_WEEK))
+
+        // Check-out time is 18:00 (6:00 PM)
+        val todayCheckOutCal = Calendar.getInstance().apply {
+            timeInMillis = mondayMorning.timeInMillis
+            set(Calendar.HOUR_OF_DAY, 18)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+
+        // When baseTimeMillis is set to today's check-out time (simulating leave marked for today)
+        val nextCheckOut = NotificationService.getNextOccurrence(
+            hour = 18,
+            minute = 0,
+            workingDaysMask = WorkingDays.DEFAULT_WEEKDAYS,
+            baseTimeMillis = todayCheckOutCal.timeInMillis
+        )
+
+        assertEquals("Check-out alarm on leave day MUST skip today and land on Tuesday 18:00", Calendar.TUESDAY, nextCheckOut.get(Calendar.DAY_OF_WEEK))
+        assertEquals(18, nextCheckOut.get(Calendar.HOUR_OF_DAY))
+        assertEquals(0, nextCheckOut.get(Calendar.MINUTE))
+        assertEquals(8, nextCheckOut.get(Calendar.DAY_OF_MONTH))
+    }
 }
