@@ -36,6 +36,12 @@ class NotificationActionReceiver : BroadcastReceiver() {
         val notifService = NotificationService(context)
         // Stop the alarm sound immediately on any user action
         AlarmSoundService.stopAlarmSound(context)
+        try {
+            val dismissIntent = Intent(AlarmSoundService.ACTION_ALARM_DISMISSED).apply {
+                setPackage(context.packageName)
+            }
+            context.sendBroadcast(dismissIntent)
+        } catch (_: Exception) {}
 
         when (action) {
             ACTION_SNOOZE -> {

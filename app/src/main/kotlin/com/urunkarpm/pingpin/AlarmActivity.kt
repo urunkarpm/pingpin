@@ -72,7 +72,30 @@ import com.urunkarpm.pingpin.ui.theme.optimizeDisplayRefreshRate
 
 class AlarmActivity : ComponentActivity() {
 
+    private var dismissReceiver: android.content.BroadcastReceiver? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
+        // If launched from Recents / Multitask history, exit immediately without ringing!
+        if ((intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0) {
+            android.util.Log.i("AlarmActivity", "Launched from history / multitask. Dismissing immediately.")
+            finishAndRemoveTask()
+            return
+        }
+
+        val triggerTimestamp = intent.getLongExtra("triggerTimestamp", 0L)
+        if (triggerTimestamp > 0 && (System.currentTimeMillis() - triggerTimestamp > 10 * 60 * 1000L)) {
+            android.util.Log.w("AlarmActivity", "Alarm trigger is expired (>10 mins old). Dismissing immediately.")
+            finishAndRemoveTask()
+            return
+        }
+
+        // If activity was recreated from saved state after process death without active alarm service, don't ring again
+        if (savedInstanceState != null && !AlarmSoundService.isServiceRunning()) {
+            android.util.Log.i("AlarmActivity", "Recreated after process kill without active alarm service. Dismissing.")
+            finishAndRemoveTask()
+            return
+        }
+
         WindowCompat.setDecorFitsSystemWindows(window, false)
         super.onCreate(savedInstanceState)
         optimizeDisplayRefreshRate()
@@ -94,10 +117,14 @@ class AlarmActivity : ComponentActivity() {
         // Ensure alarm sound service is actively playing
         AlarmSoundService.startAlarmSound(this, alarmId, intentTitle, intentPortalUrl, resolvedActionType)
 
+        // Register dismiss receiver so notification or service dismissal immediately removes AlarmActivity
+        registerDismissReceiver()
+
         // Handle back button press safely
         onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                finish()
+                stopAlarmSound()
+                finishAndRemoveTask()
             }
         })
 
@@ -139,7 +166,7 @@ class AlarmActivity : ComponentActivity() {
                         stopAlarmSound()
                         val notifService = NotificationService(this)
                         notifService.snoozeAlarm(alarmId, durationMins, portalUrlState)
-                        finish()
+                        finishAndRemoveTask()
                     },
                     onLeave = {
                         stopAlarmSound()
@@ -169,7 +196,7 @@ class AlarmActivity : ComponentActivity() {
                         if (alarmId == NotificationService.CHECK_IN_SNOOZE_ID || alarmId == NotificationService.CHECK_OUT_SNOOZE_ID) {
                             notifService.cancelAlarm(alarmId)
                         }
-                        finish()
+                        finishAndRemoveTask()
                     }
                 )
             }
@@ -179,6 +206,17 @@ class AlarmActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        if ((intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0) {
+            android.util.Log.i("AlarmActivity", "Re-launched from history / multitask. Dismissing immediately.")
+            finishAndRemoveTask()
+            return
+        }
+        val triggerTimestamp = intent.getLongExtra("triggerTimestamp", 0L)
+        if (triggerTimestamp > 0 && (System.currentTimeMillis() - triggerTimestamp > 10 * 60 * 1000L)) {
+            android.util.Log.w("AlarmActivity", "Alarm trigger is expired (>10 mins old). Dismissing immediately.")
+            finishAndRemoveTask()
+            return
+        }
         turnScreenOnAndKeyguard()
         val alarmId = intent.getIntExtra("alarmId", 101)
         val intentActionType = intent.getStringExtra("actionType")
@@ -188,6 +226,36 @@ class AlarmActivity : ComponentActivity() {
             if (alarmId == NotificationService.CHECK_OUT_ALARM_ID || alarmId == NotificationService.CHECK_OUT_SNOOZE_ID) "CHECK_OUT" else "CHECK_IN"
         } else intentActionType
         AlarmSoundService.startAlarmSound(this, alarmId, intentTitle, intentPortalUrl, resolvedActionType)
+    }
+
+    private fun registerDismissReceiver() {
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                android.util.Log.d("AlarmActivity", "Dismiss broadcast received (${intent?.action}). Finishing AlarmActivity.")
+                finishAndRemoveTask()
+            }
+        }
+        dismissReceiver = receiver
+        val filter = android.content.IntentFilter().apply {
+            addAction(AlarmSoundService.ACTION_ALARM_DISMISSED)
+            addAction(com.urunkarpm.pingpin.receiver.NotificationActionReceiver.ACTION_DISMISS)
+            addAction(com.urunkarpm.pingpin.receiver.NotificationActionReceiver.ACTION_SNOOZE)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(receiver, filter)
+        }
+    }
+
+    override fun onDestroy() {
+        dismissReceiver?.let {
+            try {
+                unregisterReceiver(it)
+            } catch (_: Exception) {}
+            dismissReceiver = null
+        }
+        super.onDestroy()
     }
 
     private fun turnScreenOnAndKeyguard() {
@@ -215,8 +283,8 @@ class AlarmActivity : ComponentActivity() {
         val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
         val safeFinish = {
             window?.decorView?.post {
-                finish()
-            } ?: finish()
+                finishAndRemoveTask()
+            } ?: finishAndRemoveTask()
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && keyguardManager != null && keyguardManager.isKeyguardLocked) {
@@ -262,8 +330,8 @@ class AlarmActivity : ComponentActivity() {
                     openBrowser(url)
                 }
                 window?.decorView?.post {
-                    finish()
-                } ?: finish()
+                    finishAndRemoveTask()
+                } ?: finishAndRemoveTask()
             }
         }
     }

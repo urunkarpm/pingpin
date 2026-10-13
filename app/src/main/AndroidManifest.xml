@@ -69,6 +69,8 @@
             android:exported="true"
             android:launchMode="singleTask"
             android:taskAffinity="com.urunkarpm.pingpin.alarm"
+            android:excludeFromRecents="true"
+            android:autoRemoveFromRecents="true"
             android:showOnLockScreen="true"
             android:showWhenLocked="true"
             android:theme="@style/Theme.PingPin.Alarm"

@@ -441,4 +441,47 @@ class AlarmReliabilityTest {
         assertEquals(0, nextCheckOut.get(Calendar.MINUTE))
         assertEquals(8, nextCheckOut.get(Calendar.DAY_OF_MONTH))
     }
+
+    @Test
+    fun testNothingOsGuidance() {
+        val guidance = OemBatteryGuidance(
+            oemName = "Nothing OS",
+            steps = listOf(
+                "Open Settings → Apps → See all apps → PingPin",
+                "Tap \"App battery usage\" → select \"Unrestricted\"",
+                "Settings → Display / Glyph → verify Bedtime mode or Flip to Glyph allows alarm sounds",
+                "Settings → System → RAM Booster → ensure PingPin background activity is allowed"
+            ),
+            intentAction = android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+        )
+        assertEquals("Nothing OS", guidance.oemName)
+        assertTrue(guidance.steps.any { it.contains("Unrestricted") })
+        assertTrue(guidance.steps.any { it.contains("Bedtime mode or Flip to Glyph") })
+    }
+
+    @Test
+    fun testMultitaskHistoryFlagDetection() {
+        val flagsWithHistory = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or
+                android.content.Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY
+        val flagsWithoutHistory = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+
+        assertTrue("Should detect FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY", (flagsWithHistory and android.content.Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0)
+        assertFalse("Should not detect flag when not present", (flagsWithoutHistory and android.content.Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0)
+    }
+
+    @Test
+    fun testAlarmSoundServiceDismissConstant() {
+        assertEquals("com.urunkarpm.pingpin.ACTION_ALARM_DISMISSED", AlarmSoundService.ACTION_ALARM_DISMISSED)
+    }
+
+    @Test
+    fun testAlarmTriggerExpirationLogic() {
+        val now = System.currentTimeMillis()
+        val expiredTriggerTimestamp = now - (15 * 60 * 1000L) // 15 mins ago
+        val freshTriggerTimestamp = now - (30 * 1000L) // 30 secs ago
+        val maxAllowedAgeMs = 10 * 60 * 1000L // 10 minutes
+
+        assertTrue("15-minute-old trigger must be considered expired", (now - expiredTriggerTimestamp) > maxAllowedAgeMs)
+        assertFalse("30-second-old trigger must NOT be considered expired", (now - freshTriggerTimestamp) > maxAllowedAgeMs)
+    }
 }

@@ -64,9 +64,11 @@ class AlarmReceiver : BroadcastReceiver() {
             putExtra("actionType", actionType)
             putExtra("title", title)
             putExtra("portalUrl", portalUrl)
+            putExtra("triggerTimestamp", System.currentTimeMillis())
             addFlags(
                 Intent.FLAG_ACTIVITY_NEW_TASK or
-                Intent.FLAG_ACTIVITY_NO_USER_ACTION
+                Intent.FLAG_ACTIVITY_NO_USER_ACTION or
+                Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
             )
         }
 

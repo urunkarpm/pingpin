@@ -2,15 +2,23 @@ package com.urunkarpm.pingpin.data
 
 object AppChangelog {
     const val CURRENT_VERSION_CHANGELOG = """
-### Alarm Screen Cancel Option, Smart Leave Alarm Skip & Settings Polish (v3.2.0)
-- **Alarm Cancel Option**: Added a dedicated Cancel action on the full-screen alarm interface for both Check-In and Check-Out alarms.
+### Multitask Alarm Fix & Reliability (v3.2.1)
+- **Multitask Re-Ringing Prevention**: Excluded `AlarmActivity` from the Recent Apps / Multitasking screen (`android:excludeFromRecents="true"`, `android:autoRemoveFromRecents="true"`), pruned tasks with `finishAndRemoveTask()`, added history launch detection (`FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY`), trigger expiration checks, and dismissal broadcast synchronization to prevent alarms from re-ringing when reopened from multitask after process kill.
+- **Alarm Cancel Option**: Dedicated Cancel action on the full-screen alarm interface for both Check-In and Check-Out alarms.
 - **Smart Leave Suppression**: Automatically skips the evening check-out alarm when the user marks "Leave" in the morning.
-- **Settings & OTA Module Polish**: Restored the GitHub OTA Update Module tab layout in Settings (`SettingsCategory.UPDATES`) so updates and version info stack cleanly.
-- **Automation Color Theme**: Aligned Automation settings tab colors to `CrimsonRed` matching the calendar missed day theme.
 """
 
     const val FULL_CHANGELOG = """
-## [3.2.0] - Current Release
+## [3.2.1] - Current Release
+
+### Multitask Alarm Fix & Reliability
+- **Multitask Re-Ringing Prevention**: Excluded `AlarmActivity` from the Recent Apps / Multitasking screen (`android:excludeFromRecents="true"`, `android:autoRemoveFromRecents="true"`), pruned tasks with `finishAndRemoveTask()`, added history launch detection (`FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY`), trigger expiration checks, and dismissal broadcast synchronization to prevent alarms from re-ringing when reopened from multitask after process kill.
+- **Alarm Cancel Option**: Dedicated Cancel action on the full-screen alarm interface for both Check-In and Check-Out alarms.
+- **Smart Leave Suppression**: Automatically skips the evening check-out alarm when the user marks "Leave" in the morning.
+
+---
+
+## [3.2.0]
 
 ### Alarm Screen Cancel Option, Smart Leave Alarm Skip & Settings Polish
 - **Alarm Cancel Option**: Added a dedicated Cancel action on the full-screen alarm interface for both Check-In and Check-Out alarms.

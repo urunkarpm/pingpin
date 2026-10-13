@@ -30,6 +30,10 @@ class AlarmSoundService : Service() {
 
         const val ACTION_START_ALARM = "com.urunkarpm.pingpin.ACTION_START_ALARM"
         const val ACTION_STOP_ALARM = "com.urunkarpm.pingpin.ACTION_STOP_ALARM"
+        const val ACTION_ALARM_DISMISSED = "com.urunkarpm.pingpin.ACTION_ALARM_DISMISSED"
+
+        fun isServiceRunning(): Boolean = instance != null
+        fun isServiceRinging(): Boolean = instance?.isAudioPlaying() == true
 
         const val EXTRA_ALARM_ID = "alarmId"
         const val EXTRA_TITLE = "title"
@@ -164,8 +168,42 @@ class AlarmSoundService : Service() {
         return START_STICKY
     }
 
+    private var previousAlarmVolume: Int? = null
+
+    private fun ensureAudibleAlarmVolume() {
+        try {
+            val am = audioManager ?: return
+            val maxVol = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+            val currVol = am.getStreamVolume(AudioManager.STREAM_ALARM)
+            // Ensure alarm volume is at least 80% of max volume (or at least 1)
+            val targetVol = (maxVol * 0.8f).toInt().coerceAtLeast(1)
+
+            if (currVol < targetVol) {
+                previousAlarmVolume = currVol
+                am.setStreamVolume(AudioManager.STREAM_ALARM, targetVol, 0)
+                Log.d(TAG, "Boosted STREAM_ALARM volume from $currVol to $targetVol (max=$maxVol)")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error ensuring audible alarm volume: ${e.message}", e)
+        }
+    }
+
+    private fun restoreAlarmVolume() {
+        try {
+            previousAlarmVolume?.let { prevVol ->
+                audioManager?.setStreamVolume(AudioManager.STREAM_ALARM, prevVol, 0)
+                Log.d(TAG, "Restored STREAM_ALARM volume to $prevVol")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error restoring alarm stream volume: ${e.message}", e)
+        } finally {
+            previousAlarmVolume = null
+        }
+    }
+
     private fun startAudioAndVibration() {
         requestAudioFocus()
+        ensureAudibleAlarmVolume()
 
         try {
             val audioAttributes = AudioAttributes.Builder()
@@ -200,16 +238,21 @@ class AlarmSoundService : Service() {
                         }
                         r.play()
                         ringtone = r
-                        playedWithRingtone = true
-                        Log.d(TAG, "Alarm sound running via native Ringtone.")
+                        if (r.isPlaying) {
+                            playedWithRingtone = true
+                            Log.d(TAG, "Alarm sound running via native Ringtone.")
+                        } else {
+                            Log.w(TAG, "Native Ringtone play() was called, but isPlaying is false.")
+                        }
                     }
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "Native Ringtone failed: ${e.message}, falling back to MediaPlayer.", e)
             }
 
-            // 2. Fallback: MediaPlayer if Ringtone not available
+            // 2. Fallback: MediaPlayer if Ringtone not available or silent
             if (!playedWithRingtone) {
+                Log.i(TAG, "Falling back to resource beep audio player.")
                 fallbackToResourceBeep(audioAttributes)
             }
         } catch (e: Exception) {
@@ -311,11 +354,13 @@ class AlarmSoundService : Service() {
             putExtra("actionType", actionType)
             putExtra("title", title)
             putExtra("portalUrl", portalUrl)
+            putExtra("triggerTimestamp", System.currentTimeMillis())
             addFlags(
                 Intent.FLAG_ACTIVITY_NEW_TASK or
                         Intent.FLAG_ACTIVITY_CLEAR_TOP or
                         Intent.FLAG_ACTIVITY_SINGLE_TOP or
-                        Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                        Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
+                        Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
             )
         }
 
@@ -418,6 +463,7 @@ class AlarmSoundService : Service() {
     private fun stopAlarm() {
         timeoutJob?.cancel()
         abandonAudioFocus()
+        restoreAlarmVolume()
 
         try {
             ringtone?.let {
@@ -464,6 +510,12 @@ class AlarmSoundService : Service() {
             @Suppress("DEPRECATION")
             stopForeground(true)
         }
+        try {
+            val dismissIntent = Intent(ACTION_ALARM_DISMISSED).apply {
+                setPackage(packageName)
+            }
+            sendBroadcast(dismissIntent)
+        } catch (_: Exception) {}
         stopSelf()
         Log.d(TAG, "AlarmSoundService stopped cleanly.")
     }

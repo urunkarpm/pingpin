@@ -5,6 +5,25 @@ All notable changes to **PingPin** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.1] - 2026-10-13
+
+### Fixed & Hardened (Multitask Alarm Fix & Reliability)
+- **Multitask Re-Ringing Prevention**: Excluded `AlarmActivity` from the Recent Apps / Multitasking screen (`android:excludeFromRecents="true"`, `android:autoRemoveFromRecents="true"`), pruned tasks with `finishAndRemoveTask()`, added history launch detection (`FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY`), trigger expiration checks, and dismissal broadcast synchronization to prevent alarms from re-ringing when reopened from multitask after process kill.
+- **Alarm Cancel Option**: Dedicated Cancel action on the full-screen alarm interface for both Check-In and Check-Out alarms.
+- **Smart Leave Suppression**: Automatically skips the evening check-out alarm when the user marks "Leave" in the morning.
+
+---
+
+## [3.2.0] - 2026-10-02
+
+### Added & Refined (Alarm Cancel Option, Smart Leave Alarm Skip & Settings Polish)
+- **Alarm Cancel Option**: Dedicated Cancel action on the full-screen alarm interface for both Check-In and Check-Out alarms.
+- **Smart Leave Suppression**: Automatically skips the evening check-out alarm when the user marks "Leave" in the morning.
+- **Settings & OTA Module Polish**: Restored the GitHub OTA Update Module tab layout in Settings (`SettingsCategory.UPDATES`) so updates and version info stack cleanly.
+- **Automation Color Theme**: Aligned Automation settings tab colors to `CrimsonRed` matching the calendar missed day theme.
+
+---
+
 ## [2.9.0] - 2026-09-29
 
 ### Added & Refined (Executive PDF Export Redesign, Stacked Analytics & Fluid Motion)

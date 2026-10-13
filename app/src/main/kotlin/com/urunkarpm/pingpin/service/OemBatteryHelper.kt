@@ -28,6 +28,7 @@ object OemBatteryHelper {
             manufacturer.contains("xiaomi") || brand.contains("xiaomi") || brand.contains("redmi") || brand.contains("poco") -> "Xiaomi"
             manufacturer.contains("samsung") || brand.contains("samsung") -> "Samsung"
             manufacturer.contains("oneplus") || brand.contains("oneplus") -> "OnePlus"
+            manufacturer.contains("nothing") || brand.contains("nothing") -> "Nothing"
             manufacturer.contains("vivo") || brand.contains("vivo") -> "Vivo"
             manufacturer.contains("oppo") || brand.contains("oppo") || brand.contains("realme") -> "Oppo/Realme"
             manufacturer.contains("huawei") || manufacturer.contains("honor") || brand.contains("huawei") || brand.contains("honor") -> "Huawei/Honor"
@@ -68,6 +69,16 @@ object OemBatteryHelper {
                     "Find \"PingPin\" → tap → select \"Don't optimize\""
                 ),
                 intentAction = Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS
+            )
+            "Nothing" -> OemBatteryGuidance(
+                oemName = "Nothing OS",
+                steps = listOf(
+                    "Open Settings → Apps → See all apps → PingPin",
+                    "Tap \"App battery usage\" → select \"Unrestricted\"",
+                    "Settings → Display / Glyph → verify Bedtime mode or Flip to Glyph allows alarm sounds",
+                    "Settings → System → RAM Booster → ensure PingPin background activity is allowed"
+                ),
+                intentAction = Settings.ACTION_APPLICATION_DETAILS_SETTINGS
             )
             "Vivo" -> OemBatteryGuidance(
                 oemName = "Vivo / FuntouchOS",
