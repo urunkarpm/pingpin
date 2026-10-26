@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.IntentFilter
 import android.net.wifi.WifiManager
 import com.urunkarpm.pingpin.receiver.WifiConnectionReceiver
+import com.urunkarpm.pingpin.service.NotificationService
 import com.urunkarpm.pingpin.service.WifiCheckWorker
 
 class PingPinApplication : Application() {
@@ -23,6 +24,9 @@ class PingPinApplication : Application() {
         // Dynamically register the WiFi connection receiver for active runtime events
         val filter = IntentFilter(WifiManager.NETWORK_STATE_CHANGED_ACTION)
         registerReceiver(wifiConnectionReceiver, filter)
+
+        // Validate and re-arm native clock alarms on process launch
+        NotificationService(this).verifyAndRescheduleAlarmsIfNeeded()
     }
 }
 

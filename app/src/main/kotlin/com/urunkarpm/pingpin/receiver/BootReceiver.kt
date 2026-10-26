@@ -33,13 +33,14 @@ class BootReceiver : BroadcastReceiver() {
             action == Intent.ACTION_DATE_CHANGED ||
             (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && action == AlarmManager.ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED)
         ) {
+            val pendingResult = goAsync()
             WifiCheckWorker.schedulePeriodicCheck(context)
             WifiConnectionReceiver.registerWifiNetworkCallback(context)
-            rescheduleAlarms(context)
+            rescheduleAlarms(context, pendingResult)
         }
     }
 
-    private fun rescheduleAlarms(context: Context) {
+    private fun rescheduleAlarms(context: Context, pendingResult: BroadcastReceiver.PendingResult? = null) {
         // Fast DirectBoot-compatible reschedule using Device-Protected SharedPreferences
         try {
             val prefs = NotificationService.getAlarmPreferences(context)
@@ -71,6 +72,8 @@ class BootReceiver : BroadcastReceiver() {
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error rescheduling alarms via DB: ${e.message}", e)
+            } finally {
+                pendingResult?.finish()
             }
         }
     }

@@ -16,6 +16,10 @@ import com.urunkarpm.pingpin.R
 import com.urunkarpm.pingpin.data.local.entity.OfficeConfigEntity
 import com.urunkarpm.pingpin.receiver.AlarmReceiver
 import java.util.Calendar
+import com.urunkarpm.pingpin.data.local.AppDatabase
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class NotificationService(private val context: Context) {
 
@@ -473,12 +477,46 @@ class NotificationService(private val context: Context) {
         val wfoDaysMask = prefs.getInt("wfoDaysMask", 0x1F)
         val portalUrl = prefs.getString("portalUrl", "") ?: ""
 
-        if (enabled && !checkInTime.isNullOrEmpty() && !checkOutTime.isNullOrEmpty()) {
-            scheduleCheckInAlarm(checkInTime, workingDaysMask, portalUrl)
-            scheduleCheckOutAlarm(checkOutTime, workingDaysMask, portalUrl)
-            scheduleEveWfoReminder(wfoDaysMask, workingDaysMask)
-            Log.d(TAG, "verifyAndRescheduleAlarmsIfNeeded: Alarms re-verified and scheduled.")
+        if (!enabled) {
+            Log.d(TAG, "verifyAndRescheduleAlarmsIfNeeded: Alarms disabled in preferences.")
+            return
         }
+
+        if (checkInTime.isNullOrEmpty() || checkOutTime.isNullOrEmpty()) {
+            // Self-heal: Fetch configuration from persistent Room database
+            try {
+                CoroutineScope(Dispatchers.IO).launch {
+                    val db = AppDatabase.getInstance(context)
+                    val config = db.officeConfigDao().getConfig()
+                    if (config != null) {
+                        scheduleAlarmsFromConfig(config)
+                        Log.d(TAG, "verifyAndRescheduleAlarmsIfNeeded: Self-healed alarms from Room database.")
+                    } else {
+                        val defaultConfig = OfficeConfigEntity()
+                        scheduleAlarmsFromConfig(defaultConfig)
+                        Log.d(TAG, "verifyAndRescheduleAlarmsIfNeeded: Self-healed with default office config.")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "verifyAndRescheduleAlarmsIfNeeded: Error querying DB fallback: ${e.message}", e)
+            }
+            return
+        }
+
+        scheduleCheckInAlarm(checkInTime, workingDaysMask, portalUrl)
+        scheduleCheckOutAlarm(checkOutTime, workingDaysMask, portalUrl)
+        scheduleEveWfoReminder(wfoDaysMask, workingDaysMask)
+        Log.d(TAG, "verifyAndRescheduleAlarmsIfNeeded: Alarms re-verified and scheduled.")
+    }
+
+    fun getFormattedNextAlarmTime(isCheckIn: Boolean): String {
+        val prefs = getAlarmPreferences(context)
+        val timeStr = prefs.getString(if (isCheckIn) "checkInTime" else "checkOutTime", null) ?: return "Not configured"
+        val workingDaysMask = prefs.getInt("workingDaysMask", 0x1F)
+        val (hour, minute) = parseTime(timeStr) ?: return "Invalid time"
+        val nextCal = getNextOccurrence(hour, minute, workingDaysMask)
+        val sdf = java.text.SimpleDateFormat("EEE, hh:mm a", java.util.Locale.getDefault())
+        return sdf.format(nextCal.time)
     }
 
     /**

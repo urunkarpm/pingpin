@@ -5,6 +5,17 @@ All notable changes to **PingPin** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.2] - 2026-10-26
+
+### Fixed & Hardened (Silent Alarm Resolution & Self-Healing Pipeline)
+- **Self-Healing Alarm Scheduler**: Added persistent Room database fallback in `verifyAndRescheduleAlarmsIfNeeded()` to automatically recover and schedule check-in/check-out alarms even if `SharedPreferences` are desynchronized or cleared.
+- **Background & Process-Lifecycle Rescheduling**: Armed alarms on app process startup (`PingPinApplication`) and added periodic 15-minute background validation checks in `WifiCheckWorker` to guarantee one-shot alarm chains never permanently break.
+- **Reboot Resilience with `goAsync()`**: Wrapped `BootReceiver` database operations in `goAsync()` to prevent the Android OS from killing the broadcast receiver before alarms are restored on device reboot.
+- **Audio Permission & Ringtone Concurrency Fix**: Declared `MODIFY_AUDIO_SETTINGS` permission in `AndroidManifest.xml` to allow alarm volume boosting without security exceptions, and resolved audio playback concurrency in `AlarmSoundService`.
+- **In-App Alarm Verification & Testing**: Added next-alarm display indicators and an interactive 5-second test alarm pipeline trigger in Settings -> Health for instant end-to-end diagnosis.
+
+---
+
 ## [3.2.1] - 2026-10-13
 
 ### Fixed & Hardened (Multitask Alarm Fix & Reliability)

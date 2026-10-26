@@ -64,6 +64,10 @@ class WifiCheckWorker(
                     WifiConnectionReceiver.markTodayAsHandled(applicationContext)
                 }
             }
+
+            // Self-heal: periodically verify that native clock alarms remain armed
+            NotificationService(applicationContext).verifyAndRescheduleAlarmsIfNeeded()
+
             Result.success()
         } catch (e: Exception) {
             Log.e(TAG, "Background Wi-Fi check worker error", e)

@@ -238,12 +238,8 @@ class AlarmSoundService : Service() {
                         }
                         r.play()
                         ringtone = r
-                        if (r.isPlaying) {
-                            playedWithRingtone = true
-                            Log.d(TAG, "Alarm sound running via native Ringtone.")
-                        } else {
-                            Log.w(TAG, "Native Ringtone play() was called, but isPlaying is false.")
-                        }
+                        playedWithRingtone = true
+                        Log.d(TAG, "Alarm sound running via native Ringtone.")
                     }
                 }
             } catch (e: Exception) {

@@ -2,14 +2,27 @@ package com.urunkarpm.pingpin.data
 
 object AppChangelog {
     const val CURRENT_VERSION_CHANGELOG = """
-### Multitask Alarm Fix & Reliability (v3.2.1)
-- **Multitask Re-Ringing Prevention**: Excluded `AlarmActivity` from the Recent Apps / Multitasking screen (`android:excludeFromRecents="true"`, `android:autoRemoveFromRecents="true"`), pruned tasks with `finishAndRemoveTask()`, added history launch detection (`FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY`), trigger expiration checks, and dismissal broadcast synchronization to prevent alarms from re-ringing when reopened from multitask after process kill.
-- **Alarm Cancel Option**: Dedicated Cancel action on the full-screen alarm interface for both Check-In and Check-Out alarms.
-- **Smart Leave Suppression**: Automatically skips the evening check-out alarm when the user marks "Leave" in the morning.
+### Silent Alarm Resolution & Self-Healing Pipeline (v3.2.2)
+- **Self-Healing Alarm Scheduler**: Added persistent Room database fallback in `verifyAndRescheduleAlarmsIfNeeded()` to automatically recover and schedule check-in/check-out alarms even if `SharedPreferences` are desynchronized or cleared.
+- **Background & Process-Lifecycle Rescheduling**: Armed alarms on app process startup (`PingPinApplication`) and added periodic 15-minute background validation checks in `WifiCheckWorker` to guarantee one-shot alarm chains never permanently break.
+- **Reboot Resilience with `goAsync()`**: Wrapped `BootReceiver` database operations in `goAsync()` to prevent the Android OS from killing the broadcast receiver before alarms are restored on device reboot.
+- **Audio Permission & Ringtone Concurrency Fix**: Declared `MODIFY_AUDIO_SETTINGS` permission in `AndroidManifest.xml` to allow alarm volume boosting without security exceptions, and resolved audio playback concurrency in `AlarmSoundService`.
+- **In-App Alarm Verification & Testing**: Added next-alarm display indicators and an interactive 5-second test alarm pipeline trigger in Settings -> Health for instant end-to-end diagnosis.
 """
 
     const val FULL_CHANGELOG = """
-## [3.2.1] - Current Release
+## [3.2.2] - Current Release
+
+### Silent Alarm Resolution & Self-Healing Pipeline
+- **Self-Healing Alarm Scheduler**: Added persistent Room database fallback in `verifyAndRescheduleAlarmsIfNeeded()` to automatically recover and schedule check-in/check-out alarms even if `SharedPreferences` are desynchronized or cleared.
+- **Background & Process-Lifecycle Rescheduling**: Armed alarms on app process startup (`PingPinApplication`) and added periodic 15-minute background validation checks in `WifiCheckWorker` to guarantee one-shot alarm chains never permanently break.
+- **Reboot Resilience with `goAsync()`**: Wrapped `BootReceiver` database operations in `goAsync()` to prevent the Android OS from killing the broadcast receiver before alarms are restored on device reboot.
+- **Audio Permission & Ringtone Concurrency Fix**: Declared `MODIFY_AUDIO_SETTINGS` permission in `AndroidManifest.xml` to allow alarm volume boosting without security exceptions, and resolved audio playback concurrency in `AlarmSoundService`.
+- **In-App Alarm Verification & Testing**: Added next-alarm display indicators and an interactive 5-second test alarm pipeline trigger in Settings -> Health for instant end-to-end diagnosis.
+
+---
+
+## [3.2.1]
 
 ### Multitask Alarm Fix & Reliability
 - **Multitask Re-Ringing Prevention**: Excluded `AlarmActivity` from the Recent Apps / Multitasking screen (`android:excludeFromRecents="true"`, `android:autoRemoveFromRecents="true"`), pruned tasks with `finishAndRemoveTask()`, added history launch detection (`FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY`), trigger expiration checks, and dismissal broadcast synchronization to prevent alarms from re-ringing when reopened from multitask after process kill.

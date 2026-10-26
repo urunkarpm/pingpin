@@ -484,4 +484,17 @@ class AlarmReliabilityTest {
         assertTrue("15-minute-old trigger must be considered expired", (now - expiredTriggerTimestamp) > maxAllowedAgeMs)
         assertFalse("30-second-old trigger must NOT be considered expired", (now - freshTriggerTimestamp) > maxAllowedAgeMs)
     }
+
+    @Test
+    fun testGetFormattedNextAlarmTimeFormat() {
+        val nextCal = NotificationService.getNextOccurrence(
+            hour = 9,
+            minute = 30,
+            workingDaysMask = WorkingDays.DEFAULT_WEEKDAYS
+        )
+        val sdf = java.text.SimpleDateFormat("EEE, hh:mm a", java.util.Locale.getDefault())
+        val formatted = sdf.format(nextCal.time)
+        assertTrue(formatted.contains("AM") || formatted.contains("PM"))
+        assertTrue(formatted.contains("9:30") || formatted.contains("09:30"))
+    }
 }
